@@ -1,5 +1,22 @@
 {
-  "global": {},
+  "global": {
+    "menugreen": {
+      "value": "#65E478",
+      "type": "color"
+    },
+    "menublack": {
+      "value": "#2E2F32",
+      "type": "color"
+    },
+    "menugray": {
+      "value": "#D9D9D9",
+      "type": "color"
+    },
+    "buttonblue": {
+      "value": "#2BADE9",
+      "type": "color"
+    }
+  },
   "$themes": [],
   "$metadata": {
     "tokenSetOrder": [
