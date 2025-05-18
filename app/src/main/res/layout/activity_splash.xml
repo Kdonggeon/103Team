@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
-    android:background="#F8FFF8"
+    android:background="#FFFFFF"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center_horizontal"> <!-- 가로만 중앙정렬 -->
@@ -10,23 +10,23 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="60dp"
-        android:background="#66DD66" />
+        android:background="@color/green" />
 
     <!-- 로고 이미지 -->
     <ImageView
-        android:layout_marginTop="50dp"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
+        android:layout_marginTop="170dp"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
         android:src="@drawable/logo"
         android:contentDescription="logo" />
 
     <!-- 텍스트 -->
     <TextView
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="180dp"
         android:text="Green Academy\nPartner"
         android:textAlignment="center"
-        android:textColor="#4CAF50"
-        android:textSize="20sp"
+        android:textColor="@color/green"
+        android:textSize="30sp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 </LinearLayout>

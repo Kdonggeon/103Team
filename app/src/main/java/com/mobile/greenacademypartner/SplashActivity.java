@@ -16,6 +16,6 @@ public class SplashActivity extends Activity {
             Intent intent = new Intent(SplashActivity.this, MainActivity.class);
             startActivity(intent);
             finish(); // 뒤로가기 눌러도 스플래시 화면이 안 보이게 종료
-        }, 5000); // 5000ms = 5초
+        }, 3000); // 5000ms = 5초
     }
 }
