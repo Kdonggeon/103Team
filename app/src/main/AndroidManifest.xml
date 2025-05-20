@@ -24,6 +24,8 @@
         <!-- MainActivity는 일반 액티비티로 유지 -->
         <activity android:name=".MainActivity" />
         <activity android:name=".ui.SignupActivity" />
+        <activity android:name=".ui.FindAccountActivity" />
+
 
     </application>
 
