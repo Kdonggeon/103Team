@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_horizontal"
+    android:background="#FFFFFF"
+    android:padding="24dp">
+
+    <!-- 로고 이미지 -->
+    <ImageView
+        android:layout_width="290dp"
+        android:layout_height="271dp"
+        android:layout_gravity="center"
+        android:layout_marginBottom="24dp"
+        android:contentDescription="로고"
+        android:src="@drawable/logo" />
+
+    <!-- 회색 테두리 박스 + 겹치는 타이틀 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- 회색 입력 박스 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/gray_border_box"
+            android:elevation="2dp"
+            android:orientation="vertical"
+            android:padding="16dp">
+            <Space
+            android:layout_width="match_parent"
+            android:layout_height="20dp"/>
+            <!-- 아이디 입력 -->
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/input_field"
+                android:hint="아이디"
+                android:padding="10dp" />
+
+            <!-- 비밀번호 입력 + 로그인 버튼 한 줄 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/input_field"
+                    android:hint="비밀번호"
+                    android:padding="10dp" />
+
+                <Button
+                    android:layout_width="100dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:backgroundTint="@color/green"
+                    android:text="로그인"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
+
+            <!-- 하단 텍스트/체크 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/signup_next"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingEnd="12dp"
+                    android:text="회원가입" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingEnd="12dp"
+                    android:text="ID/PW 찾기" />
+
+                <CheckBox
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="로그인 상태 유지" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 겹치는 ID/PW 로그인 라벨 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
+            android:background="@color/green"
+            android:elevation="3dp"
+            android:paddingStart="40dp"
+            android:paddingTop="20dp"
+            android:paddingEnd="40dp"
+            android:paddingBottom="10dp"
+            android:text="ID/PW 로그인"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:translationY="-12dp" />
+    </FrameLayout>
+</LinearLayout>
