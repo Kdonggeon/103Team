@@ -7,12 +7,11 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
-
-import androidx.appcompat.widget.Toolbar;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.core.view.GravityCompat;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -20,6 +19,7 @@ public class MainActivity extends AppCompatActivity {
     private Toolbar toolbar;
     private LinearLayout navContainer;
     private LinearLayout selectedItem = null;
+    private TextView mainContentText;
 
     private String[] labels = {
             "My Page", "출석 관리", "시간표", "Q&A", "공지사항", "설정"
@@ -51,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawer_layout);
         toolbar = findViewById(R.id.toolbar);
         navContainer = findViewById(R.id.nav_container);
+        mainContentText = findViewById(R.id.main_content_text);
 
         setSupportActionBar(toolbar);
 
@@ -62,7 +63,15 @@ public class MainActivity extends AppCompatActivity {
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
+
         setupNavigationMenu();
+
+        // 앱 시작 시 "시간표" 자동 선택
+        int defaultIndex = 2;
+        View defaultView = navContainer.getChildAt(defaultIndex);
+        if (defaultView != null) {
+            defaultView.performClick();
+        }
     }
 
     private void setupNavigationMenu() {
@@ -79,7 +88,13 @@ public class MainActivity extends AppCompatActivity {
             int index = i;
 
             layout.setOnClickListener(v -> {
-                // 이전 항목 스타일 초기화
+                if (selectedItem == layout) {
+                    drawerLayout.closeDrawer(GravityCompat.START);
+                    // drawerLayout.closeDrawer(navContainer); 를 쓰면 죽어서 변경 20250521
+                    return;
+                }
+
+                // 기존 선택 해제
                 if (selectedItem != null) {
                     int prevIndex = getIndexOfView(selectedItem, navContainer);
                     ImageView prevIcon = selectedItem.findViewById(R.id.nav_icon);
@@ -89,25 +104,24 @@ public class MainActivity extends AppCompatActivity {
                     selectedItem.setBackgroundColor(Color.LTGRAY);
                 }
 
-                // 현재 선택 항목 강조
+                // 현재 선택 적용
                 icon.setImageResource(icons_dark[index]);
                 text.setTextColor(Color.WHITE);
                 layout.setBackgroundColor(Color.DKGRAY);
                 selectedItem = layout;
 
-                Toast.makeText(this, labels[index] + " 클릭됨", Toast.LENGTH_SHORT).show();
-                drawerLayout.closeDrawer(navContainer);
+                // 메인 화면 내용 변경
+                if (labels[index].equals("시간표")) {
+                    mainContentText.setText("시간표 화면입니다");
+                } else {
+                    mainContentText.setText(labels[index] + "는 아직 구현되지 않았습니다.");
+                }
+
+                drawerLayout.closeDrawer(GravityCompat.START);
             });
 
-            layout.setBackgroundColor(Color.LTGRAY); // 기본 회색
+            layout.setBackgroundColor(Color.LTGRAY);
             navContainer.addView(itemView);
-            // 초기 선택: "시간표"
-            int defaultIndex = 2;
-            View defaultView = navContainer.getChildAt(defaultIndex);
-            if (defaultView != null) {
-                defaultView.performClick(); // 강제로 클릭 이벤트 발생시켜서 선택
-            }
-
         }
     }
 
@@ -117,5 +131,4 @@ public class MainActivity extends AppCompatActivity {
         }
         return -1;
     }
-
 }
