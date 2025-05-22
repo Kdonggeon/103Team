@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Green Academy Partner</string>
-    <string name="navigation_drawer_open">Open drawer</string>
-    <string name="navigation_drawer_close">Close drawer</string>
+    <string name="navigation_drawer_open">열기</string>
+    <string name="navigation_drawer_close">닫기</string>
+
 
 </resources>

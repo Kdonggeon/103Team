@@ -35,6 +35,6 @@
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:orientation="vertical"
-        android:background="@android:color/darker_gray"/>
+        android:background="@color/gray"/>
 
 </androidx.drawerlayout.widget.DrawerLayout>
