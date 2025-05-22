@@ -22,10 +22,15 @@
             </intent-filter>
         </activity>
         <!-- MainActivity는 일반 액티비티로 유지 -->
-        <activity android:name=".ui.SplashActivity$MainActivity" />
+        <activity android:name=".ui.MainActivity" />
         <activity android:name=".ui.SignupActivity" />
         <activity android:name=".ui.FindAccountActivity" />
         <activity android:name=".ui.SettingActivity" />
+        <activity android:name=".ui.MyPageActivity" />
+        <activity android:name=".ui.AttendanceActivity" />
+        <activity android:name=".ui.NoticeActivity" />
+        <activity android:name=".ui.QAActivity" />
+
 
 
     </application>
