@@ -11,6 +11,14 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.api.AuthApi;
+import com.mobile.greenacademypartner.api.RetrofitClient;
+import com.mobile.greenacademypartner.model.LoginRequest;
+import com.mobile.greenacademypartner.model.LoginResponse;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -18,6 +26,7 @@ public class LoginActivity extends AppCompatActivity {
     private TextView signupText;
     private EditText editTextId, editTextPassword;
     private Button loginButton;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,13 +57,42 @@ public class LoginActivity extends AppCompatActivity {
             String inputId = editTextId.getText().toString().trim();
             String inputPw = editTextPassword.getText().toString().trim();
 
-            // 추후 서버 연동 전까지는 임시 하드코딩
-            if (inputId.equals("admin") && inputPw.equals("1234")) {
-                loginSuccess();
-            } else {
-                Toast.makeText(this, "아이디 또는 비밀번호가 틀렸습니다", Toast.LENGTH_SHORT).show();
-            }
+            LoginRequest request = new LoginRequest(inputId, inputPw);
+            AuthApi api = RetrofitClient.getClient().create(AuthApi.class);
+
+            api.login(request).enqueue(new Callback<LoginResponse>() {
+                @Override
+                public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        LoginResponse res = response.body();
+
+                        // JWT 토큰 SharedPreferences에 저장
+                        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+                        prefs.edit()
+                                .putBoolean("is_logged_in", true)
+                                .putString("token", res.getToken())
+                                .putString("role", res.getRole())
+                                .putString("username", res.getUsername())
+                                .apply();
+
+                        Toast.makeText(LoginActivity.this, res.getRole() + " 로그인 성공", Toast.LENGTH_SHORT).show();
+
+                        // 홈 화면으로 이동
+                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                        startActivity(intent);
+                        finish();
+                    } else {
+                        Toast.makeText(LoginActivity.this, "로그인 실패: 아이디 또는 비밀번호를 확인하세요", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<LoginResponse> call, Throwable t) {
+                    Toast.makeText(LoginActivity.this, "서버 연결 실패", Toast.LENGTH_SHORT).show();
+                }
+            });
         });
+
     }
 
     // 로그인 성공 처리
@@ -66,4 +104,5 @@ public class LoginActivity extends AppCompatActivity {
         startActivity(intent);
         finish();
     }
+
 }
