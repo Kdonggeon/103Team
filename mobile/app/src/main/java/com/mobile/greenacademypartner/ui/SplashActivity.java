@@ -3,6 +3,7 @@ package com.mobile.greenacademypartner.ui;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.View;
@@ -19,20 +20,26 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 
 @SuppressLint("CustomSplashScreen")
-public class SplashActivity extends Activity {
+public class SplashActivity extends AppCompatActivity {
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_splash);
 
-        // 5초 뒤 MainActivity로 이동
         new Handler().postDelayed(() -> {
-            Intent intent = new Intent(SplashActivity.this, MainActivity.class);
-            startActivity(intent);
-            finish(); // 스플래시 화면을 백 스택에서 제거
-        }, 3000);
+            SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+            boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
+
+            if (isLoggedIn) {
+                // 로그인 유지: 메인으로 이동
+                startActivity(new Intent(SplashActivity.this, MainActivity.class));
+            } else {
+                // 로그인 안 됨: 로그인 화면으로 이동
+                startActivity(new Intent(SplashActivity.this, LoginActivity.class));
+            }
+
+            finish(); // 스플래시 종료
+        }, 1500); // 1.5초 지연
     }
-
-
-
 }
+

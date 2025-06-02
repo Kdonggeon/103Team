@@ -1,5 +1,7 @@
 package com.mobile.greenacademypartner.ui;
 
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -53,4 +55,13 @@ public class MainActivity extends AppCompatActivity {
         View defaultView = navContainer.getChildAt(defaultIndex);
         if (defaultView != null) defaultView.performClick();
     }
+    private void logout() {
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        prefs.edit().putBoolean("is_logged_in", false).apply();  // 로그인 해제
+
+        Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+        startActivity(intent);
+        finish(); // 현재 액티비티 종료
+    }
+
 }
