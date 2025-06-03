@@ -3,6 +3,7 @@ package com.mobile.greenacademypartner.ui;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -87,22 +88,17 @@ public class LoginActivity extends AppCompatActivity {
                 }
 
                 @Override
+
                 public void onFailure(Call<LoginResponse> call, Throwable t) {
+                    Log.e("RetrofitError", "서버 연결 실패", t);  // 이 줄 추가
                     Toast.makeText(LoginActivity.this, "서버 연결 실패", Toast.LENGTH_SHORT).show();
                 }
+
             });
         });
 
     }
 
-    // 로그인 성공 처리
-    private void loginSuccess() {
-        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        prefs.edit().putBoolean("is_logged_in", true).apply();
 
-        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-        startActivity(intent);
-        finish();
-    }
 
 }
