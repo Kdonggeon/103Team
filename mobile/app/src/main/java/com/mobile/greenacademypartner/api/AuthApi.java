@@ -5,9 +5,12 @@ import com.mobile.greenacademypartner.model.LoginResponse;
 
 import retrofit2.Call;
 import retrofit2.http.Body;
+import retrofit2.http.Headers;
 import retrofit2.http.POST;
 
 public interface AuthApi {
-    @POST("login")
+
+    @Headers("Content-Type: application/json")
+    @POST("/api/login")
     Call<LoginResponse> login(@Body LoginRequest request);
 }

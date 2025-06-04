@@ -11,6 +11,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.gson.Gson;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.AuthApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
@@ -60,41 +61,52 @@ public class LoginActivity extends AppCompatActivity {
 
             LoginRequest request = new LoginRequest(inputId, inputPw);
             AuthApi api = RetrofitClient.getClient().create(AuthApi.class);
+            //로그확인
+            Log.d("LoginData", "입력 아이디: " + inputId + ", 입력 비번: " + inputPw);
+
 
             api.login(request).enqueue(new Callback<LoginResponse>() {
                 @Override
                 public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        LoginResponse res = response.body();
+                    Log.d("LoginResponse", "isSuccessful: " + response.isSuccessful());
+                    Log.d("LoginResponse", "HTTP Code: " + response.code());
 
-                        // JWT 토큰 SharedPreferences에 저장
-                        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-                        prefs.edit()
-                                .putBoolean("is_logged_in", true)
-                                .putString("token", res.getToken())
-                                .putString("role", res.getRole())
-                                .putString("username", res.getUsername())
-                                .apply();
+                    try {
+                        if (response.isSuccessful() && response.body() != null) {
+                            LoginResponse res = response.body();
 
-                        Toast.makeText(LoginActivity.this, res.getRole() + " 로그인 성공", Toast.LENGTH_SHORT).show();
+                            Log.d("LoginResponse", "응답 바디: " + new Gson().toJson(res));
 
-                        // 홈 화면으로 이동
-                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                        startActivity(intent);
-                        finish();
-                    } else {
-                        Toast.makeText(LoginActivity.this, "로그인 실패: 아이디 또는 비밀번호를 확인하세요", Toast.LENGTH_SHORT).show();
+                            SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+                            prefs.edit()
+                                    .putBoolean("is_logged_in", true)
+                                    .putString("token", res.getToken())
+                                    .putString("role", res.getRole())
+                                    .putString("username", res.getUsername())
+                                    .apply();
+
+                            Toast.makeText(LoginActivity.this, res.getRole() + " 로그인 성공", Toast.LENGTH_SHORT).show();
+
+                            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                            startActivity(intent);
+                            finish();
+                        } else {
+                            String errorBody = response.errorBody() != null ? response.errorBody().string() : "없음";
+                            Log.e("LoginResponse", "실패 바디: " + errorBody);
+                            Toast.makeText(LoginActivity.this, "로그인 실패: 아이디 또는 비밀번호를 확인하세요", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Exception e) {
+                        Log.e("LoginResponse", "응답 처리 중 예외 발생", e);
                     }
                 }
 
                 @Override
-
                 public void onFailure(Call<LoginResponse> call, Throwable t) {
-                    Log.e("RetrofitError", "서버 연결 실패", t);  // 이 줄 추가
+                    Log.e("RetrofitError", "서버 연결 실패", t);
                     Toast.makeText(LoginActivity.this, "서버 연결 실패", Toast.LENGTH_SHORT).show();
                 }
-
             });
+
         });
 
     }

@@ -34,7 +34,8 @@ public class LoginController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         long studentId;
         int studentPw;
-
+        System.out.println("받은 아이디: " + request.getUsername());
+        System.out.println("받은 비밀번호: " + request.getPassword());
         try {
             studentId = Long.parseLong(request.getUsername());
             studentPw = Integer.parseInt(request.getPassword());
