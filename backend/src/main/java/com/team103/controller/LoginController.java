@@ -32,17 +32,26 @@ public class LoginController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        long studentId;
+        int studentPw;
 
-        // 1. 학생 체크
-        Student student = studentRepo.findByStudentIdAndStudentPw(
-                Long.parseLong(request.getUsername()), request.getPassword());
-        if (student != null) {
-            String token = jwtUtil.generateToken(student.getUsername(), "student");
-            return ResponseEntity.ok(
-                    new LoginResponse("success", "student", student.getUsername(), student.getName(), token));
+        try {
+            studentId = Long.parseLong(request.getUsername());
+            studentPw = Integer.parseInt(request.getPassword());
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("status", "fail", "message", "숫자 형식 오류"));
         }
 
-        // 2. 교사 체크
+        // 1. 학생 로그인 시도
+        Student student = studentRepo.findByStudentIdAndStudentPw(studentId, studentPw);
+        if (student != null) {
+            String token = jwtUtil.generateToken(String.valueOf(student.getStudentId()), "student");
+            return ResponseEntity.ok(
+                    new LoginResponse("success", "student", String.valueOf(student.getStudentId()), student.getStudentName(), token));
+        }
+
+        // 2. 교사 로그인 시도
         Teacher teacher = teacherRepo.findByUsernameAndPassword(request.getUsername(), request.getPassword());
         if (teacher != null) {
             String token = jwtUtil.generateToken(teacher.getUsername(), "teacher");
@@ -50,7 +59,7 @@ public class LoginController {
                     new LoginResponse("success", "teacher", teacher.getUsername(), teacher.getName(), token));
         }
 
-        // 3. 학부모 체크
+        // 3. 학부모 로그인 시도
         Parent parent = parentRepo.findByUsernameAndPassword(request.getUsername(), request.getPassword());
         if (parent != null) {
             String token = jwtUtil.generateToken(parent.getUsername(), "parent");
@@ -58,8 +67,8 @@ public class LoginController {
                     new LoginResponse("success", "parent", parent.getUsername(), parent.getName(), token));
         }
 
-        // 4. 로그인 실패
+        // 로그인 실패
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("status", "fail"));
+                .body(Map.of("status", "fail", "message", "일치하는 계정이 없습니다"));
     }
 }

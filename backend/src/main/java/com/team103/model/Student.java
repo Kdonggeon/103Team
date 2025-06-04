@@ -1,14 +1,10 @@
 package com.team103.model;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 @Document(collection = "students")
-@Data
-@NoArgsConstructor
 public class Student {
 
     @Id
@@ -21,13 +17,14 @@ public class Student {
     private long studentId;
 
     @Field("Student_PW")
-    private String studentPw;
+    private int studentPw;  // ← 기존 String → int 로 변경
+
 
     @Field("Student_Address")
-    private String studentAddress;
+    private String address;
 
     @Field("Student_Phone_Number")
-    private String studentPhoneNumber;
+    private String phoneNumber;
 
     @Field("School")
     private String school;
@@ -36,7 +33,7 @@ public class Student {
     private int grade;
 
     @Field("Parents_Number")
-    private String parentsNumber;
+    private long parentsNumber;
 
     @Field("Seat_Number")
     private int seatNumber;
@@ -47,11 +44,52 @@ public class Student {
     @Field("Gender")
     private String gender;
 
-    public String getUsername() {
-        return String.valueOf(studentId);
-    }
+    // Getter & Setter methods
+    public String getId() { return id; }
 
-    public String getName() {
-        return studentName;
-    }
+    public void setId(String id) { this.id = id; }
+
+    public String getStudentName() { return studentName; }
+
+    public void setStudentName(String studentName) { this.studentName = studentName; }
+
+    public long getStudentId() { return studentId; }
+
+    public void setStudentId(long studentId) { this.studentId = studentId; }
+
+    public int getStudentPw() { return studentPw; }
+
+    public void setStudentPw(int studentPw) { this.studentPw = studentPw; }
+
+    public String getAddress() { return address; }
+
+    public void setAddress(String address) { this.address = address; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getSchool() { return school; }
+
+    public void setSchool(String school) { this.school = school; }
+
+    public int getGrade() { return grade; }
+
+    public void setGrade(int grade) { this.grade = grade; }
+
+    public long getParentsNumber() { return parentsNumber; }
+
+    public void setParentsNumber(long parentsNumber) { this.parentsNumber = parentsNumber; }
+
+    public int getSeatNumber() { return seatNumber; }
+
+    public void setSeatNumber(int seatNumber) { this.seatNumber = seatNumber; }
+
+    public boolean isCheckedIn() { return checkedIn; }
+
+    public void setCheckedIn(boolean checkedIn) { this.checkedIn = checkedIn; }
+
+    public String getGender() { return gender; }
+
+    public void setGender(String gender) { this.gender = gender; }
 }
