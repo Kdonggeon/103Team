@@ -3,6 +3,7 @@ package com.team103.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import com.team103.dto.LoginRequest;
@@ -21,55 +22,47 @@ import java.util.Map;
 @RequestMapping("/api")
 public class LoginController {
 
-    @Autowired
-    private StudentRepository studentRepo;
-    @Autowired
-    private TeacherRepository teacherRepo;
-    @Autowired
-    private ParentRepository parentRepo;
-    @Autowired
-    private JwtUtil jwtUtil;
+    @Autowired private StudentRepository studentRepo;
+    @Autowired private TeacherRepository teacherRepo;
+    @Autowired private ParentRepository parentRepo;
+    @Autowired private JwtUtil jwtUtil;
+    @Autowired private PasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        long studentId;
-        int studentPw;
-        System.out.println("받은 아이디: " + request.getUsername());
-        System.out.println("받은 비밀번호: " + request.getPassword());
+        String idRaw = request.getUsername();
+        String password = request.getPassword();
+
+        long id;
         try {
-            studentId = Long.parseLong(request.getUsername());
-            studentPw = Integer.parseInt(request.getPassword());
+            id = Long.parseLong(idRaw);
         } catch (NumberFormatException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("status", "fail", "message", "숫자 형식 오류"));
+            return ResponseEntity.badRequest().body(Map.of("status", "fail", "message", "숫자 ID만 허용됩니다"));
         }
 
-        // 1. 학생 로그인 시도
-        Student student = studentRepo.findByStudentIdAndStudentPw(studentId, studentPw);
-        if (student != null) {
+        // 1. 학생
+        Student student = studentRepo.findByStudentId(id);
+        if (student != null && passwordEncoder.matches(password, student.getStudentPw())) {
             String token = jwtUtil.generateToken(String.valueOf(student.getStudentId()), "student");
-            return ResponseEntity.ok(
-                    new LoginResponse("success", "student", String.valueOf(student.getStudentId()), student.getStudentName(), token));
+            return ResponseEntity.ok(new LoginResponse("success", "student", String.valueOf(student.getStudentId()), student.getStudentName(), token));
         }
 
-        // 2. 교사 로그인 시도
-        Teacher teacher = teacherRepo.findByUsernameAndPassword(request.getUsername(), request.getPassword());
-        if (teacher != null) {
+        // 2. 교사
+        Teacher teacher = teacherRepo.findByUsername(String.valueOf(id));
+        if (teacher != null && passwordEncoder.matches(password, teacher.getPassword())) {
             String token = jwtUtil.generateToken(teacher.getUsername(), "teacher");
-            return ResponseEntity.ok(
-                    new LoginResponse("success", "teacher", teacher.getUsername(), teacher.getName(), token));
+            return ResponseEntity.ok(new LoginResponse("success", "teacher", teacher.getUsername(), teacher.getName(), token));
         }
 
-        // 3. 학부모 로그인 시도
-        Parent parent = parentRepo.findByUsernameAndPassword(request.getUsername(), request.getPassword());
-        if (parent != null) {
+        // 3. 학부모
+        Parent parent = parentRepo.findByUsername(String.valueOf(id));
+        if (parent != null && passwordEncoder.matches(password, parent.getPassword())) {
             String token = jwtUtil.generateToken(parent.getUsername(), "parent");
-            return ResponseEntity.ok(
-                    new LoginResponse("success", "parent", parent.getUsername(), parent.getName(), token));
+            return ResponseEntity.ok(new LoginResponse("success", "parent", parent.getUsername(), parent.getName(), token));
         }
 
-        // 로그인 실패
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("status", "fail", "message", "일치하는 계정이 없습니다"));
     }
+
 }

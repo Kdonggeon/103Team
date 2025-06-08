@@ -18,6 +18,7 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.LoginRequest;
 import com.mobile.greenacademypartner.model.LoginResponse;
 
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -44,7 +45,7 @@ public class LoginActivity extends AppCompatActivity {
 
         // 회원가입 이동
         signupText.setOnClickListener(v -> {
-            Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
+            Intent intent = new Intent(LoginActivity.this, RoleSelectActivity.class);
             startActivity(intent);
         });
 

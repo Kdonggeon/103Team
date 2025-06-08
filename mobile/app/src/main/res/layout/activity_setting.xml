@@ -10,6 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <!-- 툴바 -->
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar_setting"
             android:layout_width="match_parent"
@@ -19,6 +20,7 @@
             android:title="설정"
             android:titleTextColor="@android:color/white" />
 
+        <!-- 색상 선택 그리드 -->
         <GridLayout
             android:id="@+id/color_grid"
             android:layout_width="match_parent"
@@ -27,6 +29,26 @@
             android:columnCount="4"
             android:padding="16dp"
             android:rowCount="2" />
+
+        <!-- 여기 추가된 텍스트뷰 -->
+        <TextView
+            android:id="@+id/main_content_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="설정 내용"
+            android:textSize="18sp"
+            android:textColor="@android:color/black"
+            android:padding="16dp" />
+        <Button
+            android:id="@+id/btn_logout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="로그아웃"
+            android:layout_margin="16dp"
+            android:backgroundTint="@color/green"
+            android:textColor="@color/white"/>
+
+
     </LinearLayout>
 
     <!-- 사이드바 -->
@@ -36,6 +58,6 @@
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:orientation="vertical"
-        android:background="@android:color/darker_gray"/>
+        android:background="@android:color/darker_gray" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

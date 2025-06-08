@@ -27,11 +27,13 @@ public class Parent {
     // 기본 생성자
     public Parent() {}
 
-    public Parent(String username, String password, String name) {
+    public Parent(String username, String password, String name, String phoneNumber) {
         this.username = username;
         this.password = password;
         this.name = name;
+        this.phoneNumber = phoneNumber;
     }
+
 
     // Getter/Setter
     public String getId() { return id; }

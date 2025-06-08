@@ -11,4 +11,6 @@ public interface StudentRepository extends MongoRepository<Student, String> {
     Student findByStudentIdAndStudentPw(long studentId, int studentPw);
 
     Student findByStudentId(long studentId);
+    
+    boolean existsById(String id);
 }

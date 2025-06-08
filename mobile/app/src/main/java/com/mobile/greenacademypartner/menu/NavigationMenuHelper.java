@@ -1,7 +1,6 @@
 package com.mobile.greenacademypartner.menu;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,6 +14,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.core.view.GravityCompat;
 
 import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.ui.MainActivity;
 import com.mobile.greenacademypartner.ui.AttendanceActivity;
 import com.mobile.greenacademypartner.ui.MyPageActivity;
 import com.mobile.greenacademypartner.ui.NoticeActivity;
@@ -50,7 +50,7 @@ public class NavigationMenuHelper {
     private static final Class<?>[] targetActivities = {
             MyPageActivity.class,
             AttendanceActivity.class,
-            null,                 // 시간표(MainActivity)는 현재 페이지
+            MainActivity.class,
             QAActivity.class,
             NoticeActivity.class,
             SettingActivity.class
@@ -71,7 +71,7 @@ public class NavigationMenuHelper {
             int index = i;
 
             layout.setOnClickListener(v -> {
-                // 선택 처리
+                // 이전 선택 초기화
                 if (selectedItem != null) {
                     int prevIndex = ((ViewGroup) selectedItem.getParent()).indexOfChild(selectedItem);
                     ImageView prevIcon = selectedItem.findViewById(R.id.nav_icon);
@@ -81,16 +81,19 @@ public class NavigationMenuHelper {
                     selectedItem.setBackgroundColor(ContextCompat.getColor(activity, R.color.gray));
                 }
 
+                // 현재 선택 강조
                 icon.setImageResource(icons_dark[index]);
                 text.setTextColor(ContextCompat.getColor(activity, R.color.white));
                 layout.setBackgroundColor(ContextCompat.getColor(activity, R.color.black));
                 selectedItem = layout;
 
-                // 동작 처리
+                // ✅ 중복 실행 방지: 현재 Activity가 아니면 전환
                 if (targetActivities[index] != null && !activity.getClass().equals(targetActivities[index])) {
                     activity.startActivity(new Intent(activity, targetActivities[index]));
                 } else {
-                    mainContentText.setText(labels[index] + " 화면입니다");
+                    if (mainContentText != null) {
+                        mainContentText.setText(labels[index] + " 화면입니다");
+                    }
                 }
 
                 drawerLayout.closeDrawer(GravityCompat.START);
