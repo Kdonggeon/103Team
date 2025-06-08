@@ -12,8 +12,8 @@
 
         <EditText
             android:id="@+id/edit_id"
-            android:hint="학생 ID (숫자만 입력)"
-            android:inputType="number"
+            android:hint="학생 ID (문자/숫자 가능)"
+            android:inputType="text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp" />
@@ -21,7 +21,7 @@
         <EditText
             android:id="@+id/edit_pw"
             android:hint="비밀번호"
-            android:inputType="numberPassword"
+            android:inputType="textPassword"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp" />
@@ -29,7 +29,7 @@
         <EditText
             android:id="@+id/edit_pw_confirm"
             android:hint="비밀번호 확인"
-            android:inputType="numberPassword"
+            android:inputType="textPassword"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp" />
@@ -37,7 +37,7 @@
         <EditText
             android:id="@+id/edit_name"
             android:hint="이름"
-            android:inputType="textPersonName"
+            android:inputType="text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp" />

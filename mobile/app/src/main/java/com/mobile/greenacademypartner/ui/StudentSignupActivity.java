@@ -11,8 +11,11 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.model.StudentSignupRequest;
+import com.mobile.greenacademypartner.model.Student;
+
 import java.io.IOException;
 import java.util.Calendar;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -68,33 +71,46 @@ public class StudentSignupActivity extends AppCompatActivity {
                 return;
             }
 
-            int studentId = Integer.parseInt(idStr);
-            int studentPw = Integer.parseInt(pwStr);
+            if (!isValidPassword(pwStr)) {
+                Toast.makeText(this, "비밀번호는 8자 이상이며, 문자, 숫자, 특수문자를 포함해야 합니다.", Toast.LENGTH_LONG).show();
+                return;
+            }
 
-            StudentSignupRequest request = new StudentSignupRequest(studentId, studentPw, name, phone, birth, gender);
+            StudentSignupRequest request = new StudentSignupRequest(
+                    idStr, pwStr, name, phone, birth, gender
+            );
 
             StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-            api.signupStudent(request).enqueue(new Callback<Void>() {
+            api.signupStudent(request).enqueue(new Callback<Student>() {
                 @Override
-                public void onResponse(Call<Void> call, Response<Void> response) {
-                    if (response.isSuccessful()) {
-                        Toast.makeText(StudentSignupActivity.this, "회원가입 성공!", Toast.LENGTH_SHORT).show();
+                public void onResponse(Call<Student> call, Response<Student> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        Student savedStudent = response.body();
+                        Toast.makeText(StudentSignupActivity.this,
+                                "회원가입 성공! " + savedStudent.getStudentName(), Toast.LENGTH_SHORT).show();
                         startActivity(new Intent(StudentSignupActivity.this, LoginActivity.class));
                         finish();
                     } else {
+                        String errorMsg = "서버 오류";
                         try {
-                            String errorMsg = response.errorBody().string();
-                            Log.e("회원가입 오류", errorMsg);
-                            Toast.makeText(StudentSignupActivity.this, "서버 오류: " + errorMsg, Toast.LENGTH_LONG).show();
+                            if (response.errorBody() != null) {
+                                errorMsg = response.errorBody().string();
+                            }
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            errorMsg = "에러 본문 파싱 실패: " + e.getMessage();
                         }
+
+                        int statusCode = response.code();
+                        Log.e("회원가입 오류", "code: " + statusCode + ", body: " + errorMsg);
+                        Toast.makeText(StudentSignupActivity.this,
+                                "서버 오류 (" + statusCode + "): " + errorMsg, Toast.LENGTH_LONG).show();
                     }
                 }
 
                 @Override
-                public void onFailure(Call<Void> call, Throwable t) {
+                public void onFailure(Call<Student> call, Throwable t) {
                     Toast.makeText(StudentSignupActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e("회원가입 네트워크 오류", t.getMessage(), t);
                 }
             });
         });
@@ -106,5 +122,10 @@ public class StudentSignupActivity extends AppCompatActivity {
             String birthStr = String.format("%04d-%02d-%02d", year, month + 1, day);
             editBirth.setText(birthStr);
         }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show();
+    }
+
+    private boolean isValidPassword(String password) {
+        String pattern = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$";
+        return password.matches(pattern);
     }
 }

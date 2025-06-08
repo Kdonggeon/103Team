@@ -3,11 +3,12 @@ package com.mobile.greenacademypartner.model;
 import com.google.gson.annotations.SerializedName;
 
 public class StudentSignupRequest {
+
     @SerializedName("studentId")
-    private int studentId;
+    private String studentId;
 
     @SerializedName("studentPw")
-    private int studentPw;
+    private String studentPw;
 
     @SerializedName("studentName")
     private String studentName;
@@ -21,7 +22,7 @@ public class StudentSignupRequest {
     @SerializedName("studentGender")
     private String studentGender;
 
-    public StudentSignupRequest(int studentId, int studentPw, String studentName,
+    public StudentSignupRequest(String studentId, String studentPw, String studentName,
                                 String studentPhone, String studentBirth, String studentGender) {
         this.studentId = studentId;
         this.studentPw = studentPw;
@@ -29,5 +30,14 @@ public class StudentSignupRequest {
         this.studentPhone = studentPhone;
         this.studentBirth = studentBirth;
         this.studentGender = studentGender;
+    }
+
+    // Getter 예시 (response.body() 활용 시 필요)
+    public String getStudentId() {
+        return studentId;
+    }
+
+    public String getStudentName() {
+        return studentName;
     }
 }
