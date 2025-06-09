@@ -10,29 +10,23 @@ public class Parent {
     @Id
     private String id;
 
-    @Field("Parents_ID")
     private String parentsId;
-
-    @Field("Parents_PW")
     private String parentsPw;
-
-    @Field("Parents_Name")
     private String parentsName;
-
     @Field("Parents_Phone_Number")
-    private long parentsPhoneNumber;
+    private String parentsPhoneNumber;
 
-    public Parent(String id, String parentsId, String parentsPw, String parentsName, long parentsPhoneNumber) {
-        this.id = id;
+
+    public Parent() {}
+
+    public Parent(String parentsId, String parentsPw, String parentsName, String parentsPhoneNumber) {
         this.parentsId = parentsId;
         this.parentsPw = parentsPw;
         this.parentsName = parentsName;
         this.parentsPhoneNumber = parentsPhoneNumber;
     }
 
-    // Getters and setters
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
 
     public String getParentsId() { return parentsId; }
     public void setParentsId(String parentsId) { this.parentsId = parentsId; }
@@ -43,6 +37,6 @@ public class Parent {
     public String getParentsName() { return parentsName; }
     public void setParentsName(String parentsName) { this.parentsName = parentsName; }
 
-    public long getParentsPhoneNumber() { return parentsPhoneNumber; }
-    public void setParentsPhoneNumber(long parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
+    public String getParentsPhoneNumber() { return parentsPhoneNumber; }
+    public void setParentsPhoneNumber(String parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
 }

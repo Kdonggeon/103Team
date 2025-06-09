@@ -35,12 +35,13 @@ public class ParentController {
             return ResponseEntity.badRequest().body("비밀번호는 필수 입력 항목입니다.");
         }
 
-        Parent parent = request.toEntity();
-        parent.setParentsPw(passwordEncoder.encode(request.getParentsPw()));
+        String encodedPw = passwordEncoder.encode(request.getParentsPw());
+        Parent parent = request.toEntity(encodedPw);  
 
         Parent saved = repo.save(parent);
         return ResponseEntity.ok(saved);
     }
+
 
     @GetMapping("/{id}")
     public Parent getById(@PathVariable String id) {

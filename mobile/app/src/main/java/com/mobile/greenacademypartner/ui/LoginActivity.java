@@ -51,9 +51,10 @@ public class LoginActivity extends AppCompatActivity {
 
         // 계정 찾기 이동
         findAccount.setOnClickListener(v -> {
-            Intent intent = new Intent(LoginActivity.this, FindAccountActivity.class);
+            Intent intent = new Intent(LoginActivity.this, FindSelectActivity.class);
             startActivity(intent);
         });
+
 
         // 로그인 버튼 눌렀을 때
         loginButton.setOnClickListener(v -> {

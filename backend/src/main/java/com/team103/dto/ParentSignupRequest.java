@@ -10,11 +10,12 @@ public class ParentSignupRequest {
     private String parentsName;
     private long parentsPhoneNumber;
 
+    // 🔽 toEntity 메서드 정의
     public Parent toEntity(String encodedPw) {
-        return new Parent(id, parentsId, encodedPw, parentsName, parentsPhoneNumber);
+        return new Parent(parentsId, encodedPw, parentsName, parentsPhoneNumber);
     }
 
-    // Getters and setters
+    // Getter/Setter
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 

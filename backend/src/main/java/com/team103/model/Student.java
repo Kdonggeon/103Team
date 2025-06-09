@@ -23,7 +23,8 @@ public class Student {
     private String address;
 
     @Field("Student_Phone_Number")
-    private String phoneNumber;
+    private String studentPhoneNumber; // 이름 정확히 맞춰야 함!
+
 
     @Field("School")
     private String school;
@@ -46,14 +47,14 @@ public class Student {
     public Student() {}
 
     public Student(String id, String studentName, String studentId, String studentPw, String address,
-                   String phoneNumber, String school, int grade, long parentsNumber,
+                   String studentPhoneNumber, String school, int grade, long parentsNumber,
                    int seatNumber, boolean checkedIn, String gender) {
         this.id = id;
         this.studentName = studentName;
         this.studentId = studentId;
         this.studentPw = studentPw;
         this.address = address;
-        this.phoneNumber = phoneNumber;
+        this.studentPhoneNumber = studentPhoneNumber;
         this.school = school;
         this.grade = grade;
         this.parentsNumber = parentsNumber;
@@ -77,8 +78,8 @@ public class Student {
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
 
-    public String getPhoneNumber() { return phoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+    public String getPhoneNumber() { return studentPhoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.studentPhoneNumber = phoneNumber; }
 
     public String getSchool() { return school; }
     public void setSchool(String school) { this.school = school; }

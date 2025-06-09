@@ -6,4 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 public interface TeacherRepository extends MongoRepository<Teacher, String> {
     boolean existsByTeacherId(String teacherId);
     Teacher findByTeacherId(String teacherId);
+    
+    Teacher findByTeacherNameAndTeacherPhoneNumber(String name, String phone);
+
 }

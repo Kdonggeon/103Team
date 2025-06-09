@@ -39,6 +39,10 @@
         <activity android:name=".ui.StudentSignupActivity" />
         <activity android:name=".ui.ParentSignupActivity" />
         <activity android:name=".ui.TeacherSignupActivity" />
+        <activity android:name=".ui.FindIdActivity" />
+        <activity android:name=".ui.ResetPasswordActivity" />
+        <activity android:name=".ui.FindSelectActivity" />
+
 
 
 

@@ -15,4 +15,6 @@ public interface StudentRepository extends MongoRepository<Student, String> {
 
     // 필요 시 사용
     boolean existsByStudentId(String studentId);
+    
+    Student findByStudentNameAndStudentPhoneNumber(String name, String phoneNumber);
 }
