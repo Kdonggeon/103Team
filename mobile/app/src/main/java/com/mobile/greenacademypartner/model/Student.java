@@ -1,37 +1,63 @@
 package com.mobile.greenacademypartner.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class Student {
-    private int _id;
+
+    @SerializedName("_id")
+    private String _id;
+
+    @SerializedName("Student_Name")
     private String studentName;
-    private long studentId;
-    private int studentPw;
+
+    @SerializedName("Student_ID")
+    private String studentId; // ✅ long → String
+
+    @SerializedName("Student_PW")
+    private String studentPw; // ✅ int → String (암호화 문자열 받기 위해)
+
+    @SerializedName("Student_Address")
     private String studentAddress;
-    private long studentPhoneNumber;
+
+    @SerializedName("Student_Phone_Number")
+    private String studentPhoneNumber; // ✅ long → String (앞자리 0 보존 위해 문자열이 적합)
+
+    @SerializedName("School")
     private String school;
+
+    @SerializedName("Grade")
     private int grade;
+
+    @SerializedName("Parents_Number")
     private int parentsNumber;
+
+    @SerializedName("Seat_Number")
     private int seatNumber;
+
+    @SerializedName("Checked_In")
     private boolean checkedIn;
+
+    @SerializedName("Gender")
     private String gender;
 
-    // Getter/Setter
-    public int get_id() { return _id; }
-    public void set_id(int _id) { this._id = _id; }
+    // ✅ Getter & Setter
+    public String get_id() { return _id; }
+    public void set_id(String _id) { this._id = _id; }
 
     public String getStudentName() { return studentName; }
     public void setStudentName(String studentName) { this.studentName = studentName; }
 
-    public long getStudentId() { return studentId; }
-    public void setStudentId(long studentId) { this.studentId = studentId; }
+    public String getStudentId() { return studentId; }
+    public void setStudentId(String studentId) { this.studentId = studentId; }
 
-    public int getStudentPw() { return studentPw; }
-    public void setStudentPw(int studentPw) { this.studentPw = studentPw; }
+    public String getStudentPw() { return studentPw; }
+    public void setStudentPw(String studentPw) { this.studentPw = studentPw; }
 
     public String getStudentAddress() { return studentAddress; }
     public void setStudentAddress(String studentAddress) { this.studentAddress = studentAddress; }
 
-    public long getStudentPhoneNumber() { return studentPhoneNumber; }
-    public void setStudentPhoneNumber(long studentPhoneNumber) { this.studentPhoneNumber = studentPhoneNumber; }
+    public String getStudentPhoneNumber() { return studentPhoneNumber; }
+    public void setStudentPhoneNumber(String studentPhoneNumber) { this.studentPhoneNumber = studentPhoneNumber; }
 
     public String getSchool() { return school; }
     public void setSchool(String school) { this.school = school; }

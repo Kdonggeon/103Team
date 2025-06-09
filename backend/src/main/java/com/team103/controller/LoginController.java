@@ -30,39 +30,34 @@ public class LoginController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        String idRaw = request.getUsername();
+        String username = request.getUsername();
         String password = request.getPassword();
 
-        long id;
-        try {
-            id = Long.parseLong(idRaw);
-        } catch (NumberFormatException e) {
-            return ResponseEntity.badRequest().body(Map.of("status", "fail", "message", "숫자 ID만 허용됩니다"));
-        }
-
         // 1. 학생
-        Student student = studentRepo.findByStudentId(id);
+        Student student = studentRepo.findByStudentId(username);
         if (student != null && passwordEncoder.matches(password, student.getStudentPw())) {
-            String token = jwtUtil.generateToken(String.valueOf(student.getStudentId()), "student");
-            return ResponseEntity.ok(new LoginResponse("success", "student", String.valueOf(student.getStudentId()), student.getStudentName(), token));
+            String token = jwtUtil.generateToken(student.getStudentId(), "student");
+            return ResponseEntity.ok(new LoginResponse("success", "student",
+                    student.getStudentId(), student.getStudentName(), token));
         }
 
-        // 2. 교사
-        Teacher teacher = teacherRepo.findByUsername(String.valueOf(id));
-        if (teacher != null && passwordEncoder.matches(password, teacher.getPassword())) {
-            String token = jwtUtil.generateToken(teacher.getUsername(), "teacher");
-            return ResponseEntity.ok(new LoginResponse("success", "teacher", teacher.getUsername(), teacher.getName(), token));
+     // 2. 교사
+        Teacher teacher = teacherRepo.findByTeacherId(username);
+        if (teacher != null && passwordEncoder.matches(password, teacher.getTeacherPw())) {
+            String token = jwtUtil.generateToken(teacher.getTeacherId(), "teacher");
+            return ResponseEntity.ok(new LoginResponse("success", "teacher",
+                    teacher.getTeacherId(), teacher.getTeacherName(), token));
         }
 
         // 3. 학부모
-        Parent parent = parentRepo.findByUsername(String.valueOf(id));
-        if (parent != null && passwordEncoder.matches(password, parent.getPassword())) {
-            String token = jwtUtil.generateToken(parent.getUsername(), "parent");
-            return ResponseEntity.ok(new LoginResponse("success", "parent", parent.getUsername(), parent.getName(), token));
+        Parent parent = parentRepo.findByParentsId(username);
+        if (parent != null && passwordEncoder.matches(password, parent.getParentsPw())) {
+            String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
+            return ResponseEntity.ok(new LoginResponse("success", "parent",
+                    parent.getParentsId(), parent.getParentsName(), token));
         }
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("status", "fail", "message", "일치하는 계정이 없습니다"));
     }
-
 }

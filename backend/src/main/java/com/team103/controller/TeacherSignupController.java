@@ -3,7 +3,6 @@ package com.team103.controller;
 import com.team103.dto.TeacherSignupRequest;
 import com.team103.model.Teacher;
 import com.team103.repository.TeacherRepository;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,22 +21,18 @@ public class TeacherSignupController {
 
     @PostMapping
     public ResponseEntity<String> signup(@RequestBody TeacherSignupRequest req) {
-
-        // ID 중복 확인
-        if (teacherRepo.existsById(req.getUsername())) {
+        if (teacherRepo.existsByTeacherId(req.getTeacherId())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 존재하는 교사 ID입니다");
         }
 
-        // 비밀번호 암호화
-        String encodedPw;
+        String encryptedPw;
         try {
-            encodedPw = passwordEncoder.encode(req.getPassword());
+            encryptedPw = passwordEncoder.encode(req.getTeacherPw());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("비밀번호 암호화 실패");
         }
 
-        // 저장
-        Teacher teacher = req.toEntity(encodedPw);
+        Teacher teacher = req.toEntity(encryptedPw);
         teacherRepo.save(teacher);
 
         return ResponseEntity.ok("교사 회원가입 성공");

@@ -6,11 +6,13 @@ import org.springframework.data.mongodb.repository.Query;
 
 public interface StudentRepository extends MongoRepository<Student, String> {
 
-    // 명시적 쿼리 작성
+    // 🔄 명시적 쿼리: String 타입으로 수정
     @Query("{ 'Student_ID': ?0, 'Student_PW': ?1 }")
-    Student findByStudentIdAndStudentPw(long studentId, int studentPw);
+    Student findByStudentIdAndStudentPw(String studentId, String studentPw);
 
-    Student findByStudentId(long studentId);
-    
-    boolean existsById(String id);
+    // 🔄 기본 검색: studentId 기준
+    Student findByStudentId(String studentId);
+
+    // 필요 시 사용
+    boolean existsByStudentId(String studentId);
 }

@@ -4,25 +4,29 @@ import com.team103.model.Parent;
 
 public class ParentSignupRequest {
 
-    private String username;
-    private String password;
-    private String name;
-    private String phoneNumber;
+    private String id;
+    private String parentsId;
+    private String parentsPw;
+    private String parentsName;
+    private long parentsPhoneNumber;
 
     public Parent toEntity(String encodedPw) {
-        return new Parent(username, encodedPw, name, phoneNumber);
+        return new Parent(id, parentsId, encodedPw, parentsName, parentsPhoneNumber);
     }
 
-    // 직접 작성한 Getter & Setter
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    // Getters and setters
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+    public String getParentsId() { return parentsId; }
+    public void setParentsId(String parentsId) { this.parentsId = parentsId; }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getParentsPw() { return parentsPw; }
+    public void setParentsPw(String parentsPw) { this.parentsPw = parentsPw; }
 
-    public String getPhoneNumber() { return phoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+    public String getParentsName() { return parentsName; }
+    public void setParentsName(String parentsName) { this.parentsName = parentsName; }
+
+    public long getParentsPhoneNumber() { return parentsPhoneNumber; }
+    public void setParentsPhoneNumber(long parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
 }

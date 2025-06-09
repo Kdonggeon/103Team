@@ -10,40 +10,47 @@ public class Teacher {
     @Id
     private String id;
 
+    @Field("Teacher_Name")
+    private String teacherName;
+
     @Field("Teacher_ID")
-    private String username;
+    private String teacherId;
 
     @Field("Teacher_PW")
-    private String password;
-
-    @Field("Teacher_Name")
-    private String name;
+    private String teacherPw;
 
     @Field("Teacher_Phone_Number")
-    private String phoneNumber;
+    private long teacherPhoneNumber;
 
-    public Teacher() {}
+    @Field("Academy_Number")
+    private int academyNumber;
 
-    public Teacher(String username, String password, String name, String phoneNumber) {
-        this.username = username;
-        this.password = password;
-        this.name = name;
-        this.phoneNumber = phoneNumber;
+    public Teacher(String id, String teacherName, String teacherId, String teacherPw,
+                   long teacherPhoneNumber, int academyNumber) {
+        this.id = id;
+        this.teacherName = teacherName;
+        this.teacherId = teacherId;
+        this.teacherPw = teacherPw;
+        this.teacherPhoneNumber = teacherPhoneNumber;
+        this.academyNumber = academyNumber;
     }
 
-    // Getters & Setters
+    // Getters and setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    public String getTeacherName() { return teacherName; }
+    public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
 
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+    public String getTeacherId() { return teacherId; }
+    public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getTeacherPw() { return teacherPw; }
+    public void setTeacherPw(String teacherPw) { this.teacherPw = teacherPw; }
 
-    public String getPhoneNumber() { return phoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+    public long getTeacherPhoneNumber() { return teacherPhoneNumber; }
+    public void setTeacherPhoneNumber(long teacherPhoneNumber) { this.teacherPhoneNumber = teacherPhoneNumber; }
+
+    public int getAcademyNumber() { return academyNumber; }
+    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
 }

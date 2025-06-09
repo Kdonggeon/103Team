@@ -14,10 +14,10 @@ public class Student {
     private String studentName;
 
     @Field("Student_ID")
-    private long studentId;
+    private String studentId;  // 🔄 long → String
 
     @Field("Student_PW")
-    private String studentPw;  // ✅ int → String 으로 변경
+    private String studentPw;
 
     @Field("Student_Address")
     private String address;
@@ -45,7 +45,7 @@ public class Student {
 
     public Student() {}
 
-    public Student(String id, String studentName, long studentId, String studentPw, String address,
+    public Student(String id, String studentName, String studentId, String studentPw, String address,
                    String phoneNumber, String school, int grade, long parentsNumber,
                    int seatNumber, boolean checkedIn, String gender) {
         this.id = id;
@@ -68,11 +68,11 @@ public class Student {
     public String getStudentName() { return studentName; }
     public void setStudentName(String studentName) { this.studentName = studentName; }
 
-    public long getStudentId() { return studentId; }
-    public void setStudentId(long studentId) { this.studentId = studentId; }
+    public String getStudentId() { return studentId; }  // 🔄 getter 변경
+    public void setStudentId(String studentId) { this.studentId = studentId; }  // 🔄 setter 변경
 
-    public String getStudentPw() { return studentPw; }  // ✅ String getter
-    public void setStudentPw(String studentPw) { this.studentPw = studentPw; }  // ✅ String setter
+    public String getStudentPw() { return studentPw; }
+    public void setStudentPw(String studentPw) { this.studentPw = studentPw; }
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
