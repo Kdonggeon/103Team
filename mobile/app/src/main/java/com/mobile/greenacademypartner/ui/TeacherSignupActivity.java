@@ -1,5 +1,6 @@
 package com.mobile.greenacademypartner.ui;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -37,8 +38,24 @@ public class TeacherSignupActivity extends AppCompatActivity {
             String name = editName.getText().toString().trim();
             String id = editId.getText().toString().trim();
             String pw = editPw.getText().toString().trim();
-            long phone = Long.parseLong(editPhone.getText().toString().trim());
-            int academy = Integer.parseInt(editAcademy.getText().toString().trim());
+            String phoneStr = editPhone.getText().toString().trim();
+            String academyStr = editAcademy.getText().toString().trim();
+
+            // 입력값 유효성 검사
+            if (name.isEmpty() || id.isEmpty() || pw.isEmpty() || phoneStr.isEmpty() || academyStr.isEmpty()) {
+                Toast.makeText(this, "모든 항목을 입력해주세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            long phone;
+            int academy;
+            try {
+                phone = Long.parseLong(phoneStr);
+                academy = Integer.parseInt(academyStr);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "전화번호와 학원번호는 숫자여야 합니다.", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
             TeacherSignupRequest request = new TeacherSignupRequest(name, id, pw, phone, academy);
 
@@ -48,6 +65,10 @@ public class TeacherSignupActivity extends AppCompatActivity {
                 public void onResponse(Call<Void> call, Response<Void> response) {
                     if (response.isSuccessful()) {
                         Toast.makeText(TeacherSignupActivity.this, "회원가입 성공", Toast.LENGTH_SHORT).show();
+                        // ✅ 로그인 화면으로 이동
+                        Intent intent = new Intent(TeacherSignupActivity.this, LoginActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
                         finish();
                     } else {
                         Toast.makeText(TeacherSignupActivity.this, "회원가입 실패: " + response.code(), Toast.LENGTH_SHORT).show();

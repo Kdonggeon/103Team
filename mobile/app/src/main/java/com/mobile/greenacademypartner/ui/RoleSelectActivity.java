@@ -25,12 +25,12 @@ public class RoleSelectActivity extends AppCompatActivity {
             startActivity(new Intent(this, StudentSignupActivity.class));
         });
 
-//        btnParent.setOnClickListener(v -> {
-//            startActivity(new Intent(this, ParentSignupActivity.class));
-//        });
-//
-//        btnTeacher.setOnClickListener(v -> {
-//            startActivity(new Intent(this, TeacherSignupActivity.class));
-//        });
+        btnParent.setOnClickListener(v -> {
+            startActivity(new Intent(this, ParentSignupActivity.class));
+        });
+
+        btnTeacher.setOnClickListener(v -> {
+            startActivity(new Intent(this, TeacherSignupActivity.class));
+        });
     }
 }
