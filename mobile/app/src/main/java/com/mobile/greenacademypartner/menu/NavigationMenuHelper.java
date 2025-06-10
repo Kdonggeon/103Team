@@ -56,7 +56,7 @@ public class NavigationMenuHelper {
             SettingActivity.class
     };
 
-    public static void setupMenu(Activity activity, LinearLayout navContainer, DrawerLayout drawerLayout, TextView mainContentText) {
+    public static void setupMenu(Activity activity, LinearLayout navContainer, DrawerLayout drawerLayout, TextView mainContentText, int initialSelectedIndex) {
         LayoutInflater inflater = LayoutInflater.from(activity);
 
         for (int i = 0; i < labels.length; i++) {
@@ -70,8 +70,15 @@ public class NavigationMenuHelper {
 
             int index = i;
 
+            // ✅ 초기 강조 처리
+            if (i == initialSelectedIndex) {
+                icon.setImageResource(icons_dark[i]);
+                text.setTextColor(ContextCompat.getColor(activity, R.color.white));
+                layout.setBackgroundColor(ContextCompat.getColor(activity, R.color.black));
+                selectedItem = layout;
+            }
+
             layout.setOnClickListener(v -> {
-                // 이전 선택 초기화
                 if (selectedItem != null) {
                     int prevIndex = ((ViewGroup) selectedItem.getParent()).indexOfChild(selectedItem);
                     ImageView prevIcon = selectedItem.findViewById(R.id.nav_icon);
@@ -81,13 +88,11 @@ public class NavigationMenuHelper {
                     selectedItem.setBackgroundColor(ContextCompat.getColor(activity, R.color.gray));
                 }
 
-                // 현재 선택 강조
                 icon.setImageResource(icons_dark[index]);
                 text.setTextColor(ContextCompat.getColor(activity, R.color.white));
                 layout.setBackgroundColor(ContextCompat.getColor(activity, R.color.black));
                 selectedItem = layout;
 
-                // ✅ 중복 실행 방지: 현재 Activity가 아니면 전환
                 if (targetActivities[index] != null && !activity.getClass().equals(targetActivities[index])) {
                     activity.startActivity(new Intent(activity, targetActivities[index]));
                 } else {
@@ -102,4 +107,5 @@ public class NavigationMenuHelper {
             navContainer.addView(itemView);
         }
     }
+
 }

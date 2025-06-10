@@ -4,11 +4,14 @@ import com.mobile.greenacademypartner.model.LoginRequest;
 import com.mobile.greenacademypartner.model.LoginResponse;
 import com.mobile.greenacademypartner.model.StudentSignupRequest;
 import com.mobile.greenacademypartner.model.Student;
+import com.mobile.greenacademypartner.model.StudentUpdateRequest;
 
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.Headers;
 import retrofit2.http.POST;
+import retrofit2.http.PUT;
+import retrofit2.http.Path;
 
 public interface StudentApi {
 
@@ -18,5 +21,7 @@ public interface StudentApi {
     @Headers("Content-Type: application/json")
     @POST("/api/students")
     Call<Student> signupStudent(@Body StudentSignupRequest request);
+    @PUT("/api/students/{id}")
+    Call<Void> updateStudent(@Path("id") String studentId, @Body StudentUpdateRequest request);
 
 }

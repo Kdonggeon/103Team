@@ -8,6 +8,8 @@ public class LoginResponse {
     private String name;
     private String token;
 
+    private String phone;
+
     public String getStatus() {
         return status;
     }
@@ -27,4 +29,6 @@ public class LoginResponse {
     public String getToken() {
         return token;
     }
+
+    public String getPhone() { return phone; }
 }

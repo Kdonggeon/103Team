@@ -23,6 +23,8 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout navContainer;
     private TextView mainContentText;
 
+    int defaultIndex = 1;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
         toggle.syncState();
 
         // ✅ 4. 메뉴 생성 및 동작 연결 (NavigationMenuHelper에서 처리)
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText);
+        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText, defaultIndex);
 
         // 5. 시작 시 "시간표" 자동 선택
         int defaultIndex = 2;

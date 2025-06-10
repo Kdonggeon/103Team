@@ -30,6 +30,8 @@ public class SettingActivity extends AppCompatActivity {
     private GridLayout colorGrid;
     private Button btnLogout; // ✅ 추가
 
+    int defaultIndex = 5;
+
     @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,7 +60,7 @@ public class SettingActivity extends AppCompatActivity {
         toggle.syncState();
 
         // 4. 메뉴 생성
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText);
+        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText, defaultIndex);
 
         // 5. 색상 선택
         setupColorSelection();
