@@ -33,30 +33,52 @@ public class LoginController {
         String username = request.getUsername();
         String password = request.getPassword();
 
-        // 1. 학생
+        // 1. 학생 로그인 처리
         Student student = studentRepo.findByStudentId(username);
         if (student != null && passwordEncoder.matches(password, student.getStudentPw())) {
             String token = jwtUtil.generateToken(student.getStudentId(), "student");
-            return ResponseEntity.ok(new LoginResponse("success", "student",
-                    student.getStudentId(), student.getStudentName(), token));
+
+            return ResponseEntity.ok(new LoginResponse(
+                    "success",
+                    "student",
+                    student.getStudentId(),
+                    student.getStudentName(),
+                    token,
+                    student.getStudentPhoneNumber(),
+                    student.getAddress(),
+                    student.getSchool(),
+                    student.getGrade(),
+                    student.getGender()
+            ));
         }
 
-     // 2. 교사
+        // 2. 교사 로그인 처리
         Teacher teacher = teacherRepo.findByTeacherId(username);
         if (teacher != null && passwordEncoder.matches(password, teacher.getTeacherPw())) {
             String token = jwtUtil.generateToken(teacher.getTeacherId(), "teacher");
-            return ResponseEntity.ok(new LoginResponse("success", "teacher",
-                    teacher.getTeacherId(), teacher.getTeacherName(), token));
+            return ResponseEntity.ok(new LoginResponse(
+                    "success",
+                    "teacher",
+                    teacher.getTeacherId(),
+                    teacher.getTeacherName(),
+                    token
+            ));
         }
 
-        // 3. 학부모
+        // 3. 학부모 로그인 처리
         Parent parent = parentRepo.findByParentsId(username);
         if (parent != null && passwordEncoder.matches(password, parent.getParentsPw())) {
             String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
-            return ResponseEntity.ok(new LoginResponse("success", "parent",
-                    parent.getParentsId(), parent.getParentsName(), token));
+            return ResponseEntity.ok(new LoginResponse(
+                    "success",
+                    "parent",
+                    parent.getParentsId(),
+                    parent.getParentsName(),
+                    token
+            ));
         }
 
+        // 로그인 실패
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("status", "fail", "message", "일치하는 계정이 없습니다"));
     }

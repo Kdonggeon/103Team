@@ -40,7 +40,7 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        // 뷰 초기화
+        // 뷰 바인딩
         findAccount = findViewById(R.id.find_account);
         signupText = findViewById(R.id.signup_next);
         editTextId = findViewById(R.id.editTextId);
@@ -49,11 +49,10 @@ public class LoginActivity extends AppCompatActivity {
         autoLoginCheckBox = findViewById(R.id.login_check);
         btnTogglePassword = findViewById(R.id.btn_toggle_password);
 
-        // 이전 체크 상태 유지 (자동 로그인 체크박스)
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         autoLoginCheckBox.setChecked(prefs.getBoolean("auto_login", false));
 
-        // 눈 아이콘으로 비밀번호 표시/숨김
+        // 비밀번호 보기 토글
         btnTogglePassword.setOnClickListener(v -> {
             if (isPasswordVisible) {
                 editTextPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
@@ -66,17 +65,11 @@ public class LoginActivity extends AppCompatActivity {
             isPasswordVisible = !isPasswordVisible;
         });
 
-        // 회원가입 이동
-        signupText.setOnClickListener(v -> {
-            startActivity(new Intent(LoginActivity.this, RoleSelectActivity.class));
-        });
+        // 회원가입, 계정 찾기 이동
+        signupText.setOnClickListener(v -> startActivity(new Intent(LoginActivity.this, RoleSelectActivity.class)));
+        findAccount.setOnClickListener(v -> startActivity(new Intent(LoginActivity.this, FindSelectActivity.class)));
 
-        // 계정 찾기 이동
-        findAccount.setOnClickListener(v -> {
-            startActivity(new Intent(LoginActivity.this, FindSelectActivity.class));
-        });
-
-        // 로그인 처리
+        // 로그인 버튼
         loginButton.setOnClickListener(v -> {
             String inputId = editTextId.getText().toString().trim();
             String inputPw = editTextPassword.getText().toString().trim();
@@ -100,27 +93,39 @@ public class LoginActivity extends AppCompatActivity {
                     try {
                         if (response.isSuccessful() && response.body() != null) {
                             LoginResponse res = response.body();
-
-
                             Log.d("LoginResponse", "응답 바디: " + new Gson().toJson(res));
 
                             SharedPreferences.Editor editor = prefs.edit();
                             editor.putBoolean("is_logged_in", true);
+                            editor.putBoolean("auto_login", autoLoginCheckBox.isChecked());
                             editor.putString("token", res.getToken());
                             editor.putString("role", res.getRole());
                             editor.putString("username", res.getUsername());
-                            editor.putBoolean("auto_login", autoLoginCheckBox.isChecked());
-                            // 마이페이지 이용시 이름 번호
                             editor.putString("name", res.getName());
                             editor.putString("phone", res.getPhone());
 
-                            editor.apply();
+                            // 역할 기반 추가 저장
+                            switch (res.getRole()) {
+                                case "student":
+                                    editor.putString("address", res.getAddress());
+                                    editor.putString("school", res.getSchool());
+                                    editor.putInt("grade", res.getGrade());
+                                    editor.putString("gender", res.getGender());
+                                    break;
+                                case "teacher":
+                                    // teacher-specific 정보 저장 예정 시 여기에 추가
+                                    break;
+                                case "parent":
+                                    // parent-specific 정보 저장 예정 시 여기에 추가
+                                    break;
+                            }
 
-//                            Toast.makeText(LoginActivity.this, res.getRole() + " 로그인 성공", Toast.LENGTH_SHORT).show();
+                            editor.apply();
 
                             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                             startActivity(intent);
                             finish();
+
                         } else {
                             String errorBody = response.errorBody() != null ? response.errorBody().string() : "없음";
                             Log.e("LoginResponse", "실패 바디: " + errorBody);

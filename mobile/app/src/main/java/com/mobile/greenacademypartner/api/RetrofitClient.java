@@ -1,5 +1,10 @@
 package com.mobile.greenacademypartner.api;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.mobile.greenacademypartner.model.LoginResponse;
+import com.mobile.greenacademypartner.util.LoginResponseDeserializer;
+
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -8,10 +13,14 @@ public class RetrofitClient {
 
     public static Retrofit getClient() {
         if (retrofit == null) {
+            // 👉 커스텀 Deserializer 등록
+            Gson gson = new GsonBuilder()
+                    .registerTypeAdapter(LoginResponse.class, new LoginResponseDeserializer())
+                    .create();
+
             retrofit = new Retrofit.Builder()
                     .baseUrl("http://10.0.2.2:9090/")
-                    // 또는 실제 서버 IP
-                    .addConverterFactory(GsonConverterFactory.create())
+                    .addConverterFactory(GsonConverterFactory.create(gson))
                     .build();
         }
         return retrofit;

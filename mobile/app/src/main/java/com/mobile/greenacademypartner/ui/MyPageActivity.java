@@ -33,13 +33,11 @@ import retrofit2.Response;
 public class MyPageActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
-    private Toolbar toolbar;
     private LinearLayout navContainer;
-
+    private Toolbar toolbar;
     private EditText editName, editId, editPhone, editAddress, editSchool, editGrade, editGender, editAcademyNumber;
-    private TextView textRoleTitle, mainContentText;
+    private TextView textRoleTitle;
     private Button btnSave;
-
     private String role;
 
     int defaultIndex = 0;
@@ -49,20 +47,23 @@ public class MyPageActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my_page);
 
-        // 1. 드로어 및 툴바
+        // Drawer 및 Toolbar 초기화
         drawerLayout = findViewById(R.id.drawer_layout);
-        toolbar = findViewById(R.id.toolbar);
         navContainer = findViewById(R.id.nav_container);
-        mainContentText = findViewById(R.id.main_content_text);
+        toolbar = findViewById(R.id.toolbar);
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawerLayout, toolbar,
-                R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, toolbar,
+                R.string.navigation_drawer_open,
+                R.string.navigation_drawer_close
+        );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText, defaultIndex);
 
-        // 2. 정보 입력 영역 초기화
+        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null,defaultIndex);
+
         initViews();
         loadUserInfo();
         setupUIByRole();
@@ -85,13 +86,9 @@ public class MyPageActivity extends AppCompatActivity {
     private void loadUserInfo() {
         SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
         role = pref.getString("role", "unknown");
-        String name = pref.getString("name", "");
-        String id = pref.getString("username", "");
-        String phone = pref.getString("phone", "");
-
-        editName.setText(name);
-        editId.setText(id);
-        editPhone.setText(phone);
+        editName.setText(pref.getString("name", ""));
+        editId.setText(pref.getString("username", ""));
+        editPhone.setText(pref.getString("phone", ""));
 
         switch (role) {
             case "student":
@@ -136,12 +133,13 @@ public class MyPageActivity extends AppCompatActivity {
 
             switch (role) {
                 case "student": {
-                    String address = editAddress.getText().toString();
-                    String school = editSchool.getText().toString();
-                    int grade = Integer.parseInt(editGrade.getText().toString());
-                    String gender = editGender.getText().toString();
-
-                    StudentUpdateRequest student = new StudentUpdateRequest(id, name, phone, address, school, grade, gender);
+                    StudentUpdateRequest student = new StudentUpdateRequest(
+                            id, name, phone,
+                            editAddress.getText().toString(),
+                            editSchool.getText().toString(),
+                            Integer.parseInt(editGrade.getText().toString()),
+                            editGender.getText().toString()
+                    );
                     StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
                     api.updateStudent(id, student).enqueue(getCallback("학생"));
                     break;
@@ -153,8 +151,10 @@ public class MyPageActivity extends AppCompatActivity {
                     break;
                 }
                 case "teacher": {
-                    int academyNumber = Integer.parseInt(editAcademyNumber.getText().toString());
-                    TeacherUpdateRequest teacher = new TeacherUpdateRequest(id, name, phone, academyNumber);
+                    TeacherUpdateRequest teacher = new TeacherUpdateRequest(
+                            id, name, phone,
+                            Integer.parseInt(editAcademyNumber.getText().toString())
+                    );
                     TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
                     api.updateTeacher(id, teacher).enqueue(getCallback("교사"));
                     break;
@@ -178,10 +178,7 @@ public class MyPageActivity extends AppCompatActivity {
     }
 
     private void showToast(boolean success, String roleName) {
-        if (success) {
-            Toast.makeText(this, roleName + " 정보가 성공적으로 수정되었습니다.", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, roleName + " 정보 수정에 실패했습니다.", Toast.LENGTH_SHORT).show();
-        }
+        String msg = roleName + (success ? " 정보가 성공적으로 수정되었습니다." : " 정보 수정에 실패했습니다.");
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 }

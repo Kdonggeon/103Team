@@ -101,6 +101,7 @@
                     android:inputType="number"
                     android:visibility="gone" />
 
+                <!-- 저장 버튼 -->
                 <Button
                     android:id="@+id/btn_save"
                     android:text="정보 수정"
