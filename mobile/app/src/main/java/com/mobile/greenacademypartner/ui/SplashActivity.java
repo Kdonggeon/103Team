@@ -28,13 +28,15 @@ public class SplashActivity extends AppCompatActivity {
 
         new Handler().postDelayed(() -> {
             SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-            String token = prefs.getString("token", null);
+            boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
+            boolean autoLogin = prefs.getBoolean("auto_login", false);
 
-            if (token != null) {
+            if (isLoggedIn && autoLogin) {
                 startActivity(new Intent(SplashActivity.this, MainActivity.class));
             } else {
                 startActivity(new Intent(SplashActivity.this, LoginActivity.class));
             }
+
 
 
             finish(); // 스플래시 종료
