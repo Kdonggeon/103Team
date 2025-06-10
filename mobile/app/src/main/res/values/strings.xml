@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Green Academy Partner</string>
+    <string name="navigation_drawer_open">열기</string>
+    <string name="navigation_drawer_close">닫기</string>
+
+    <string-array name="role_array">
+        <item>student</item>
+        <item>parent</item>
+        <item>teacher</item>
+    </string-array>
+
+
+
+</resources>

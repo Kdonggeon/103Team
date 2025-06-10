@@ -1,0 +1,8 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/nav_my_page" android:title="My Page" android:icon="@drawable/ic_person_light" />
+    <item android:id="@+id/nav_attendance" android:title="출석 관리" android:icon="@drawable/ic_attendance_light" />
+        <item android:id="@+id/nav_timetable" android:title="시간표" android:icon="@drawable/ic_timetable_dark" />
+    <item android:id="@+id/nav_qa" android:title="Q&amp;A" android:icon="@drawable/ic_qa_light" />
+    <item android:id="@+id/nav_notice" android:title="공지사항" android:icon="@drawable/ic_notice_light" />
+    <item android:id="@+id/nav_settings" android:title="설정" android:icon="@drawable/ic_settings_light" />
+</menu>
