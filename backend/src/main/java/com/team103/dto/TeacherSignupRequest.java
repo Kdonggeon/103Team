@@ -8,7 +8,7 @@ public class TeacherSignupRequest {
     private String teacherName;
     private String teacherId;
     private String teacherPw;
-    private long teacherPhoneNumber;
+    private String teacherPhoneNumber;
     private int academyNumber;
 
     public Teacher toEntity(String encodedPw) {
@@ -28,8 +28,8 @@ public class TeacherSignupRequest {
     public String getTeacherPw() { return teacherPw; }
     public void setTeacherPw(String teacherPw) { this.teacherPw = teacherPw; }
 
-    public long getTeacherPhoneNumber() { return teacherPhoneNumber; }
-    public void setTeacherPhoneNumber(long teacherPhoneNumber) { this.teacherPhoneNumber = teacherPhoneNumber; }
+    public String getTeacherPhoneNumber() { return teacherPhoneNumber; }
+    public void setTeacherPhoneNumber(String teacherPhoneNumber) { this.teacherPhoneNumber = teacherPhoneNumber; }
 
     public int getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }

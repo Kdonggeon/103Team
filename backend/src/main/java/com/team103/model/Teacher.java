@@ -20,13 +20,13 @@ public class Teacher {
     private String teacherPw;
 
     @Field("Teacher_Phone_Number")
-    private long teacherPhoneNumber;
+    private String teacherPhoneNumber;
 
     @Field("Academy_Number")
     private int academyNumber;
 
     public Teacher(String id, String teacherName, String teacherId, String teacherPw,
-                   long teacherPhoneNumber, int academyNumber) {
+                   String teacherPhoneNumber, int academyNumber) {
         this.id = id;
         this.teacherName = teacherName;
         this.teacherId = teacherId;
@@ -48,8 +48,8 @@ public class Teacher {
     public String getTeacherPw() { return teacherPw; }
     public void setTeacherPw(String teacherPw) { this.teacherPw = teacherPw; }
 
-    public long getTeacherPhoneNumber() { return teacherPhoneNumber; }
-    public void setTeacherPhoneNumber(long teacherPhoneNumber) { this.teacherPhoneNumber = teacherPhoneNumber; }
+    public String getTeacherPhoneNumber() { return teacherPhoneNumber; }
+    public void setTeacherPhoneNumber(String teacherPhoneNumber) { this.teacherPhoneNumber = teacherPhoneNumber; }
 
     public int getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }

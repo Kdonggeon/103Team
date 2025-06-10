@@ -16,12 +16,16 @@
         android:id="@+id/btn_find_id"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="아이디 찾기" />
+        android:text="아이디 찾기"
+        android:backgroundTint="@color/green"
+        android:textColor="@color/white"/>
 
     <Button
         android:id="@+id/btn_reset_pw"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="비밀번호 변경"
+        android:backgroundTint="@color/green"
+        android:textColor="@color/white"
         android:layout_marginTop="16dp" />
 </LinearLayout>

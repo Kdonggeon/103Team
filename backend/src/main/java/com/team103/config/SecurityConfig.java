@@ -26,17 +26,22 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(Customizer.withDefaults())   // CORS 허용
-            .csrf(csrf -> csrf.disable())      // CSRF 비활성화 (앱 클라이언트 사용 시 필수)
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/login").permitAll()
-                .requestMatchers("/api/signup/**").permitAll()
-                .requestMatchers("/api/students").permitAll()      // ← 정확히 이 경로 허용
-                .requestMatchers("/api/students/**").permitAll()   // ← 서브 경로도 허용
-                .anyRequest().authenticated()                     // 그 외는 인증 필요
-            );
+        .csrf().disable() // ✅ CSRF 보호 비활성화 (Postman 테스트용)
+        .authorizeHttpRequests()
+        .requestMatchers("/**").permitAll(); // 모든 요청 허용
+//            .cors(Customizer.withDefaults())
+//            .csrf(csrf -> csrf.disable())
+//            .authorizeHttpRequests(auth -> auth
+//                .requestMatchers("/api/login").permitAll()
+//                .requestMatchers("/api/signup/**").permitAll()
+//                .requestMatchers("/api/students").permitAll()
+//                .requestMatchers("/api/students/**").permitAll()
+//                .requestMatchers("/api/reset-password").permitAll() // ✅ 이 줄 추가!
+//                .anyRequest().authenticated()
+//            );
         return http.build();
     }
+
 
     // 🌐 CORS 설정 - Android 에뮬레이터 접근 허용
     @Bean

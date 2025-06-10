@@ -5,10 +5,12 @@
     android:layout_height="match_parent">
 
     <!-- 메인 컨텐츠 -->
+
+    <!-- 사이드바 -->
     <LinearLayout
-        android:orientation="vertical"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
         <!-- 툴바 -->
         <androidx.appcompat.widget.Toolbar
@@ -31,27 +33,27 @@
             android:rowCount="2" />
 
         <!-- 여기 추가된 텍스트뷰 -->
-        <TextView
-            android:id="@+id/main_content_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="설정 내용"
-            android:textSize="18sp"
-            android:textColor="@android:color/black"
-            android:padding="16dp" />
+<!--        <TextView-->
+<!--            android:id="@+id/main_content_text"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:padding="16dp"-->
+<!--            android:text="설정 내용"-->
+<!--            android:textColor="@android:color/black"-->
+<!--            android:textSize="18sp" />-->
+
         <Button
             android:id="@+id/btn_logout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="로그아웃"
             android:layout_margin="16dp"
             android:backgroundTint="@color/green"
-            android:textColor="@color/white"/>
+            android:text="로그아웃"
+            android:textColor="@color/white" />
 
 
     </LinearLayout>
 
-    <!-- 사이드바 -->
     <LinearLayout
         android:id="@+id/nav_container_setting"
         android:layout_width="280dp"

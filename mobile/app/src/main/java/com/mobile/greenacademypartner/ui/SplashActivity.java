@@ -28,15 +28,14 @@ public class SplashActivity extends AppCompatActivity {
 
         new Handler().postDelayed(() -> {
             SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-            boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
+            String token = prefs.getString("token", null);
 
-            if (isLoggedIn) {
-                // 로그인 유지: 메인으로 이동
+            if (token != null) {
                 startActivity(new Intent(SplashActivity.this, MainActivity.class));
             } else {
-                // 로그인 안 됨: 로그인 화면으로 이동
                 startActivity(new Intent(SplashActivity.this, LoginActivity.class));
             }
+
 
             finish(); // 스플래시 종료
         }, 1500); // 1.5초 지연

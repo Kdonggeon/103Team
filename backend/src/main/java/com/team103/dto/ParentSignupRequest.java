@@ -8,7 +8,7 @@ public class ParentSignupRequest {
     private String parentsId;
     private String parentsPw;
     private String parentsName;
-    private long parentsPhoneNumber;
+    private String parentsPhoneNumber;
 
     // 🔽 toEntity 메서드 정의
     public Parent toEntity(String encodedPw) {
@@ -28,6 +28,6 @@ public class ParentSignupRequest {
     public String getParentsName() { return parentsName; }
     public void setParentsName(String parentsName) { this.parentsName = parentsName; }
 
-    public long getParentsPhoneNumber() { return parentsPhoneNumber; }
-    public void setParentsPhoneNumber(long parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
+    public String getParentsPhoneNumber() { return parentsPhoneNumber; }
+    public void setParentsPhoneNumber(String parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
 }

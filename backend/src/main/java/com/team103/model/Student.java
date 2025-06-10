@@ -33,7 +33,7 @@ public class Student {
     private int grade;
 
     @Field("Parents_Number")
-    private long parentsNumber;
+    private String parentsNumber;
 
     @Field("Seat_Number")
     private int seatNumber;
@@ -47,7 +47,7 @@ public class Student {
     public Student() {}
 
     public Student(String id, String studentName, String studentId, String studentPw, String address,
-                   String studentPhoneNumber, String school, int grade, long parentsNumber,
+                   String studentPhoneNumber, String school, int grade, String parentsNumber,
                    int seatNumber, boolean checkedIn, String gender) {
         this.id = id;
         this.studentName = studentName;
@@ -77,9 +77,15 @@ public class Student {
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+    
+    public String getStudentPhoneNumber() {
+        return studentPhoneNumber;
+    }
 
-    public String getPhoneNumber() { return studentPhoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.studentPhoneNumber = phoneNumber; }
+    public void setStudentPhoneNumber(String studentPhoneNumber) {
+        this.studentPhoneNumber = studentPhoneNumber;
+    }
+
 
     public String getSchool() { return school; }
     public void setSchool(String school) { this.school = school; }
@@ -87,8 +93,8 @@ public class Student {
     public int getGrade() { return grade; }
     public void setGrade(int grade) { this.grade = grade; }
 
-    public long getParentsNumber() { return parentsNumber; }
-    public void setParentsNumber(long parentsNumber) { this.parentsNumber = parentsNumber; }
+    public String getParentsNumber() { return parentsNumber; }
+    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
 
     public int getSeatNumber() { return seatNumber; }
     public void setSeatNumber(int seatNumber) { this.seatNumber = seatNumber; }

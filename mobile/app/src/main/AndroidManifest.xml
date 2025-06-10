@@ -42,6 +42,8 @@
         <activity android:name=".ui.FindIdActivity" />
         <activity android:name=".ui.ResetPasswordActivity" />
         <activity android:name=".ui.FindSelectActivity" />
+        <activity android:name=".ui.FindIdResultActivity" />
+
 
 
 

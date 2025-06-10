@@ -92,7 +92,7 @@ public class StudentSignupActivity extends AppCompatActivity {
                     phone,                  // Student_Phone_Number
                     "서울고등학교",          // School (입력값 또는 임시값)
                     3,                      // Grade (입력값 또는 기본값)
-                    1001L,                  // Parents_Number (임시 또는 실제 값)
+                    "1001",                  // Parents_Number (임시 또는 실제 값)
                     12,                     // Seat_Number (좌석번호 - 기본값 가능)
                     false,                 // Checked_In (처음엔 false 고정)
                     gender                  // Gender

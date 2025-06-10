@@ -26,6 +26,9 @@ public class FindIdController {
         String role = request.getRole();
         String name = request.getName();
         String phone = request.getPhone();
+        
+        System.out.println("🔍 name=" + name + ", phone=" + phone);
+
 
         switch (role.toLowerCase()) {
             case "student":

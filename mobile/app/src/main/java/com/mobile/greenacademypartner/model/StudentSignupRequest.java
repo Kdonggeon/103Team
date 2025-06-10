@@ -26,7 +26,7 @@ public class StudentSignupRequest {
     private int grade;
 
     @SerializedName("Parents_Number")
-    private long parentsNumber;
+    private String parentsNumber;
 
     @SerializedName("Seat_Number")
     private int seatNumber;
@@ -39,7 +39,7 @@ public class StudentSignupRequest {
 
     public StudentSignupRequest(String studentId, String studentPw, String studentName,
                                 String studentAddress, String studentPhoneNumber, String school,
-                                int grade, long parentsNumber, int seatNumber, boolean checkedIn,
+                                int grade, String parentsNumber, int seatNumber, boolean checkedIn,
                                 String gender) {
 
         if (studentPw == null || studentPw.isEmpty()) {
@@ -68,7 +68,7 @@ public class StudentSignupRequest {
     public String getStudentPhoneNumber() { return studentPhoneNumber; }
     public String getSchool() { return school; }
     public int getGrade() { return grade; }
-    public long getParentsNumber() { return parentsNumber; }
+    public  String getParentsNumber() { return parentsNumber; }
     public int getSeatNumber() { return seatNumber; }
     public boolean isCheckedIn() { return checkedIn; }
     public String getGender() { return gender; }

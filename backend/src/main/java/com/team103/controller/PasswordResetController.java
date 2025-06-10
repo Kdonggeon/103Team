@@ -39,7 +39,7 @@ public class PasswordResetController {
                 Student student = studentRepo.findByStudentId(id);
                 if (student != null &&
                         student.getStudentName().equals(name) &&
-                        student.getPhoneNumber().equals(phone)) {
+                        student.getStudentPhoneNumber().equals(phone)) {
 
                     student.setStudentPw(passwordEncoder.encode(newPw));
                     studentRepo.save(student);

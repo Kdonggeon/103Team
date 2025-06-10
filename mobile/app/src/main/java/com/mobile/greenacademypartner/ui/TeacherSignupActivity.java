@@ -47,17 +47,21 @@ public class TeacherSignupActivity extends AppCompatActivity {
                 return;
             }
 
-            long phone;
-            int academy;
-            try {
-                phone = Long.parseLong(phoneStr);
-                academy = Integer.parseInt(academyStr);
-            } catch (NumberFormatException e) {
-                Toast.makeText(this, "전화번호와 학원번호는 숫자여야 합니다.", Toast.LENGTH_SHORT).show();
+            // 전화번호 정규식 검사 (10~11자리 숫자)
+            if (!phoneStr.matches("^\\d{10,11}$")) {
+                Toast.makeText(this, "전화번호는 숫자만 입력하며, 10~11자리여야 합니다.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            TeacherSignupRequest request = new TeacherSignupRequest(name, id, pw, phone, academy);
+            int academy;
+            try {
+                academy = Integer.parseInt(academyStr);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "학원번호는 숫자여야 합니다.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            TeacherSignupRequest request = new TeacherSignupRequest(name, id, pw, phoneStr, academy);
 
             TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
             api.signupTeacher(request).enqueue(new Callback<Void>() {
@@ -65,7 +69,6 @@ public class TeacherSignupActivity extends AppCompatActivity {
                 public void onResponse(Call<Void> call, Response<Void> response) {
                     if (response.isSuccessful()) {
                         Toast.makeText(TeacherSignupActivity.this, "회원가입 성공", Toast.LENGTH_SHORT).show();
-                        // ✅ 로그인 화면으로 이동
                         Intent intent = new Intent(TeacherSignupActivity.this, LoginActivity.class);
                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(intent);

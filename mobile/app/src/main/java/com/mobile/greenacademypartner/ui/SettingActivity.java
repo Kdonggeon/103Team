@@ -66,7 +66,8 @@ public class SettingActivity extends AppCompatActivity {
         // 6. 로그아웃 버튼 동작
         btnLogout.setOnClickListener(v -> {
             // 로그인 상태 초기화
-            SharedPreferences prefs = getSharedPreferences("loginPrefs", MODE_PRIVATE);
+            SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+
             SharedPreferences.Editor editor = prefs.edit();
             editor.clear();
             editor.apply();

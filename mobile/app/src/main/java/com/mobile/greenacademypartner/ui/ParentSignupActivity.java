@@ -45,6 +45,7 @@ public class ParentSignupActivity extends AppCompatActivity {
             String pwConfirm = editPwConfirm.getText().toString().trim();
             String phone = editPhone.getText().toString().trim();
 
+            // 입력값 유효성 검사
             if (id.isEmpty() || pw.isEmpty() || pwConfirm.isEmpty() || name.isEmpty() || phone.isEmpty()) {
                 Toast.makeText(this, "모든 항목을 입력하세요.", Toast.LENGTH_SHORT).show();
                 return;
@@ -60,22 +61,22 @@ public class ParentSignupActivity extends AppCompatActivity {
                 return;
             }
 
-            long phoneNumber;
-            try {
-                phoneNumber = Long.parseLong(phone.replaceAll("[^\\d]", ""));
-            } catch (Exception e) {
-                Toast.makeText(this, "전화번호 형식이 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
+            if (!phone.matches("^\\d{10,11}$")) {
+                Toast.makeText(this, "전화번호는 숫자만 입력하며, 10~11자리여야 합니다.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            ParentSignupRequest request = new ParentSignupRequest(id, pw, name, phoneNumber);
+            // 요청 객체 생성
+            ParentSignupRequest request = new ParentSignupRequest(id, pw, name, phone);
+
+            // Retrofit API 호출
             ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
             api.signupParent(request).enqueue(new Callback<Void>() {
                 @Override
                 public void onResponse(Call<Void> call, Response<Void> response) {
                     if (response.isSuccessful()) {
                         Toast.makeText(ParentSignupActivity.this, "회원가입 성공!", Toast.LENGTH_SHORT).show();
-                        // ✅ 로그인 화면으로 이동
+                        // 로그인 화면으로 이동
                         Intent intent = new Intent(ParentSignupActivity.this, LoginActivity.class);
                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(intent);

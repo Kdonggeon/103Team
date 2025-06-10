@@ -27,7 +27,7 @@ public class StudentSignupRequest {
     private int grade;
 
     @JsonProperty("Parents_Number")
-    private long parentsNumber;
+    private String parentsNumber;
 
     @JsonProperty("Seat_Number")
     private int seatNumber;
@@ -63,8 +63,8 @@ public class StudentSignupRequest {
     public void setSchool(String school) { this.school = school; }
     public int getGrade() { return grade; }
     public void setGrade(int grade) { this.grade = grade; }
-    public long getParentsNumber() { return parentsNumber; }
-    public void setParentsNumber(long parentsNumber) { this.parentsNumber = parentsNumber; }
+    public String getParentsNumber() { return parentsNumber; }
+    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
     public int getSeatNumber() { return seatNumber; }
     public void setSeatNumber(int seatNumber) { this.seatNumber = seatNumber; }
     public boolean isCheckedIn() { return checkedIn; }

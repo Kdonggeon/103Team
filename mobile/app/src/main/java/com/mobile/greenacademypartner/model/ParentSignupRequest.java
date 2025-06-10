@@ -4,9 +4,9 @@ public class ParentSignupRequest {
     private String parentsId;
     private String parentsPw;
     private String parentsName;
-    private long parentsPhoneNumber;
+    private String parentsPhoneNumber;
 
-    public ParentSignupRequest(String parentsId, String parentsPw, String parentsName, long parentsPhoneNumber) {
+    public ParentSignupRequest(String parentsId, String parentsPw, String parentsName, String parentsPhoneNumber) {
         this.parentsId = parentsId;
         this.parentsPw = parentsPw;
         this.parentsName = parentsName;
@@ -16,5 +16,5 @@ public class ParentSignupRequest {
     public String getParentsId() { return parentsId; }
     public String getParentsPw() { return parentsPw; }
     public String getParentsName() { return parentsName; }
-    public long getParentsPhoneNumber() { return parentsPhoneNumber; }
+    public String getParentsPhoneNumber() { return parentsPhoneNumber; }
 }
