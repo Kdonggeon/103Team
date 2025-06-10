@@ -39,17 +39,18 @@ public class LoginController {
             String token = jwtUtil.generateToken(student.getStudentId(), "student");
 
             return ResponseEntity.ok(new LoginResponse(
-                    "success",
-                    "student",
-                    student.getStudentId(),
-                    student.getStudentName(),
-                    token,
-                    student.getStudentPhoneNumber(),
-                    student.getAddress(),
-                    student.getSchool(),
-                    student.getGrade(),
-                    student.getGender()
-            ));
+            	    "success",
+            	    "student",
+            	    student.getStudentId(),
+            	    student.getStudentName(),
+            	    token,
+            	    student.getStudentPhoneNumber(),
+            	    student.getAddress(),
+            	    student.getSchool(),
+            	    student.getGrade(),
+            	    student.getGender(),
+            	    0 // 학생은 academyNumber 없음
+            	));
         }
 
         // 2. 교사 로그인 처리
@@ -57,12 +58,20 @@ public class LoginController {
         if (teacher != null && passwordEncoder.matches(password, teacher.getTeacherPw())) {
             String token = jwtUtil.generateToken(teacher.getTeacherId(), "teacher");
             return ResponseEntity.ok(new LoginResponse(
-                    "success",
-                    "teacher",
-                    teacher.getTeacherId(),
-                    teacher.getTeacherName(),
-                    token
-            ));
+            	    "success",
+            	    "teacher",
+            	    teacher.getTeacherId(),
+            	    teacher.getTeacherName(),
+            	    token,
+            	    teacher.getTeacherPhoneNumber(),
+            	    null, // address
+            	    null, // school
+            	    0,    // grade
+            	    null, // gender
+            	    teacher.getAcademyNumber()
+            	));
+
+
         }
 
         // 3. 학부모 로그인 처리
@@ -70,12 +79,14 @@ public class LoginController {
         if (parent != null && passwordEncoder.matches(password, parent.getParentsPw())) {
             String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
             return ResponseEntity.ok(new LoginResponse(
-                    "success",
-                    "parent",
-                    parent.getParentsId(),
-                    parent.getParentsName(),
-                    token
-            ));
+            	    "success",
+            	    "parent",
+            	    parent.getParentsId(),
+            	    parent.getParentsName(),
+            	    token,
+            	    parent.getParentsPhoneNumber(),
+            	    null, null, 0, null, 0 // 나머지 정보 없음
+            	));
         }
 
         // 로그인 실패

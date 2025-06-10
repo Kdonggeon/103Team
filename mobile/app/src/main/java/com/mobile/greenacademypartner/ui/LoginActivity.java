@@ -114,6 +114,7 @@ public class LoginActivity extends AppCompatActivity {
                                     break;
                                 case "teacher":
                                     // teacher-specific 정보 저장 예정 시 여기에 추가
+                                    editor.putInt("academyNumber", res.getAcademyNumber());
                                     break;
                                 case "parent":
                                     // parent-specific 정보 저장 예정 시 여기에 추가

@@ -1,19 +1,41 @@
 package com.mobile.greenacademypartner.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class LoginResponse {
 
+    @SerializedName("status")
     private String status;
+
+    @SerializedName("role")
     private String role;
+
+    @SerializedName("username")
     private String username;
+
+    @SerializedName("name")
     private String name;
+
+    @SerializedName("token")
     private String token;
+
+    @SerializedName("phone")
     private String phone;
 
-    // 학생용
+    @SerializedName("address")
     private String address;
+
+    @SerializedName("school")
     private String school;
+
+    @SerializedName("grade")
     private int grade;
+
+    @SerializedName("gender")
     private String gender;
+
+    @SerializedName("academyNumber")
+    private int academyNumber;
 
     // --- Getter / Setter ---
     public String getStatus() { return status; }
@@ -45,4 +67,7 @@ public class LoginResponse {
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+
+    public int getAcademyNumber() { return academyNumber; }
+    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
 }

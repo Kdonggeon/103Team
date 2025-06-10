@@ -115,6 +115,7 @@ public class MyPageActivity extends AppCompatActivity {
             case "teacher":
                 textRoleTitle.setText("교사 마이페이지");
                 editAcademyNumber.setVisibility(View.VISIBLE);
+
                 break;
             case "parent":
                 textRoleTitle.setText("학부모 마이페이지");
@@ -154,7 +155,9 @@ public class MyPageActivity extends AppCompatActivity {
                     TeacherUpdateRequest teacher = new TeacherUpdateRequest(
                             id, name, phone,
                             Integer.parseInt(editAcademyNumber.getText().toString())
+
                     );
+
                     TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
                     api.updateTeacher(id, teacher).enqueue(getCallback("교사"));
                     break;

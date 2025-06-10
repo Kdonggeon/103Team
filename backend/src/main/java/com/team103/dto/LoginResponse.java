@@ -7,29 +7,23 @@ public class LoginResponse {
     private String username;
     private String name;
     private String token;
+    private String phone;
 
     // ✅ 학생용 필드
-    private String phone;
+    
     private String address;
     private String school;
     private int grade;
     private String gender;
+    private int academyNumber; // ← 교사용 추가
 
     // 기본 생성자
     public LoginResponse() {}
 
-    // 🔹 기존: 공통 로그인용
-    public LoginResponse(String status, String role, String username, String name, String token) {
-        this.status = status;
-        this.role = role;
-        this.username = username;
-        this.name = name;
-        this.token = token;
-    }
 
-    // 🔹 학생 전용: 전체 정보 포함
+ // 통합 생성자 추가
     public LoginResponse(String status, String role, String username, String name, String token,
-                         String phone, String address, String school, int grade, String gender) {
+                         String phone, String address, String school, int grade, String gender, int academyNumber) {
         this.status = status;
         this.role = role;
         this.username = username;
@@ -40,7 +34,9 @@ public class LoginResponse {
         this.school = school;
         this.grade = grade;
         this.gender = gender;
+        this.academyNumber = academyNumber;
     }
+
 
     // --- Getters ---
     public String getStatus() { return status; }
@@ -53,6 +49,8 @@ public class LoginResponse {
     public String getSchool() { return school; }
     public int getGrade() { return grade; }
     public String getGender() { return gender; }
+    public int getAcademyNumber() { return academyNumber; }
+    
 
     // --- Setters (optional) ---
     public void setStatus(String status) { this.status = status; }
@@ -65,4 +63,5 @@ public class LoginResponse {
     public void setSchool(String school) { this.school = school; }
     public void setGrade(int grade) { this.grade = grade; }
     public void setGender(String gender) { this.gender = gender; }
+    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
 }
