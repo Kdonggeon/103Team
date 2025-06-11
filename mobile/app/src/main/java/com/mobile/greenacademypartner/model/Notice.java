@@ -9,14 +9,14 @@ public class Notice {
     @SerializedName("title")
     private String title;
 
-    @SerializedName("author")
-    private String author;
-
     @SerializedName("content")
     private String content;
 
-    @SerializedName("created_at")
+    @SerializedName(value = "createdAt", alternate = {"created_at"})
     private String createdAt;
+
+    @SerializedName("author")  // Assuming API returns 'author'
+    private String author;
 
     public Notice() {}
 
@@ -26,12 +26,12 @@ public class Notice {
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
-    public String getAuthor() { return author; }
-    public void setAuthor(String author) { this.author = author; }
-
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+
+    public String getAuthor() { return author; }
+    public void setAuthor(String author) { this.author = author; }
 }
