@@ -1,40 +1,51 @@
 package com.mobile.greenacademypartner.model;
 
+import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 public class LoginResponse {
 
     @SerializedName("status")
+
     private String status;
 
     @SerializedName("role")
     private String role;
 
     @SerializedName("username")
+    @Expose
     private String username;
 
     @SerializedName("name")
+    @Expose
     private String name;
 
     @SerializedName("token")
+    @Expose
     private String token;
 
     @SerializedName("phone")
+    @Expose
     private String phone;
 
     @SerializedName("address")
+    @Expose
     private String address;
 
     @SerializedName("school")
+    @Expose
     private String school;
 
     @SerializedName("grade")
+    @Expose
     private int grade;
 
     @SerializedName("gender")
+    @Expose
     private String gender;
 
     @SerializedName("academyNumber")
+    @Expose
     private int academyNumber;
 
     // --- Getter / Setter ---
@@ -70,4 +81,21 @@ public class LoginResponse {
 
     public int getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+
+    public LoginResponse(String status, String role, String username, String name,
+                         String token, String phone, String address, String school,
+                         int grade, String gender, int academyNumber) {
+        this.status = status;
+        this.role = role;
+        this.username = username;
+        this.name = name;
+        this.token = token;
+        this.phone = phone;
+        this.address = address;
+        this.school = school;
+        this.grade = grade;
+        this.gender = gender;
+        this.academyNumber = academyNumber;
+    }
+
 }

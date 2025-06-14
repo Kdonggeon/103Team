@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 import com.team103.dto.LoginRequest;
 import com.team103.dto.LoginResponse;
@@ -33,25 +35,36 @@ public class LoginController {
         String username = request.getUsername();
         String password = request.getPassword();
 
-        // 1. 학생 로그인 처리
+     // 1. 학생 로그인 처리
         Student student = studentRepo.findByStudentId(username);
         if (student != null && passwordEncoder.matches(password, student.getStudentPw())) {
             String token = jwtUtil.generateToken(student.getStudentId(), "student");
 
-            return ResponseEntity.ok(new LoginResponse(
-            	    "success",
-            	    "student",
-            	    student.getStudentId(),
-            	    student.getStudentName(),
-            	    token,
-            	    student.getStudentPhoneNumber(),
-            	    student.getAddress(),
-            	    student.getSchool(),
-            	    student.getGrade(),
-            	    student.getGender(),
-            	    0 // 학생은 academyNumber 없음
-            	));
+            // 🎯 객체 먼저 생성
+            LoginResponse res = new LoginResponse(
+                "success",
+                "student",
+                student.getStudentId(),
+                student.getStudentName(),
+                token,
+                student.getStudentPhoneNumber(),
+                student.getAddress(),
+                student.getSchool(),
+                student.getGrade(),
+                student.getGender(),
+                0
+            );
+
+            // 🎯 전체 내용 JSON으로 출력
+            try {
+                System.out.println("🔥 응답 DTO → " + new ObjectMapper().writeValueAsString(res));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return ResponseEntity.ok(res);
         }
+
 
         // 2. 교사 로그인 처리
         Teacher teacher = teacherRepo.findByTeacherId(username);

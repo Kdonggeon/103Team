@@ -34,11 +34,15 @@ public class LoginActivity extends AppCompatActivity {
     private CheckBox autoLoginCheckBox;
     private ImageView btnTogglePassword;
     private boolean isPasswordVisible = false;
+    private SharedPreferences prefs; // ✅ 여기로 이동
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        // ✅ SharedPreferences 초기화는 여기서!
+        prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
 
         // 뷰 바인딩
         findAccount = findViewById(R.id.find_account);
@@ -49,7 +53,6 @@ public class LoginActivity extends AppCompatActivity {
         autoLoginCheckBox = findViewById(R.id.login_check);
         btnTogglePassword = findViewById(R.id.btn_toggle_password);
 
-        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         autoLoginCheckBox.setChecked(prefs.getBoolean("auto_login", false));
 
         // 비밀번호 보기 토글
@@ -69,7 +72,7 @@ public class LoginActivity extends AppCompatActivity {
         signupText.setOnClickListener(v -> startActivity(new Intent(LoginActivity.this, RoleSelectActivity.class)));
         findAccount.setOnClickListener(v -> startActivity(new Intent(LoginActivity.this, FindSelectActivity.class)));
 
-        // 로그인 버튼
+        // 로그인 버튼 클릭 처리
         loginButton.setOnClickListener(v -> {
             String inputId = editTextId.getText().toString().trim();
             String inputPw = editTextPassword.getText().toString().trim();
@@ -99,34 +102,35 @@ public class LoginActivity extends AppCompatActivity {
                             editor.putBoolean("is_logged_in", true);
                             editor.putBoolean("auto_login", autoLoginCheckBox.isChecked());
                             editor.putString("token", res.getToken());
-                            editor.putString("role", res.getRole());
+                            editor.putString("role", res.getRole().toLowerCase());
                             editor.putString("username", res.getUsername());
                             editor.putString("name", res.getName());
                             editor.putString("phone", res.getPhone());
 
-                            // 역할 기반 추가 저장
-                            switch (res.getRole()) {
+                            switch (res.getRole().toLowerCase()) {
                                 case "student":
-                                    editor.putString("address", res.getAddress());
-                                    editor.putString("school", res.getSchool());
-                                    editor.putInt("grade", res.getGrade());
-                                    editor.putString("gender", res.getGender());
+
+                                    editor.putString("address", response.body().getAddress());
+                                    editor.putString("school", response.body().getSchool());
+                                    editor.putInt("grade", response.body().getGrade());
+                                    editor.putString("gender", response.body().getGender());
+
                                     break;
                                 case "teacher":
-                                    // teacher-specific 정보 저장 예정 시 여기에 추가
                                     editor.putInt("academyNumber", res.getAcademyNumber());
                                     break;
                                 case "parent":
-                                    // parent-specific 정보 저장 예정 시 여기에 추가
+                                    // 필요한 경우 추가 필드 저장
                                     break;
                             }
 
-                            editor.apply();
+//                            editor.apply();
+                            editor.commit(); // apply() 대신
+
 
                             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                             startActivity(intent);
                             finish();
-
                         } else {
                             String errorBody = response.errorBody() != null ? response.errorBody().string() : "없음";
                             Log.e("LoginResponse", "실패 바디: " + errorBody);
