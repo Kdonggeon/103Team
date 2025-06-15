@@ -15,16 +15,23 @@ public class Parent {
     private String parentsName;
     @Field("Parents_Phone_Number")
     private String parentsPhoneNumber;
+    @Field("Parents_Number")
+    private String parentsNumber;
 
 
-    public Parent() {}
 
-    public Parent(String parentsId, String parentsPw, String parentsName, String parentsPhoneNumber) {
+    
+
+
+
+    public Parent(String parentsId, String parentsPw, String parentsName, String parentsPhoneNumber, String parentsNumber) {
         this.parentsId = parentsId;
         this.parentsPw = parentsPw;
         this.parentsName = parentsName;
         this.parentsPhoneNumber = parentsPhoneNumber;
+        this.parentsNumber = parentsNumber;
     }
+    
 
     public String getId() { return id; }
 
@@ -39,4 +46,13 @@ public class Parent {
 
     public String getParentsPhoneNumber() { return parentsPhoneNumber; }
     public void setParentsPhoneNumber(String parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
+    
+    public String getParentsNumber() {
+		return parentsNumber;
+	}
+
+	public void setParentsNumber(String parentsNumber) {
+		this.parentsNumber = parentsNumber;
+	}
+	
 }

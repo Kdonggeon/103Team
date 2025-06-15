@@ -43,6 +43,10 @@
         <activity android:name=".ui.ResetPasswordActivity" />
         <activity android:name=".ui.FindSelectActivity" />
         <activity android:name=".ui.FindIdResultActivity" />
+        <activity android:name=".ui.StudentAttendanceActivity" />
+        <activity android:name=".ui.TeacherAttendanceActivity" />
+        <activity android:name=".ui.ParentAttendanceActivity" />
+
 
 
 
