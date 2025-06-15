@@ -91,15 +91,20 @@ public class LoginController {
         Parent parent = parentRepo.findByParentsId(username);
         if (parent != null && passwordEncoder.matches(password, parent.getParentsPw())) {
             String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
-            return ResponseEntity.ok(new LoginResponse(
+            LoginResponse res = new LoginResponse(
             	    "success",
             	    "parent",
             	    parent.getParentsId(),
             	    parent.getParentsName(),
             	    token,
             	    parent.getParentsPhoneNumber(),
-            	    null, null, 0, null, 0 // 나머지 정보 없음
-            	));
+            	    null, null, 0, null, 0 // address, school, grade, gender, academyNumber
+            	);
+            	res.setParentsNumber(parent.getParentsNumber()); // 👉 parentsNumber 추가
+
+            	return ResponseEntity.ok(res);
+
+
         }
 
         // 로그인 실패

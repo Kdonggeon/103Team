@@ -1,14 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="24dp">
+    android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/parent_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="여기에 자녀 출석 조회 기능을 추가하세요."
-        android:textSize="16sp"
-        android:textColor="#333333" />
-</RelativeLayout>
+    <!-- 🔹 본문 -->
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- 🔹 툴바 -->
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            android:title="출석 관리"
+            android:titleTextColor="@android:color/white"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+        <!-- 🔹 출석 리스트 -->
+        <ListView
+            android:id="@+id/attendance_list_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:dividerHeight="1dp" />
+    </LinearLayout>
+
+    <!-- 🔹 사이드 메뉴 (Drawer 메뉴) -->
+    <LinearLayout
+        android:id="@+id/nav_container"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="@android:color/white" />
+
+</androidx.drawerlayout.widget.DrawerLayout>

@@ -3,14 +3,23 @@ package com.mobile.greenacademypartner.ui;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.TextView;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.Toast;
 
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.mobile.greenacademypartner.R;
-import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
+import com.mobile.greenacademypartner.api.StudentApi;
+import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
+import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.Attendance;
+import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
 
 import java.util.List;
 
@@ -20,40 +29,75 @@ import retrofit2.Response;
 
 public class StudentAttendanceActivity extends AppCompatActivity {
 
-    private TextView attendanceInfo;
+    private Toolbar toolbar;
+    private DrawerLayout drawerLayout;
+    private LinearLayout navContainer;
+    private ListView attendanceListView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_attendance);
 
-        attendanceInfo = findViewById(R.id.attendance_info);
+        // ✅ 뷰 초기화
+        toolbar = findViewById(R.id.toolbar);
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navContainer = findViewById(R.id.nav_container);
+        attendanceListView = findViewById(R.id.attendance_list_view);
 
-        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-        String studentId = prefs.getString("studentId", "");
+        setupToolbarAndDrawer(); // 🛠️ 반드시 호출 필요
+        fetchAttendanceFromServer();
+    }
+
+    private void setupToolbarAndDrawer() {
+        setTitle("출석 관리");
+        ToolbarColorUtil.applyToolbarColor(this, toolbar);
+        setSupportActionBar(toolbar);
+
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, toolbar,
+                R.string.navigation_drawer_open,
+                R.string.navigation_drawer_close
+        );
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 1);
+    }
+
+    private void fetchAttendanceFromServer() {
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String studentId = prefs.getString("username", null);
+
+        if (studentId == null) {
+            Toast.makeText(this, "로그인 정보가 없습니다", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-
-        Call<List<Attendance>> call = api.getAttendanceForStudent(studentId);
-
-        call.enqueue(new Callback<List<Attendance>>() {
+        api.getAttendanceForStudent(studentId).enqueue(new Callback<List<Attendance>>() {
             @Override
             public void onResponse(Call<List<Attendance>> call, Response<List<Attendance>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    StringBuilder sb = new StringBuilder();
-                    for (Attendance a : response.body()) {
-                        sb.append("수업: ").append(a.getClassId())
-                                .append("\n날짜: ").append(a.getDate())
-                                .append("\n출석: ").append("출석".equals(a.getStatus()) ? "출석" : "결석")
-                                .append("\n\n");
+                    List<Attendance> list = response.body();
+                    Log.d("Attendance", "출석 데이터 개수: " + list.size());
+
+                    for (Attendance att : list) {
+                        Log.d("Attendance", "수업명: " + att.getClassName() + ", 날짜: " + att.getDate() + ", 상태: " + att.getStatus());
                     }
-                    attendanceInfo.setText(sb.toString());
+
+                    AttendanceAdapter adapter = new AttendanceAdapter(StudentAttendanceActivity.this, list);
+                    attendanceListView.setAdapter(adapter);
+                } else {
+                    Toast.makeText(StudentAttendanceActivity.this, "출석 데이터를 불러오지 못했습니다", Toast.LENGTH_SHORT).show();
+                    Log.e("Attendance", "응답 실패: " + response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<List<Attendance>> call, Throwable t) {
-                Log.e("StudentAttendance", "출석 정보 조회 실패", t);
+                Toast.makeText(StudentAttendanceActivity.this, "서버 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Log.e("StudentAttendance", "API 실패", t);
             }
         });
     }

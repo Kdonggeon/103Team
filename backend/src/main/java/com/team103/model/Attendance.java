@@ -8,51 +8,30 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 @Document(collection = "attendance")
 public class Attendance {
-    @Id
+
+  @Id
     private String id;
 
     @Field("Class_ID")
     private String classId;
 
     @Field("Date")
-    private String date; // yyyy-MM-dd 형식
+    private String date;
 
-    @Field("Attended_Students")
-    private List<String> attendedStudents;
+    @Field("Attendance_List")
+    private List<AttendanceEntry> attendanceList;
 
-	public String getId() {
-		return id;
-	}
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-	public void setId(String id) {
-		this.id = id;
-	}
+    public String getClassId() { return classId; }
+    public void setClassId(String classId) { this.classId = classId; }
 
-	public String getClassId() {
-		return classId;
-	}
+    public String getDate() { return date; }
+    public void setDate(String date) { this.date = date; }
 
-	public void setClassId(String classId) {
-		this.classId = classId;
-	}
-
-	public String getDate() {
-		return date;
-	}
-
-	public void setDate(String date) {
-		this.date = date;
-	}
-
-	public List<String> getAttendedStudents() {
-		return attendedStudents;
-	}
-
-	public void setAttendedStudents(List<String> attendedStudents) {
-		this.attendedStudents = attendedStudents;
-	}
-
-    // getters/setters
-    
+    public List<AttendanceEntry> getAttendanceList() { return attendanceList; }
+    public void setAttendanceList(List<AttendanceEntry> attendanceList) { this.attendanceList = attendanceList; }
 }
+
 

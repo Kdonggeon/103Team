@@ -31,8 +31,11 @@ public interface StudentApi {
     @GET("/api/students/{studentId}/attendance")
     Call<List<Attendance>> getAttendanceRecords(@Path("studentId") String studentId);
 
+
     @GET("/api/students/{studentId}/attendance")
     Call<List<Attendance>> getAttendanceForStudent(@Path("studentId") String studentId);
+
+
 
 
 }

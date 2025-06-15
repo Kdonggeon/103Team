@@ -120,6 +120,7 @@ public class LoginActivity extends AppCompatActivity {
                                     editor.putInt("academyNumber", res.getAcademyNumber());
                                     break;
                                 case "parent":
+                                    editor.putString("parentsNumber", res.getParentsNumber());
                                     // 필요한 경우 추가 필드 저장
                                     break;
                             }

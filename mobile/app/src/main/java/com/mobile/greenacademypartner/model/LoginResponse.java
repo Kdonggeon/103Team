@@ -48,6 +48,13 @@ public class LoginResponse {
     @Expose
     private int academyNumber;
 
+    private String parentsNumber;
+
+    public String getParentsNumber() {
+        return parentsNumber;
+    }
+
+
     // --- Getter / Setter ---
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

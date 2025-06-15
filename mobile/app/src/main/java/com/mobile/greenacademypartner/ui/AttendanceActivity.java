@@ -3,29 +3,30 @@ package com.mobile.greenacademypartner.ui;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-
 import androidx.appcompat.app.AppCompatActivity;
 
-public class AttendanceActivity extends AppCompatActivity {
+import com.mobile.greenacademypartner.R;
 
+public class AttendanceActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        // ✅ 반드시 레이아웃을 지정해줘야 화면이 뜹니다.
+        setContentView(R.layout.activity_attendance);
+
+        // ✅ 역할에 따라 분기
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String role = prefs.getString("role", "");
 
-        if (role.equals("student")) {
+        if ("student".equals(role)) {
             startActivity(new Intent(this, StudentAttendanceActivity.class));
-        } else if (role.equals("teacher")) {
+        } else if ("teacher".equals(role)) {
             startActivity(new Intent(this, TeacherAttendanceActivity.class));
-        } else if (role.equals("parent")) {
+        } else if ("parent".equals(role)) {
             startActivity(new Intent(this, ParentAttendanceActivity.class));
-        } else {
-            // 잘못된 역할 또는 로그인 정보 없음
-            finish(); // 그냥 종료
         }
 
-        finish(); // 본 화면 종료
+        finish(); // 이 액티비티는 중간 연결용
     }
 }

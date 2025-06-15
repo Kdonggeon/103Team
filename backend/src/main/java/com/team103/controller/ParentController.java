@@ -11,10 +11,12 @@ import com.team103.repository.ParentRepository;
 import com.team103.repository.StudentRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 @RestController
 @RequestMapping("/api/parents")
@@ -85,18 +87,48 @@ public class ParentController {
         return ResponseEntity.ok(classes);
     }
 
-    // ✅ 자녀의 수업 출석 내역 조회
-    @GetMapping("/{parentId}/children/{studentId}/attendance")
-    public ResponseEntity<?> getChildAttendance(
-            @PathVariable String parentId,
-            @PathVariable String studentId,
-            @RequestParam String classId) {
+//    // ✅ 자녀의 수업 출석 내역 조회
+//    @GetMapping("/{parentId}/children/{studentId}/attendance")
+//    public ResponseEntity<?> getChildAttendance(
+//            @PathVariable String parentId,
+//            @PathVariable String studentId,
+//            @RequestParam String classId) {
+//
+//        // 자녀의 해당 수업 출석 내역 조회
+//        List<Attendance> attendances = attendanceRepo
+//                .findByClassIdAndAttendedStudentsContaining(classId, studentId);
+//
+//        return ResponseEntity.ok(attendances);
+//    }
+    @GetMapping("/parents/{parentId}/attendance")
+    public ResponseEntity<?> getChildAttendance(@PathVariable String parentId) {
+        Parent parent = parentRepo.findByParentsId(parentId);
+        if (parent == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("부모님 정보 없음");
+        }
 
-        // 자녀의 해당 수업 출석 내역 조회
-        List<Attendance> attendances = attendanceRepo
-                .findByClassIdAndAttendedStudentsContaining(classId, studentId);
+        String parentNumber = parent.getParentsNumber(); // ✅ 문자열로 사용
 
+        List<Student> children = studentRepo.findByParentsNumber(parentNumber);
+
+        List<Attendance> allAttendance = new ArrayList<>();
+        for (Student child : children) {
+            List<Attendance> attendance = attendanceRepo.findByStudentInAttendanceList(child.getStudentId());
+            allAttendance.addAll(attendance);
+        }
+
+        return ResponseEntity.ok(allAttendance);
+    }
+    // ✅ 학생 출석 조회 API (학생/학부모 공통 사용)
+    @GetMapping("/{studentId}/attendance")
+    public ResponseEntity<?> getAttendanceByStudentId(@PathVariable String studentId) {
+        List<Attendance> attendances = attendanceRepo.findByStudentInAttendanceList(studentId);
+        
+        
         return ResponseEntity.ok(attendances);
     }
+
+
+
 
 }

@@ -70,7 +70,7 @@ public class NavigationMenuHelper {
 
             int index = i;
 
-            // ✅ 초기 강조 처리
+            // ✅ 초기 선택 강조 처리
             if (i == initialSelectedIndex) {
                 icon.setImageResource(icons_dark[i]);
                 text.setTextColor(ContextCompat.getColor(activity, R.color.white));
@@ -79,6 +79,7 @@ public class NavigationMenuHelper {
             }
 
             layout.setOnClickListener(v -> {
+                // 이전 강조 제거
                 if (selectedItem != null) {
                     int prevIndex = ((ViewGroup) selectedItem.getParent()).indexOfChild(selectedItem);
                     ImageView prevIcon = selectedItem.findViewById(R.id.nav_icon);
@@ -88,16 +89,24 @@ public class NavigationMenuHelper {
                     selectedItem.setBackgroundColor(ContextCompat.getColor(activity, R.color.gray));
                 }
 
+                // 현재 강조 처리
                 icon.setImageResource(icons_dark[index]);
                 text.setTextColor(ContextCompat.getColor(activity, R.color.white));
                 layout.setBackgroundColor(ContextCompat.getColor(activity, R.color.black));
                 selectedItem = layout;
 
-                if (targetActivities[index] != null && !activity.getClass().equals(targetActivities[index])) {
-                    activity.startActivity(new Intent(activity, targetActivities[index]));
-                } else {
-                    if (mainContentText != null) {
-                        mainContentText.setText(labels[index] + " 화면입니다");
+                // ✅ 화면 전환 처리
+                if (targetActivities[index] != null) {
+                    boolean isAttendance = targetActivities[index] == AttendanceActivity.class;
+                    boolean isSameActivity = activity.getClass().equals(targetActivities[index]);
+
+                    // 출석관리 메뉴는 항상 새로 띄움, 나머지는 현재 화면이면 무시
+                    if (isAttendance || !isSameActivity) {
+                        activity.startActivity(new Intent(activity, targetActivities[index]));
+                    } else {
+                        if (mainContentText != null) {
+                            mainContentText.setText(labels[index] + " 화면입니다");
+                        }
                     }
                 }
 
@@ -107,5 +116,4 @@ public class NavigationMenuHelper {
             navContainer.addView(itemView);
         }
     }
-
 }

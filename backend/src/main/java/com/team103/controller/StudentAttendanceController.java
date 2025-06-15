@@ -27,12 +27,12 @@ public class StudentAttendanceController {
         return classRepo.findByStudentsContaining(studentId);
     }
 
-    // 2. 내가 출석한 기록 확인
-    @GetMapping("/{studentId}/attendance")
-    public List<Attendance> getMyAttendance(
-            @PathVariable String studentId,
-            @RequestParam String classId) {
-        return attendanceRepo.findByClassIdAndAttendedStudentsContaining(classId, studentId);
-    }
+//    // 2. 내가 출석한 기록 확인
+//    @GetMapping("/{studentId}/attendance")
+//    public List<Attendance> getMyAttendance(
+//            @PathVariable String studentId,
+//            @RequestParam String classId) {
+//        return attendanceRepo.findByClassIdAndAttendedStudentsContaining(classId, studentId);
+//    }
 }
 
