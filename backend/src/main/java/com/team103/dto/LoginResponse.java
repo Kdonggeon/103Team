@@ -16,10 +16,17 @@ public class LoginResponse {
     private int grade;
     private String gender;
     private int academyNumber; // ← 교사용 추가
+    
+    private String parentsNumber;
+    
+    
+
+
 
     // 기본 생성자
     public LoginResponse() {}
-
+    
+    
 
  // 통합 생성자 추가
     public LoginResponse(String status, String role, String username, String name, String token,
@@ -50,6 +57,7 @@ public class LoginResponse {
     public int getGrade() { return grade; }
     public String getGender() { return gender; }
     public int getAcademyNumber() { return academyNumber; }
+    public String getParentsNumber() { return parentsNumber; }
     
 
     // --- Setters (optional) ---
@@ -64,4 +72,7 @@ public class LoginResponse {
     public void setGrade(int grade) { this.grade = grade; }
     public void setGender(String gender) { this.gender = gender; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+    public void setParentsNumber(String parentsNumber) {
+        this.parentsNumber = parentsNumber;
+    }
 }
