@@ -3,7 +3,11 @@ package com.mobile.greenacademypartner.ui;
 import android.os.Bundle;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.Toolbar;
+
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.appbar.MaterialToolbar;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.NoticeApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
@@ -11,6 +15,7 @@ import com.mobile.greenacademypartner.model.Notice;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+
 
 public class NoticeDetailActivity extends AppCompatActivity {
     private TextView tvTitle, tvAuthor, tvDate, tvContent;
@@ -20,6 +25,12 @@ public class NoticeDetailActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice_detail);
+
+
+        MaterialToolbar toolbar = findViewById(R.id.toolbar_notice_detail);
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
         tvTitle   = findViewById(R.id.tv_detail_title);
         tvAuthor  = findViewById(R.id.tv_detail_author);
