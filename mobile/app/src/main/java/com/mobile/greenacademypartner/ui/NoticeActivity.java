@@ -1,6 +1,7 @@
 package com.mobile.greenacademypartner.ui;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -65,6 +66,9 @@ public class NoticeActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.pb_loading_notices);
         btnAdd = findViewById(R.id.btn_add_notice);
 
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        if (!"teacher".equals(prefs.getString("role", ""))) btnAdd.setVisibility(View.GONE);
+
         rvNotices.setLayoutManager(new LinearLayoutManager(this));
         api = RetrofitClient.getClient().create(NoticeApi.class);
         fetchNotices();
@@ -72,6 +76,7 @@ public class NoticeActivity extends AppCompatActivity {
         btnAdd.setOnClickListener(v ->
                 startActivity(new Intent(this, CreateNoticeActivity.class))
         );
+
     }
 
     @Override
