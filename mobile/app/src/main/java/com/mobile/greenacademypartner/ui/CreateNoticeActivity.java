@@ -1,5 +1,6 @@
 package com.mobile.greenacademypartner.ui;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -38,6 +39,10 @@ public class CreateNoticeActivity extends AppCompatActivity {
             Notice notice = new Notice();
             notice.setTitle(t);
             notice.setContent(c);
+            // SharedPreferences에 저장된 로그인 사용자명 꺼내서 세팅
+            SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+            String username = prefs.getString("username", "");
+            notice.setAuthor(username);
 
             api.createNotice(notice).enqueue(new Callback<Notice>() {
                 @Override
