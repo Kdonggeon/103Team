@@ -45,6 +45,7 @@
         <activity android:name=".ui.FindIdResultActivity" />
         <activity android:name=".ui.CreateNoticeActivity" />
         <activity android:name=".ui.NoticeDetailActivity" />
+        <activity android:name=".ui.EditNoticeActivity" />
 
 
 

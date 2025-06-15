@@ -5,26 +5,26 @@
     android:padding="16dp"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-
-    <EditText
+<EditText
         android:id="@+id/edit_notice_title"
-        android:hint="제목"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:inputType="text"/>
+        android:minHeight="48dp"
+        android:padding="12dp"
+        android:hint="제목 입력"/>
 
     <EditText
         android:id="@+id/edit_notice_content"
-        android:hint="내용"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:gravity="top"
-        android:inputType="textMultiLine"/>
+        android:hint="내용 입력"
+        android:gravity="top"/>
 
     <Button
-        android:id="@+id/btn_notice_submit"
+        android:id="@+id/btn_save"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="등록"/>
+        android:text="저장"/>
+
 </LinearLayout>

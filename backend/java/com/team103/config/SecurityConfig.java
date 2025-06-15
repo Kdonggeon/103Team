@@ -11,6 +11,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+
 import java.util.List;
 
 @Configuration
@@ -56,4 +57,6 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", config);  // 모든 경로에 대해 CORS 설정 적용
         return source;
     }
+    
+    
 }

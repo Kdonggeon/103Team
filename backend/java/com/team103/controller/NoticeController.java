@@ -36,4 +36,28 @@ public class NoticeController {
         Notice saved = noticeRepo.save(notice);
         return ResponseEntity.ok(saved);
     }
+    @PutMapping("/{id}")
+    public ResponseEntity<Notice> updateNotice(
+            @PathVariable String id,
+            @RequestBody Notice notice
+    ) {
+        return noticeRepo.findById(id)
+            .map(existing -> {
+                existing.setTitle(notice.getTitle());
+                existing.setContent(notice.getContent());
+                // 작성자(author), 생성일(createdAt)은 보존
+                Notice updated = noticeRepo.save(existing);
+                return ResponseEntity.ok(updated);
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteNotice(@PathVariable String id) {
+        if (!noticeRepo.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        noticeRepo.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+    
 }

@@ -18,7 +18,7 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.NoticeApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.Notice;
-import com.mobile.greenacademypartner.ui.adapter.NoticeListAdapter;
+import com.mobile.greenacademypartner.ui.NoticeListAdapter;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import java.util.List;
