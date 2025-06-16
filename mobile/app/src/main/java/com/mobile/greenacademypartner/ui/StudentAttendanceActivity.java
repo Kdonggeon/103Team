@@ -19,6 +19,7 @@ import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.Attendance;
+import com.mobile.greenacademypartner.model.AttendanceEntry;
 import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
 
 import java.util.List;
@@ -88,7 +89,20 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     attendanceListView.setAdapter(adapter);
 
                     for (Attendance att : list) {
-                        Log.d("Attendance", "수업명: " + att.getClassName() + ", 날짜: " + att.getDate() + ", 상태: " + att.getStatus());
+                        StringBuilder statusInfo = new StringBuilder();
+
+                        if (att.getAttendanceList() != null) {
+                            for (AttendanceEntry entry : att.getAttendanceList()) {
+                                statusInfo.append(entry.getStudentId())
+                                        .append(" - ")
+                                        .append(entry.getStatus())
+                                        .append("; ");
+                            }
+                        }
+
+                        Log.d("Attendance", "수업명: " + att.getClassName()
+                                + ", 날짜: " + att.getDate()
+                                + ", 상태: " + statusInfo.toString().trim());
                     }
                 } else {
                     Toast.makeText(StudentAttendanceActivity.this, "출석 데이터를 불러오지 못했습니다", Toast.LENGTH_SHORT).show();

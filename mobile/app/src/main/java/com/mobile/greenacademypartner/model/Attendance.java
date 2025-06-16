@@ -1,20 +1,32 @@
 package com.mobile.greenacademypartner.model;
 
+import java.util.List;
+
 public class Attendance {
 
-    private String className;
+    private String classId;
     private String date;
-    private String status;
+    private List<AttendanceEntry> attendanceList;
 
-    public String getClassName() {
-        return className;
+    private String className;
+
+    public String getClassId() {
+        return classId;
     }
 
     public String getDate() {
         return date;
     }
 
-    public String getStatus() {
-        return status;
+    public List<AttendanceEntry> getAttendanceList() {
+        return attendanceList;
+    }
+
+    public String getClassName() {
+        return className != null ? className : classId;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
     }
 }
