@@ -10,3 +10,5 @@
 
 설계 링크
 https://www.figma.com/design/WCeHqNpAEPBDEbJtZZAjVQ/project103?node-id=0-1&t=Yx3dDHmWDL7aajgV-1
+mongo db
+https://cloud.mongodb.com/v2/6823eca9d45e026468987dab#/metrics/replicaSet/6823ed4be169d81ef01aa047/explorer/103DB/academy/find
