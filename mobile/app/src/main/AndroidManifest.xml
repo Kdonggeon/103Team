@@ -46,6 +46,9 @@
         <activity android:name=".ui.CreateNoticeActivity" />
         <activity android:name=".ui.NoticeDetailActivity" />
         <activity android:name=".ui.EditNoticeActivity" />
+        <activity android:name=".ui.QaAddAnswerActivity"/>
+        <activity android:name=".ui.QaEditActivity"/>
+        <activity android:name=".ui.QaDetailActivity"/>
 
 
 

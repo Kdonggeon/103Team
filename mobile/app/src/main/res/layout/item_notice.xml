@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    card_view:cardCornerRadius="4dp"
+    card_view:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 공지 제목: QnA처럼 한 줄 요약 -->
+        <TextView
+            android:id="@+id/tvItemNoticeTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="공지 제목"
+            android:textSize="16sp"
+            android:textColor="@android:color/black"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

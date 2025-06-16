@@ -32,13 +32,16 @@
             android:id="@+id/rv_notices"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_weight="1"
+            android:padding="8dp"
+            android:clipToPadding="false"/>
 
         <!-- 4) 등록 버튼 -->
         <Button
             android:id="@+id/btn_add_notice"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:backgroundTint="@color/green"
             android:text="공지 등록" />
 
     </LinearLayout>
