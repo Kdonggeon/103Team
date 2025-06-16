@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:ndroid="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="?attr/selectableItemBackground"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/text_class_name"
+        ndroid:background="@android:color/white"
+        android:textColor="@android:color/black"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="수업 이름"
+        android:textStyle="bold"
+        android:textSize="18sp" />
+
+    <TextView
+        ndroid:background="@android:color/white"
+        android:textColor="@android:color/black"
+        android:id="@+id/text_schedule"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="요일 및 시간"
+        android:textSize="14sp"
+        android:layout_marginTop="4dp"/>
+</LinearLayout>

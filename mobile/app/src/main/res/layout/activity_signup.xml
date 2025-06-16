@@ -1,14 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:background="@color/white">
+    android:padding="24dp">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="회원가입 화면입니다"
-        android:textSize="20sp" />
-</LinearLayout>
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- 아이디 -->
+        <EditText
+            android:id="@+id/edit_id"
+            android:hint="아이디"
+            android:inputType="text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- 비밀번호 -->
+        <EditText
+            android:id="@+id/edit_pw"
+            android:hint="비밀번호"
+            android:inputType="textPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- 비밀번호 확인 -->
+        <EditText
+            android:id="@+id/edit_pw_confirm"
+            android:hint="비밀번호 확인"
+            android:inputType="textPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- 이름 -->
+        <EditText
+            android:id="@+id/edit_name"
+            android:hint="이름"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- 이메일 -->
+        <EditText
+            android:id="@+id/edit_email"
+            android:hint="이메일"
+            android:inputType="textEmailAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- 전화번호 -->
+        <EditText
+            android:id="@+id/edit_phone"
+            android:hint="전화번호"
+            android:inputType="phone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- 생년월일 -->
+        <EditText
+            android:id="@+id/edit_birth"
+            android:hint="생년월일 (YYYY-MM-DD)"
+            android:inputType="date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- 성별 -->
+        <RadioGroup
+            android:id="@+id/radio_gender"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <RadioButton
+                android:id="@+id/radio_male"
+                android:text="남성"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <RadioButton
+                android:id="@+id/radio_female"
+                android:text="여성"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+        </RadioGroup>
+
+        <!-- 가입 버튼 -->
+        <Button
+            android:id="@+id/btn_signup"
+            android:text="회원가입"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="@color/green"
+            android:textColor="@color/white"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
+</ScrollView>

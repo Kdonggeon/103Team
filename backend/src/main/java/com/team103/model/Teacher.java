@@ -1,15 +1,56 @@
 package com.team103.model;
 
-import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
-@Data
 @Document(collection = "teachers")
 public class Teacher {
+
     @Id
     private String id;
-    private String name;
-    private String subject;
-    private String email;
+
+    @Field("Teacher_Name")
+    private String teacherName;
+
+    @Field("Teacher_ID")
+    private String teacherId;
+
+    @Field("Teacher_PW")
+    private String teacherPw;
+
+    @Field("Teacher_Phone_Number")
+    private String teacherPhoneNumber;
+
+    @Field("Academy_Number")
+    private int academyNumber;
+
+    public Teacher(String id, String teacherName, String teacherId, String teacherPw,
+                   String teacherPhoneNumber, int academyNumber) {
+        this.id = id;
+        this.teacherName = teacherName;
+        this.teacherId = teacherId;
+        this.teacherPw = teacherPw;
+        this.teacherPhoneNumber = teacherPhoneNumber;
+        this.academyNumber = academyNumber;
+    }
+
+    // Getters and setters
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
+    public String getTeacherName() { return teacherName; }
+    public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
+
+    public String getTeacherId() { return teacherId; }
+    public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
+
+    public String getTeacherPw() { return teacherPw; }
+    public void setTeacherPw(String teacherPw) { this.teacherPw = teacherPw; }
+
+    public String getTeacherPhoneNumber() { return teacherPhoneNumber; }
+    public void setTeacherPhoneNumber(String teacherPhoneNumber) { this.teacherPhoneNumber = teacherPhoneNumber; }
+
+    public int getAcademyNumber() { return academyNumber; }
+    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
 }

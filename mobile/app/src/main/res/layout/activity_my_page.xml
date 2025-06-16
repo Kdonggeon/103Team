@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 메인 화면 -->
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- 툴바 -->
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/green"
+            app:title="마이페이지"
+            app:titleTextColor="@color/white" />
+
+        <!-- 마이페이지 내용 -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/text_role_title"
+                    android:text="역할 마이페이지"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:id="@+id/edit_name"
+                    android:hint="이름"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPersonName" />
+
+                <EditText
+                    android:id="@+id/edit_id"
+                    android:hint="아이디"
+                    android:enabled="false"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:id="@+id/edit_phone"
+                    android:hint="전화번호"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="phone" />
+
+                <!-- 학생용 -->
+                <EditText
+                    android:id="@+id/edit_address"
+                    android:hint="주소"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <EditText
+                    android:id="@+id/edit_school"
+                    android:hint="학교"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <EditText
+                    android:id="@+id/edit_grade"
+                    android:hint="학년"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:visibility="gone" />
+
+                <EditText
+                    android:id="@+id/edit_gender"
+                    android:hint="성별"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <!-- 교사용 -->
+                <EditText
+                    android:id="@+id/edit_academy_number"
+                    android:hint="학원 번호"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:visibility="gone" />
+
+                <!-- 저장 버튼 -->
+                <Button
+                    android:id="@+id/btn_save"
+                    android:text="정보 수정"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:backgroundTint="@color/green"
+                    android:textColor="@color/white" />
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- 사이드바 메뉴 -->
+    <LinearLayout
+        android:id="@+id/nav_container"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="@color/gray" />
+
+</androidx.drawerlayout.widget.DrawerLayout>

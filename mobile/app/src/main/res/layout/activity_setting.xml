@@ -5,11 +5,14 @@
     android:layout_height="match_parent">
 
     <!-- 메인 컨텐츠 -->
-    <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
 
+    <!-- 사이드바 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- 툴바 -->
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar_setting"
             android:layout_width="match_parent"
@@ -19,6 +22,7 @@
             android:title="설정"
             android:titleTextColor="@android:color/white" />
 
+        <!-- 색상 선택 그리드 -->
         <GridLayout
             android:id="@+id/color_grid"
             android:layout_width="match_parent"
@@ -27,15 +31,35 @@
             android:columnCount="4"
             android:padding="16dp"
             android:rowCount="2" />
+
+        <!-- 여기 추가된 텍스트뷰 -->
+<!--        <TextView-->
+<!--            android:id="@+id/main_content_text"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:padding="16dp"-->
+<!--            android:text="설정 내용"-->
+<!--            android:textColor="@android:color/black"-->
+<!--            android:textSize="18sp" />-->
+
+        <Button
+            android:id="@+id/btn_logout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:backgroundTint="@color/green"
+            android:text="로그아웃"
+            android:textColor="@color/white" />
+
+
     </LinearLayout>
 
-    <!-- 사이드바 -->
     <LinearLayout
         android:id="@+id/nav_container_setting"
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:orientation="vertical"
-        android:background="@android:color/darker_gray"/>
+        android:background="@android:color/darker_gray" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
