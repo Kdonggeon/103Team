@@ -9,6 +9,7 @@ import android.widget.TextView;
 
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.model.Attendance;
+import com.mobile.greenacademypartner.model.AttendanceEntry;
 
 import java.util.List;
 
@@ -59,7 +60,20 @@ public class ParentAttendanceAdapter extends BaseAdapter {
 
         holder.className.setText("수업: " + attendance.getClassName());
         holder.date.setText("날짜: " + attendance.getDate());
-        holder.status.setText("출석: " + attendance.getStatus());
+
+        // ✅ 여러 학생 출석 상태 출력
+        StringBuilder statusBuilder = new StringBuilder();
+        List<AttendanceEntry> entries = attendance.getAttendanceList();
+        if (entries != null) {
+            for (AttendanceEntry entry : entries) {
+                statusBuilder.append(entry.getStudentId())
+                        .append(" - ")
+                        .append(entry.getStatus())
+                        .append("\n");
+            }
+        }
+
+        holder.status.setText("출석:\n" + statusBuilder.toString().trim());
 
         return convertView;
     }

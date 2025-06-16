@@ -70,13 +70,13 @@ public class TeacherController {
         return ResponseEntity.ok(saved);
     }
 
-    // ✅ 4. 수업별 출석 현황 조회
-    @GetMapping("/classes/{classId}/attendance")
-    public ResponseEntity<?> getAttendance(
-            @PathVariable String classId,
-            @RequestParam String date) {
-
-        List<Attendance> attendances = attendanceRepo.findByClassIdAndDate(classId, date);
-        return ResponseEntity.ok(attendances);
-    }
+//    // ✅ 4. 수업별 출석 현황 조회
+//    @GetMapping("/classes/{classId}/attendance")
+//    public ResponseEntity<?> getAttendance(
+//            @PathVariable String classId,
+//            @RequestParam String date) {
+//
+//        List<Attendance> attendances = attendanceRepo.findByClassIdAndDate(classId, date);
+//        return ResponseEntity.ok(attendances);
+//    }
 }

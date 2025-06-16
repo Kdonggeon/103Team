@@ -18,7 +18,9 @@ public interface AttendanceRepository extends MongoRepository<Attendance, String
     List<Attendance> findByStudentInAttendanceList(String studentId);
 
     
-    
+    @Query("{ 'Class_ID': ?0 }")
+    List<Attendance> findByClassId(String classId);
+
 
 
 

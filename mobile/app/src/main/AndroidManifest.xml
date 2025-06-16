@@ -47,6 +47,9 @@
         <activity android:name=".ui.StudentAttendanceActivity" />
         <activity android:name=".ui.TeacherAttendanceActivity" />
         <activity android:name=".ui.ParentAttendanceActivity" />
+        <activity android:name=".ui.ClassAttendanceActivity" />
+        <activity android:name=".ui.TeacherClassesActivity" />
+
 
 
 

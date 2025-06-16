@@ -10,7 +10,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.content.ContextCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.mobile.greenacademypartner.R;
@@ -19,6 +18,7 @@ import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.Attendance;
+import com.mobile.greenacademypartner.model.AttendanceEntry;
 import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
 
 import java.util.List;
@@ -83,7 +83,20 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     Log.d("Attendance", "출석 데이터 개수: " + list.size());
 
                     for (Attendance att : list) {
-                        Log.d("Attendance", "수업명: " + att.getClassName() + ", 날짜: " + att.getDate() + ", 상태: " + att.getStatus());
+                        StringBuilder statusInfo = new StringBuilder();
+
+                        if (att.getAttendanceList() != null) {
+                            for (AttendanceEntry entry : att.getAttendanceList()) {
+                                statusInfo.append(entry.getStudentId())
+                                        .append(" - ")
+                                        .append(entry.getStatus())
+                                        .append("; ");
+                            }
+                        }
+
+                        Log.d("Attendance", "수업명: " + att.getClassName()
+                                + ", 날짜: " + att.getDate()
+                                + ", 상태: " + statusInfo.toString().trim());
                     }
 
                     AttendanceAdapter adapter = new AttendanceAdapter(StudentAttendanceActivity.this, list);

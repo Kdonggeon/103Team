@@ -7,6 +7,7 @@ import android.widget.*;
 
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.model.Attendance;
+import com.mobile.greenacademypartner.model.AttendanceEntry;
 
 import java.util.List;
 
@@ -56,12 +57,24 @@ public class AttendanceAdapter extends BaseAdapter {
         }
 
         Attendance item = attendanceList.get(position);
-        holder.classNameView.setText(item.getClassName());
-        holder.dateView.setText(item.getDate());
-        holder.statusView.setText(item.getStatus());
+        Log.d("Adapter", "item.classId: " + item.getClassId() + ", date: " + item.getDate());
 
-        Log.d("AttendanceAdapter", "수업명: " + item.getClassName());
+        holder.classNameView.setText(item.getClassId() != null ? item.getClassId() : "알 수 없음");
+        holder.dateView.setText(item.getDate() != null ? item.getDate() : "날짜 없음");
 
+        StringBuilder statusBuilder = new StringBuilder();
+        List<AttendanceEntry> entries = item.getAttendanceList();
+        if (entries != null) {
+            for (AttendanceEntry entry : entries) {
+                statusBuilder.append(entry.getStudentId())
+                        .append(" - ")
+                        .append(entry.getStatus())
+                        .append("\n");
+            }
+        } else {
+            statusBuilder.append("출석 정보 없음");
+        }
+        holder.statusView.setText(statusBuilder.toString().trim());
 
         return convertView;
     }

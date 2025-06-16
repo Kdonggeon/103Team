@@ -22,7 +22,7 @@ public class AttendanceActivity extends AppCompatActivity {
         if ("student".equals(role)) {
             startActivity(new Intent(this, StudentAttendanceActivity.class));
         } else if ("teacher".equals(role)) {
-            startActivity(new Intent(this, TeacherAttendanceActivity.class));
+            startActivity(new Intent(this, TeacherClassesActivity.class));
         } else if ("parent".equals(role)) {
             startActivity(new Intent(this, ParentAttendanceActivity.class));
         }
