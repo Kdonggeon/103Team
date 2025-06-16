@@ -16,6 +16,7 @@ import retrofit2.http.Headers;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
 import retrofit2.http.Path;
+import retrofit2.http.Query;
 
 public interface StudentApi {
 
@@ -34,6 +35,12 @@ public interface StudentApi {
 
     @GET("/api/students/{studentId}/attendance")
     Call<List<Attendance>> getAttendanceForStudent(@Path("studentId") String studentId);
+
+    @GET("/api/students/{studentId}/attendance")
+    Call<List<Attendance>> getAttendanceByStudentIdAndDate(
+            @Path("studentId") String studentId,
+            @Query("date") String date
+    );
 
 
 

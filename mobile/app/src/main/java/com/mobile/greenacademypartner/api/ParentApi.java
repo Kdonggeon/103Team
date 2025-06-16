@@ -3,6 +3,7 @@ package com.mobile.greenacademypartner.api;
 import com.mobile.greenacademypartner.model.Attendance;
 import com.mobile.greenacademypartner.model.ParentSignupRequest;
 import com.mobile.greenacademypartner.model.ParentUpdateRequest;
+import com.mobile.greenacademypartner.model.Student;
 
 import java.util.List;
 
@@ -25,5 +26,11 @@ public interface ParentApi {
 
     @GET("/api/parents/{studentId}/attendance")
     Call<List<Attendance>> getAttendanceForChild(@Path("studentId") String studentId);
+
+    @GET("/api/parents/{parentId}/children")
+    Call<List<Student>> getChildrenByParentId(@Path("parentId") String parentId);
+
+
+
 
 }

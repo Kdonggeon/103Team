@@ -40,8 +40,15 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-//  Retrofit + GSON
+
+    // ✅ Retrofit + GSON
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // ✅ ZXing QR 스캐너
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation ( "com.google.android.material:material:1.10.0")
+
 }
+
 

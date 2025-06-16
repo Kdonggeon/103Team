@@ -63,18 +63,18 @@ public class ParentController {
         return parentRepo.findByParentsId(id);
     }
 
-    // ✅ 자녀 조회 API
-    @GetMapping("/{parentId}/children")
-    public ResponseEntity<?> getChildren(@PathVariable String parentId) {
-        Parent parent = parentRepo.findByParentsId(parentId);
-        if (parent == null) return ResponseEntity.notFound().build();
-
-        // 전화번호 대신 Parents_Number 사용
-        String parentNumber = parent.getParentsNumber();  
-        List<Student> children = studentRepo.findByParentsNumber(parentNumber);
-
-        return ResponseEntity.ok(children);
-    }
+//    // ✅ 자녀 조회 API
+//    @GetMapping("/{parentId}/children")
+//    public ResponseEntity<?> getChildren(@PathVariable String parentId) {
+//        Parent parent = parentRepo.findByParentsId(parentId);
+//        if (parent == null) return ResponseEntity.notFound().build();
+//
+//        // 전화번호 대신 Parents_Number 사용
+//        String parentNumber = parent.getParentsNumber();  
+//        List<Student> children = studentRepo.findByParentsNumber(parentNumber);
+//
+//        return ResponseEntity.ok(children);
+//    }
     
  // ✅ 자녀의 수업 목록 조회
     @GetMapping("/{parentId}/children/{studentId}/classes")
@@ -121,6 +121,17 @@ public class ParentController {
     }
     // ✅ 학생 출석 조회 API (학생/학부모 공통 사용)
     
+    @GetMapping("/{parentId}/children")
+    public ResponseEntity<?> getChildren(@PathVariable String parentId) {
+        Parent parent = parentRepo.findByParentsId(parentId);
+        if (parent == null) return ResponseEntity.notFound().build();
+
+        String parentNumber = parent.getParentsNumber();  
+        List<Student> children = studentRepo.findByParentsNumber(parentNumber);
+
+        return ResponseEntity.ok(children);
+    }
+
 
 
 

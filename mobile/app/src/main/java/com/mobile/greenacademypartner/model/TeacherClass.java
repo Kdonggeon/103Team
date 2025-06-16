@@ -50,4 +50,12 @@ public class TeacherClass {
     public void setSchedule(String schedule) {
         this.schedule = schedule;
     }
+
+    public TeacherClass(String classId, String className, String teacherId, String schedule) {
+        this.classId = classId;
+        this.className = className;
+        this.teacherId = teacherId;
+        this.schedule = schedule;
+    }
+
 }

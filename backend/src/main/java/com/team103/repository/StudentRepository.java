@@ -22,5 +22,5 @@ public interface StudentRepository extends MongoRepository<Student, String> {
     @Query("{ 'Student_Name': ?0, 'Student_Phone_Number': ?1 }")
     Student findByStudentNameAndStudentPhoneNumber(String name, String phoneNumber);
     
-
+    
 }

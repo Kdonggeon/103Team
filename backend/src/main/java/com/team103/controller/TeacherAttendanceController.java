@@ -24,18 +24,18 @@ public class TeacherAttendanceController {
     @Autowired
     private AttendanceRepository attendanceRepository;
 
-    // 1. 교사의 수업 목록 조회
-    @GetMapping("/{teacherId}/classes")
-    public ResponseEntity<List<Course>> getClassesByTeacher(@PathVariable String teacherId) {
-        List<Course> courses = courseRepository.findByTeacherId(teacherId);
-        return ResponseEntity.ok(courses);
-    }
-
-    // 2. 수업별 출석 조회
-    @GetMapping("/classes/{classId}/attendance")
-    public ResponseEntity<List<Attendance>> getAttendanceByClass(@PathVariable String classId) {
-        List<Attendance> attendances = attendanceRepository.findByClassId(classId);
-        return ResponseEntity.ok(attendances);
-    }
+//    // 1. 교사의 수업 목록 조회
+//    @GetMapping("/{teacherId}/classes")
+//    public ResponseEntity<List<Course>> getClassesByTeacher(@PathVariable String teacherId) {
+//        List<Course> courses = courseRepository.findByTeacherId(teacherId);
+//        return ResponseEntity.ok(courses);
+//    }
+//
+//    // 2. 수업별 출석 조회
+//    @GetMapping("/classes/{classId}/attendance")
+//    public ResponseEntity<List<Attendance>> getAttendanceByClass(@PathVariable String classId) {
+//        List<Attendance> attendances = attendanceRepository.findByClassId(classId);
+//        return ResponseEntity.ok(attendances);
+//    }
 
 }

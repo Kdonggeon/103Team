@@ -1,6 +1,8 @@
 package com.mobile.greenacademypartner.api;
 
 import com.mobile.greenacademypartner.model.Attendance;
+import com.mobile.greenacademypartner.model.Course;
+import com.mobile.greenacademypartner.model.CreateClassRequest;
 import com.mobile.greenacademypartner.model.TeacherAttendance;
 import com.mobile.greenacademypartner.model.TeacherClass;
 import com.mobile.greenacademypartner.model.TeacherSignupRequest;
@@ -33,6 +35,18 @@ public interface TeacherApi {
             @Path("classId") String classId,
             @Query("date") String date
     );
+
+    @POST("/api/teachers/classes")
+    Call<Void> createClass(@Body CreateClassRequest request);
+
+    @GET("/api/teachers/{teacherId}/classes")
+    Call<List<Course>> getClassesByTeacherIdAndDate(
+            @Path("teacherId") String teacherId,
+            @Query("date") String date
+    );
+
+
+
 
 
 

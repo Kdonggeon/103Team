@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
-
+    <uses-permission android:name="android.permission.CAMERA" />
 
 
     <application
@@ -49,7 +49,12 @@
         <activity android:name=".ui.ParentAttendanceActivity" />
         <activity android:name=".ui.TeacherClassesActivity" />
         <activity android:name=".ui.ClassAttendanceActivity"/>
-
+        <activity android:name=".ui.QRScannerActivity" />
+        <activity android:name=".ui.StudentTimetableActivity"/>
+        <activity android:name=".ui.ChildAttendanceActivity"/>
+        <activity android:name=".ui.ParentChildrenListActivity"/>
+        <activity android:name=".ui.TeacherTimetableActivity"/>
+        <activity android:name=".ui.CreateClassActivity"/>
 
 
 

@@ -36,8 +36,15 @@ public class AttendanceAdapter extends RecyclerView.Adapter<AttendanceAdapter.Vi
         Attendance item = attendanceList.get(position);
         holder.textClassName.setText(item.getClassName());
         holder.textDate.setText(item.getDate());
-        holder.textStatus.setText(item.getStatus());
+
+        if (item.getAttendanceList() != null && !item.getAttendanceList().isEmpty()) {
+            String status = item.getAttendanceList().get(0).getStatus();  // ✅ 첫 번째 출석 상태
+            holder.textStatus.setText("1명 상태: " + status);
+        } else {
+            holder.textStatus.setText("출석 정보 없음");
+        }
     }
+
 
     @Override
     public int getItemCount() {
