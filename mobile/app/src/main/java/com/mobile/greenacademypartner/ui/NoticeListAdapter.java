@@ -37,7 +37,7 @@ public class NoticeListAdapter extends RecyclerView.Adapter<NoticeListAdapter.Ho
         Notice notice = items.get(position);
         holder.tv.setText(notice.getTitle());
 
-        // ✅ 공지 클릭 시 noticeId 전달
+        //공지 클릭 시 noticeId 전달
         holder.itemView.setOnClickListener(view -> {
             Intent intent = new Intent(view.getContext(), NoticeDetailActivity.class);
             intent.putExtra("NOTICE_ID", notice.getId());  // 🔥 반드시 추가

@@ -37,14 +37,14 @@ public class NoticeDetailActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice_detail);
 
-        // 🔹 툴바 설정 및 뒤로가기 버튼 활성화
+        // 툴바 설정 및 뒤로가기 버튼 활성화
         Toolbar toolbar = findViewById(R.id.toolbar_notice_detail);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
 
-        // 🔹 인텐트에서 공지 ID 확인
+        // 인텐트에서 공지 ID 확인
         noticeId = getIntent().getStringExtra("NOTICE_ID");
         Log.d("NoticeDetail", "noticeId = " + noticeId);
         if (noticeId == null || noticeId.trim().isEmpty()) {
@@ -53,10 +53,10 @@ public class NoticeDetailActivity extends AppCompatActivity {
             return;
         }
 
-        // 🔹 API 객체 준비
+        // API 객체 준비
         api = RetrofitClient.getClient().create(NoticeApi.class);
 
-        // 🔹 뷰 바인딩
+        // 뷰 바인딩
         TextView tvTitle   = findViewById(R.id.tv_detail_title);
         TextView tvContent = findViewById(R.id.tv_detail_content);
         TextView tvAuthor  = findViewById(R.id.tv_detail_author);
@@ -71,7 +71,7 @@ public class NoticeDetailActivity extends AppCompatActivity {
             btnDelete.setVisibility(View.GONE);
         }
 
-        // 🔹 공지사항 단건 조회
+        //공지사항 조회
         api.getNotice(noticeId).enqueue(new Callback<Notice>() {
             @Override
             public void onResponse(Call<Notice> call, Response<Notice> resp) {
@@ -81,7 +81,7 @@ public class NoticeDetailActivity extends AppCompatActivity {
                     tvContent.setText(n.getContent());
                     tvAuthor.setText(n.getAuthor());
 
-                    // 날짜 포맷 안전하게 변환
+                    //날짜 포맷 안전하게 변환
                     String formatted = n.getCreatedAt();
                     if (formatted != null) {
                         try {
@@ -107,14 +107,14 @@ public class NoticeDetailActivity extends AppCompatActivity {
             }
         });
 
-        // 🔹 수정 버튼
+        //수정 버튼
         btnEdit.setOnClickListener(v -> {
             Intent intent = new Intent(this, EditNoticeActivity.class);
             intent.putExtra("NOTICE_ID", noticeId);
             startActivity(intent);
         });
 
-        // 🔹 삭제 버튼
+        //삭제 버튼
         btnDelete.setOnClickListener(v -> new AlertDialog.Builder(this)
                 .setTitle("공지사항 삭제")
                 .setMessage("정말 삭제하시겠습니까?")
@@ -142,7 +142,7 @@ public class NoticeDetailActivity extends AppCompatActivity {
         );
     }
 
-    // 🔹 뒤로가기 아이콘 클릭 시 처리
+    //뒤로가기 아이콘 클릭 시 처리
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {

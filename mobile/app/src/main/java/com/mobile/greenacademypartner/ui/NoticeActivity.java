@@ -33,6 +33,7 @@ public class NoticeActivity extends AppCompatActivity {
     private RecyclerView rvNotices;
     private ProgressBar progressBar;
     private Button btnAdd;
+    //api 객체
     private NoticeApi api;
 
     @Override
@@ -40,16 +41,16 @@ public class NoticeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice);
 
-        // 1. DrawerLayout, Toolbar, Navigation Container 초기화
+        //요소 초기화
         drawerLayout = findViewById(R.id.drawer_layout_notice);
         toolbar = findViewById(R.id.toolbar_notice);
         navContainer = findViewById(R.id.nav_container_notice);
 
-        // 2. 툴바 설정
+        //툴바 초기화
         ToolbarColorUtil.applyToolbarColor(this,toolbar);
         setSupportActionBar(toolbar);
 
-        // 3. 햄버거 토글 설정
+        //햄버거 메뉴 설정
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
                 R.string.navigation_drawer_open,
@@ -58,21 +59,26 @@ public class NoticeActivity extends AppCompatActivity {
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
-        // 4. 네비게이션 메뉴 설정
+        //네비게이션 메뉴 연결
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null);
 
-        // 5. RecyclerView 및 버튼
+        //공지사항 목록과 버튼 연결
         rvNotices = findViewById(R.id.rv_notices);
         progressBar = findViewById(R.id.pb_loading_notices);
         btnAdd = findViewById(R.id.btn_add_notice);
 
+        //권한 확인(선생만 공지 작성가능)
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         if (!"teacher".equals(prefs.getString("role", ""))) btnAdd.setVisibility(View.GONE);
 
+        //RecyclerView 설정
         rvNotices.setLayoutManager(new LinearLayoutManager(this));
         api = RetrofitClient.getClient().create(NoticeApi.class);
+
+        //공지사항 목록 요청
         fetchNotices();
 
+        //작성 버튼 클릭시 CreateNoticeActivity로 이동
         btnAdd.setOnClickListener(v ->
                 startActivity(new Intent(this, CreateNoticeActivity.class))
         );
