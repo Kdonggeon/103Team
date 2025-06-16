@@ -1,10 +1,5 @@
 package com.mobile.greenacademypartner.ui;
 
-<<<<<<< HEAD
-import androidx.appcompat.app.AppCompatActivity;
-
-public class NoticeActivity  extends AppCompatActivity {
-=======
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -13,12 +8,14 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.NoticeApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
@@ -26,19 +23,21 @@ import com.mobile.greenacademypartner.model.Notice;
 import com.mobile.greenacademypartner.ui.NoticeListAdapter;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+
 import java.util.List;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class NoticeActivity extends AppCompatActivity {
+
     private DrawerLayout drawerLayout;
     private Toolbar toolbar;
     private LinearLayout navContainer;
     private RecyclerView rvNotices;
     private ProgressBar progressBar;
     private Button btnAdd;
-    //api 객체
     private NoticeApi api;
 
     @Override
@@ -46,16 +45,19 @@ public class NoticeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice);
 
-        //요소 초기화
+        // 1. 뷰 초기화
         drawerLayout = findViewById(R.id.drawer_layout_notice);
         toolbar = findViewById(R.id.toolbar_notice);
         navContainer = findViewById(R.id.nav_container_notice);
+        rvNotices = findViewById(R.id.rv_notices);
+        progressBar = findViewById(R.id.pb_loading_notices);
+        btnAdd = findViewById(R.id.btn_add_notice);
 
-        //툴바 초기화
-        ToolbarColorUtil.applyToolbarColor(this,toolbar);
+        // 2. 툴바 색상 및 설정
+        ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
 
-        //햄버거 메뉴 설정
+        // 3. 드로어 설정
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
                 R.string.navigation_drawer_open,
@@ -64,36 +66,32 @@ public class NoticeActivity extends AppCompatActivity {
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
-        //네비게이션 메뉴 연결
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null);
+        // 4. 사이드 메뉴 생성
+        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null,3);
 
-        //공지사항 목록과 버튼 연결
-        rvNotices = findViewById(R.id.rv_notices);
-        progressBar = findViewById(R.id.pb_loading_notices);
-        btnAdd = findViewById(R.id.btn_add_notice);
-
-        //권한 확인(선생만 공지 작성가능)
-        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        if (!"teacher".equals(prefs.getString("role", ""))) btnAdd.setVisibility(View.GONE);
-
-        //RecyclerView 설정
+        // 5. RecyclerView 설정
         rvNotices.setLayoutManager(new LinearLayoutManager(this));
         api = RetrofitClient.getClient().create(NoticeApi.class);
 
-        //공지사항 목록 요청
+        // 6. 권한에 따라 공지 추가 버튼 제어
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        if (!"teacher".equals(prefs.getString("role", ""))) {
+            btnAdd.setVisibility(View.GONE);
+        }
+
+        // 7. 공지사항 불러오기
         fetchNotices();
 
-        //작성 버튼 클릭시 CreateNoticeActivity로 이동
+        // 8. 추가 버튼 클릭 시 작성 화면으로 이동
         btnAdd.setOnClickListener(v ->
                 startActivity(new Intent(this, CreateNoticeActivity.class))
         );
-
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        fetchNotices();
+        fetchNotices(); // 다시 불러오기 (작성 후 반영)
     }
 
     private void fetchNotices() {
@@ -126,5 +124,4 @@ public class NoticeActivity extends AppCompatActivity {
             }
         });
     }
->>>>>>> sub
 }

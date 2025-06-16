@@ -1,6 +1,5 @@
 package com.mobile.greenacademypartner.ui;
 
-<<<<<<< HEAD
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -11,12 +10,6 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-=======
-
-import android.os.Bundle;
-import android.widget.LinearLayout;
-import android.widget.TextView;
->>>>>>> sub
 
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
@@ -24,7 +17,6 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.mobile.greenacademypartner.R;
-<<<<<<< HEAD
 import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.api.TeacherApi;
@@ -40,15 +32,10 @@ import java.util.Map;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-=======
-import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
-import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
->>>>>>> sub
 
 public class MyPageActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
-<<<<<<< HEAD
     private LinearLayout navContainer;
     private Toolbar toolbar;
     private EditText editName, editId, editPhone, editAddress, editSchool, editGrade, editGender, editAcademyNumber;
@@ -56,31 +43,18 @@ public class MyPageActivity extends AppCompatActivity {
     private Button btnSave;
     private String role;
 
-    int defaultIndex = 0;
-=======
-    private Toolbar toolbar;
-    private LinearLayout navContainer;
-    private TextView mainContentText;
->>>>>>> sub
+    private final int defaultIndex = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-<<<<<<< HEAD
         setContentView(R.layout.activity_my_page);
 
+        // Drawer & Toolbar 설정
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);
         toolbar = findViewById(R.id.toolbar);
-=======
-        setContentView(R.layout.activity_mypage);  // XML 연결
 
-        drawerLayout = findViewById(R.id.drawer_layout_mypage);
-        toolbar = findViewById(R.id.toolbar_mypage);
-        navContainer = findViewById(R.id.nav_container_mypage);
-        mainContentText = findViewById(R.id.main_content_text_mypage);
-
->>>>>>> sub
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
 
@@ -92,9 +66,9 @@ public class MyPageActivity extends AppCompatActivity {
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
-<<<<<<< HEAD
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, defaultIndex);
 
+        // 주요 구성요소 초기화
         initViews();
         loadUserInfo();
         setupUIByRole();
@@ -117,22 +91,7 @@ public class MyPageActivity extends AppCompatActivity {
     private void loadUserInfo() {
         SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
 
-        String address = pref.getString("address", null);
-        String school = pref.getString("school", null);
-        int grade = pref.getInt("grade", 0);
-        String gender = pref.getString("gender", null);
-
         role = pref.getString("role", "unknown").trim().toLowerCase();
-        Log.d("MyPage", "address=" + pref.getString("address", "null"));
-        Log.d("MyPage", "school=" + pref.getString("school", "null"));
-        Log.d("MyPage", "grade=" + pref.getInt("grade", -1));
-        Log.d("MyPage", "gender=" + pref.getString("gender", "null"));
-
-        Log.d("MyPage", "전체 SharedPreferences 내용 확인:");
-        Map<String, ?> allEntries = pref.getAll();
-        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
-            Log.d("MyPage", entry.getKey() + ": " + entry.getValue().toString());
-        }
 
         editName.setText(pref.getString("name", ""));
         editId.setText(pref.getString("username", ""));
@@ -145,6 +104,12 @@ public class MyPageActivity extends AppCompatActivity {
             editGender.setText(pref.getString("gender", ""));
         } else if ("teacher".equals(role)) {
             editAcademyNumber.setText(String.valueOf(pref.getInt("academyNumber", 0)));
+        }
+
+        // SharedPreferences 전체 로그
+        Map<String, ?> allEntries = pref.getAll();
+        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+            Log.d("MyPage", entry.getKey() + ": " + entry.getValue());
         }
     }
 
@@ -171,9 +136,9 @@ public class MyPageActivity extends AppCompatActivity {
             String name = editName.getText().toString();
             String phone = editPhone.getText().toString();
 
-            // ✅ SharedPreferences 준비
             SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
             SharedPreferences.Editor editor = pref.edit();
+
             editor.putString("username", id);
             editor.putString("name", name);
             editor.putString("phone", phone);
@@ -184,12 +149,10 @@ public class MyPageActivity extends AppCompatActivity {
                 int grade = Integer.parseInt(editGrade.getText().toString());
                 String gender = editGender.getText().toString();
 
-                // 🟢 서버에 전송
                 StudentUpdateRequest student = new StudentUpdateRequest(id, name, phone, address, school, grade, gender);
                 StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
                 api.updateStudent(id, student).enqueue(getCallback("학생"));
 
-                // 🟢 SharedPreferences에 저장
                 editor.putString("address", address);
                 editor.putString("school", school);
                 editor.putInt("grade", grade);
@@ -209,11 +172,9 @@ public class MyPageActivity extends AppCompatActivity {
                 editor.putInt("academyNumber", academyNumber);
             }
 
-            // ✅ 저장 완료
-            editor.apply();
+            editor.apply(); // 저장
         });
     }
-
 
     private Callback<Void> getCallback(String roleName) {
         return new Callback<Void>() {
@@ -233,14 +194,4 @@ public class MyPageActivity extends AppCompatActivity {
         String msg = roleName + (success ? " 정보가 성공적으로 수정되었습니다." : " 정보 수정에 실패했습니다.");
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
-=======
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText);
-    }
-
-
-
-
-
-
->>>>>>> sub
 }

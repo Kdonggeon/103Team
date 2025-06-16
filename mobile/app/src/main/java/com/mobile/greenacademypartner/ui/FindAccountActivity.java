@@ -22,11 +22,9 @@ public class FindAccountActivity extends AppCompatActivity {
     private LinearLayout navContainer;
     private TextView mainContentText; // 없으면 TextView 생략 가능
 
-<<<<<<< HEAD
     int defaultIndex = 2; // 시간표
 
-=======
->>>>>>> sub
+
     @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,11 +51,10 @@ public class FindAccountActivity extends AppCompatActivity {
         toggle.syncState();
 
         // ✅ 4. 메뉴 생성 및 클릭 처리
-<<<<<<< HEAD
+
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText, defaultIndex);
-=======
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText);
->>>>>>> sub
+
+
 
         // 5. 시작 시 특정 항목 선택 (예: 시간표)
         int defaultIndex = 2;

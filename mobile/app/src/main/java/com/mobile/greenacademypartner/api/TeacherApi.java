@@ -1,6 +1,6 @@
 package com.mobile.greenacademypartner.api;
 
-<<<<<<< HEAD
+
 import com.mobile.greenacademypartner.model.Attendance;
 import com.mobile.greenacademypartner.model.Course;
 import com.mobile.greenacademypartner.model.CreateClassRequest;
@@ -18,17 +18,17 @@ import retrofit2.http.POST;
 import retrofit2.http.PUT;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
-=======
+
 import com.mobile.greenacademypartner.model.TeacherSignupRequest;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.POST;
->>>>>>> sub
+
 
 public interface TeacherApi {
     @POST("/api/signup/teacher")
     Call<Void> signupTeacher(@Body TeacherSignupRequest request);
-<<<<<<< HEAD
+
 
     @PUT("/api/teachers/{id}")
     Call<Void> updateTeacher(@Path("id") String teacherId, @Body TeacherUpdateRequest request);
@@ -58,6 +58,5 @@ public interface TeacherApi {
 
 
 
-=======
->>>>>>> sub
+
 }

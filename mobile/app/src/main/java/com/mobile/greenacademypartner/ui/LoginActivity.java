@@ -34,21 +34,15 @@ public class LoginActivity extends AppCompatActivity {
     private CheckBox autoLoginCheckBox;
     private ImageView btnTogglePassword;
     private boolean isPasswordVisible = false;
-<<<<<<< HEAD
     private SharedPreferences prefs;
-=======
->>>>>>> sub
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-<<<<<<< HEAD
         prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
 
-=======
->>>>>>> sub
         // 뷰 초기화
         findAccount = findViewById(R.id.find_account);
         signupText = findViewById(R.id.signup_next);
@@ -58,17 +52,9 @@ public class LoginActivity extends AppCompatActivity {
         autoLoginCheckBox = findViewById(R.id.login_check);
         btnTogglePassword = findViewById(R.id.btn_toggle_password);
 
-<<<<<<< HEAD
         autoLoginCheckBox.setChecked(prefs.getBoolean("auto_login", false));
 
         // 비밀번호 보기 토글
-=======
-        // 이전 체크 상태 유지 (자동 로그인 체크박스)
-        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        autoLoginCheckBox.setChecked(prefs.getBoolean("auto_login", false));
-
-        // 눈 아이콘으로 비밀번호 표시/숨김
->>>>>>> sub
         btnTogglePassword.setOnClickListener(v -> {
             if (isPasswordVisible) {
                 editTextPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
@@ -81,21 +67,9 @@ public class LoginActivity extends AppCompatActivity {
             isPasswordVisible = !isPasswordVisible;
         });
 
-<<<<<<< HEAD
         // 회원가입 / 계정 찾기 이동
         signupText.setOnClickListener(v -> startActivity(new Intent(this, RoleSelectActivity.class)));
         findAccount.setOnClickListener(v -> startActivity(new Intent(this, FindSelectActivity.class)));
-=======
-        // 회원가입 이동
-        signupText.setOnClickListener(v -> {
-            startActivity(new Intent(LoginActivity.this, RoleSelectActivity.class));
-        });
-
-        // 계정 찾기 이동
-        findAccount.setOnClickListener(v -> {
-            startActivity(new Intent(LoginActivity.this, FindSelectActivity.class));
-        });
->>>>>>> sub
 
         // 로그인 처리
         loginButton.setOnClickListener(v -> {
@@ -121,15 +95,10 @@ public class LoginActivity extends AppCompatActivity {
                     try {
                         if (response.isSuccessful() && response.body() != null) {
                             LoginResponse res = response.body();
-<<<<<<< HEAD
-=======
-
->>>>>>> sub
                             Log.d("LoginResponse", "응답 바디: " + new Gson().toJson(res));
 
                             SharedPreferences.Editor editor = prefs.edit();
                             editor.putBoolean("is_logged_in", true);
-<<<<<<< HEAD
                             editor.putBoolean("auto_login", autoLoginCheckBox.isChecked());
                             editor.putString("token", res.getToken());
                             editor.putString("role", res.getRole().toLowerCase());
@@ -152,7 +121,7 @@ public class LoginActivity extends AppCompatActivity {
                                 case "parent":
                                     editor.putString("parentsNumber", res.getParentsNumber());
 
-                                    // ✅ 자녀 studentId 저장
+                                    // 자녀 studentId 저장
                                     if (res.getChildStudentId() != null) {
                                         editor.putString("childStudentId", res.getChildStudentId());
                                         Log.d("LoginResponse", "자녀 ID 저장됨: " + res.getChildStudentId());
@@ -169,19 +138,6 @@ public class LoginActivity extends AppCompatActivity {
                             startActivity(intent);
                             finish();
 
-=======
-                            editor.putString("token", res.getToken());
-                            editor.putString("role", res.getRole());
-                            editor.putString("username", res.getUsername());
-                            editor.putBoolean("auto_login", autoLoginCheckBox.isChecked());
-                            editor.apply();
-
-//                            Toast.makeText(LoginActivity.this, res.getRole() + " 로그인 성공", Toast.LENGTH_SHORT).show();
-
-                            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                            startActivity(intent);
-                            finish();
->>>>>>> sub
                         } else {
                             String errorBody = response.errorBody() != null ? response.errorBody().string() : "없음";
                             Log.e("LoginResponse", "실패 바디: " + errorBody);

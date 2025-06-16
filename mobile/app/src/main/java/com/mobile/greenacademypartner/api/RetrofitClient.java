@@ -10,22 +10,12 @@ public class RetrofitClient {
         if (retrofit == null) {
             retrofit = new Retrofit.Builder()
                     .baseUrl("http://10.0.2.2:9090/")
-<<<<<<< HEAD
+
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
         }
         return retrofit;
     }
 }
-=======
-                    // 또는 실제 서버 IP
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build();
-
-        }
-        return retrofit;
 
 
-    }
-}
->>>>>>> sub

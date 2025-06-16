@@ -56,11 +56,7 @@ public class NavigationMenuHelper {
             SettingActivity.class
     };
 
-<<<<<<< HEAD
     public static void setupMenu(Activity activity, LinearLayout navContainer, DrawerLayout drawerLayout, TextView mainContentText, int initialSelectedIndex) {
-=======
-    public static void setupMenu(Activity activity, LinearLayout navContainer, DrawerLayout drawerLayout, TextView mainContentText) {
->>>>>>> sub
         LayoutInflater inflater = LayoutInflater.from(activity);
 
         for (int i = 0; i < labels.length; i++) {
@@ -74,8 +70,7 @@ public class NavigationMenuHelper {
 
             int index = i;
 
-<<<<<<< HEAD
-            // ✅ 초기 선택 강조 처리
+            // ✅ 초기 강조
             if (i == initialSelectedIndex) {
                 icon.setImageResource(icons_dark[i]);
                 text.setTextColor(ContextCompat.getColor(activity, R.color.white));
@@ -84,11 +79,7 @@ public class NavigationMenuHelper {
             }
 
             layout.setOnClickListener(v -> {
-                // 이전 강조 제거
-=======
-            layout.setOnClickListener(v -> {
-                // 이전 선택 초기화
->>>>>>> sub
+                // 이전 선택 해제
                 if (selectedItem != null) {
                     int prevIndex = ((ViewGroup) selectedItem.getParent()).indexOfChild(selectedItem);
                     ImageView prevIcon = selectedItem.findViewById(R.id.nav_icon);
@@ -98,37 +89,21 @@ public class NavigationMenuHelper {
                     selectedItem.setBackgroundColor(ContextCompat.getColor(activity, R.color.gray));
                 }
 
-<<<<<<< HEAD
-                // 현재 강조 처리
-=======
-                // 현재 선택 강조
->>>>>>> sub
+                // 현재 강조
                 icon.setImageResource(icons_dark[index]);
                 text.setTextColor(ContextCompat.getColor(activity, R.color.white));
                 layout.setBackgroundColor(ContextCompat.getColor(activity, R.color.black));
                 selectedItem = layout;
 
-<<<<<<< HEAD
-                // ✅ 화면 전환 처리
-                if (targetActivities[index] != null) {
-                    boolean isAttendance = targetActivities[index] == AttendanceActivity.class;
-                    boolean isSameActivity = activity.getClass().equals(targetActivities[index]);
+                // ✅ 출석관리는 항상 새로 열고, 나머지는 동일 액티비티면 무시
+                boolean isAttendance = targetActivities[index] == AttendanceActivity.class;
+                boolean isSameActivity = activity.getClass().equals(targetActivities[index]);
 
-                    // 출석관리 메뉴는 항상 새로 띄움, 나머지는 현재 화면이면 무시
-                    if (isAttendance || !isSameActivity) {
-                        activity.startActivity(new Intent(activity, targetActivities[index]));
-                    } else {
-                        if (mainContentText != null) {
-                            mainContentText.setText(labels[index] + " 화면입니다");
-                        }
-=======
-                // ✅ 중복 실행 방지: 현재 Activity가 아니면 전환
-                if (targetActivities[index] != null && !activity.getClass().equals(targetActivities[index])) {
+                if (targetActivities[index] != null && (isAttendance || !isSameActivity)) {
                     activity.startActivity(new Intent(activity, targetActivities[index]));
                 } else {
                     if (mainContentText != null) {
                         mainContentText.setText(labels[index] + " 화면입니다");
->>>>>>> sub
                     }
                 }
 

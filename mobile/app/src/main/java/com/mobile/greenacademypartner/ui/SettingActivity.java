@@ -16,7 +16,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.drawerlayout.widget.DrawerLayout;
 
-import com.mobile.greenacademypartner.ui.LoginActivity;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
@@ -28,13 +27,10 @@ public class SettingActivity extends AppCompatActivity {
     private LinearLayout navContainer;
     private TextView mainContentText;
     private GridLayout colorGrid;
-    private Button btnLogout; // ✅ 추가
+    private Button btnLogout;
 
-<<<<<<< HEAD
     int defaultIndex = 5;
 
-=======
->>>>>>> sub
     @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,7 +43,7 @@ public class SettingActivity extends AppCompatActivity {
         navContainer = findViewById(R.id.nav_container_setting);
         colorGrid = findViewById(R.id.color_grid);
         mainContentText = findViewById(R.id.main_content_text);
-        btnLogout = findViewById(R.id.btn_logout); // ✅ 연결
+        btnLogout = findViewById(R.id.btn_logout);
 
         // 2. 툴바 색상 적용
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
@@ -63,25 +59,16 @@ public class SettingActivity extends AppCompatActivity {
         toggle.syncState();
 
         // 4. 메뉴 생성
-<<<<<<< HEAD
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText, defaultIndex);
-=======
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText);
->>>>>>> sub
 
         // 5. 색상 선택
         setupColorSelection();
 
         // 6. 로그아웃 버튼 동작
         btnLogout.setOnClickListener(v -> {
-            // 로그인 상태 초기화
             SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+            prefs.edit().clear().apply();
 
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.clear();
-            editor.apply();
-
-            // 로그인 화면으로 이동 + 스택 클리어
             Intent intent = new Intent(SettingActivity.this, LoginActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
@@ -89,8 +76,7 @@ public class SettingActivity extends AppCompatActivity {
         });
 
         // 7. 설정 선택 상태로 표시
-        int settingIndex = 5;
-        View settingView = navContainer.getChildAt(settingIndex);
+        View settingView = navContainer.getChildAt(defaultIndex);
         if (settingView != null) settingView.performClick();
     }
 

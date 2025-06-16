@@ -1,16 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.INTERNET" />
-<<<<<<< HEAD
     <uses-permission android:name="android.permission.CAMERA" />
-=======
-
->>>>>>> sub
-
 
     <application
-
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -21,7 +16,7 @@
         android:theme="@style/Theme.GreenAcademyPartner"
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="31">
-        <!-- SplashActivity를 앱의 시작점으로 설정 -->
+
         <activity
             android:name=".ui.SplashActivity"
             android:exported="true">
@@ -30,16 +25,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- MainActivity는 일반 액티비티로 유지 -->
+
+        <!-- 공통 및 HEAD에 있던 액티비티들 -->
         <activity android:name=".ui.MainActivity" />
         <activity android:name=".ui.FindAccountActivity" />
         <activity android:name=".ui.SettingActivity" />
         <activity android:name=".ui.MyPageActivity" />
         <activity android:name=".ui.AttendanceActivity" />
-<<<<<<< HEAD
-
-=======
->>>>>>> sub
         <activity android:name=".ui.NoticeActivity" />
         <activity android:name=".ui.QAActivity" />
         <activity android:name=".ui.LoginActivity" />
@@ -51,12 +43,10 @@
         <activity android:name=".ui.ResetPasswordActivity" />
         <activity android:name=".ui.FindSelectActivity" />
         <activity android:name=".ui.FindIdResultActivity" />
-<<<<<<< HEAD
         <activity android:name=".ui.StudentAttendanceActivity" />
-<!--        <activity android:name=".ui.TeacherAttendanceActivity" />-->
         <activity android:name=".ui.ParentAttendanceActivity" />
         <activity android:name=".ui.TeacherClassesActivity" />
-        <activity android:name=".ui.ClassAttendanceActivity"/>
+        <activity android:name=".ui.ClassAttendanceActivity" />
         <activity android:name=".ui.QRScannerActivity" />
         <activity android:name=".ui.StudentTimetableActivity"/>
         <activity android:name=".ui.ChildAttendanceActivity"/>
@@ -64,17 +54,10 @@
         <activity android:name=".ui.TeacherTimetableActivity"/>
         <activity android:name=".ui.CreateClassActivity"/>
 
-
-=======
+        <!-- sub 브랜치에서 새로 추가된 액티비티들 -->
         <activity android:name=".ui.CreateNoticeActivity" />
         <activity android:name=".ui.NoticeDetailActivity" />
         <activity android:name=".ui.EditNoticeActivity" />
->>>>>>> sub
-
-
-
-
-
 
     </application>
 
