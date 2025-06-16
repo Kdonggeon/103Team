@@ -34,17 +34,16 @@ public class LoginActivity extends AppCompatActivity {
     private CheckBox autoLoginCheckBox;
     private ImageView btnTogglePassword;
     private boolean isPasswordVisible = false;
-    private SharedPreferences prefs; // ✅ 여기로 이동
+    private SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        // ✅ SharedPreferences 초기화는 여기서!
         prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
 
-        // 뷰 바인딩
+        // 뷰 초기화
         findAccount = findViewById(R.id.find_account);
         signupText = findViewById(R.id.signup_next);
         editTextId = findViewById(R.id.editTextId);
@@ -68,11 +67,11 @@ public class LoginActivity extends AppCompatActivity {
             isPasswordVisible = !isPasswordVisible;
         });
 
-        // 회원가입, 계정 찾기 이동
-        signupText.setOnClickListener(v -> startActivity(new Intent(LoginActivity.this, RoleSelectActivity.class)));
-        findAccount.setOnClickListener(v -> startActivity(new Intent(LoginActivity.this, FindSelectActivity.class)));
+        // 회원가입 / 계정 찾기 이동
+        signupText.setOnClickListener(v -> startActivity(new Intent(this, RoleSelectActivity.class)));
+        findAccount.setOnClickListener(v -> startActivity(new Intent(this, FindSelectActivity.class)));
 
-        // 로그인 버튼 클릭 처리
+        // 로그인 처리
         loginButton.setOnClickListener(v -> {
             String inputId = editTextId.getText().toString().trim();
             String inputPw = editTextPassword.getText().toString().trim();
@@ -109,29 +108,36 @@ public class LoginActivity extends AppCompatActivity {
 
                             switch (res.getRole().toLowerCase()) {
                                 case "student":
-
-                                    editor.putString("address", response.body().getAddress());
-                                    editor.putString("school", response.body().getSchool());
-                                    editor.putInt("grade", response.body().getGrade());
-                                    editor.putString("gender", response.body().getGender());
-
+                                    editor.putString("address", res.getAddress());
+                                    editor.putString("school", res.getSchool());
+                                    editor.putInt("grade", res.getGrade());
+                                    editor.putString("gender", res.getGender());
                                     break;
+
                                 case "teacher":
                                     editor.putInt("academyNumber", res.getAcademyNumber());
                                     break;
+
                                 case "parent":
                                     editor.putString("parentsNumber", res.getParentsNumber());
-                                    // 필요한 경우 추가 필드 저장
+
+                                    // ✅ 자녀 studentId 저장
+                                    if (res.getChildStudentId() != null) {
+                                        editor.putString("childStudentId", res.getChildStudentId());
+                                        Log.d("LoginResponse", "자녀 ID 저장됨: " + res.getChildStudentId());
+                                    } else {
+                                        Log.w("LoginResponse", "자녀 ID 없음");
+                                    }
                                     break;
                             }
 
-//                            editor.apply();
-                            editor.commit(); // apply() 대신
+                            editor.commit(); // 저장
 
-
+                            // 메인화면으로 이동
                             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                             startActivity(intent);
                             finish();
+
                         } else {
                             String errorBody = response.errorBody() != null ? response.errorBody().string() : "없음";
                             Log.e("LoginResponse", "실패 바디: " + errorBody);

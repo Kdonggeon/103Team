@@ -23,4 +23,7 @@ public interface ParentApi {
     @GET("/api/parents/{parentsNumber}/attendance")
     Call<List<Attendance>> getAttendanceForParent(@Path("parentsNumber") String parentsNumber);
 
+    @GET("/api/parents/{studentId}/attendance")
+    Call<List<Attendance>> getAttendanceForChild(@Path("studentId") String studentId);
+
 }

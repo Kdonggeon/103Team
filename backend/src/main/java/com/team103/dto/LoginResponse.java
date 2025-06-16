@@ -10,27 +10,25 @@ public class LoginResponse {
     private String phone;
 
     // ✅ 학생용 필드
-    
     private String address;
     private String school;
     private int grade;
     private String gender;
-    private int academyNumber; // ← 교사용 추가
-    
+
+    // ✅ 교사용 필드
+    private int academyNumber;
+
+    // ✅ 학부모용 필드
     private String parentsNumber;
-    
-    
+    private String childStudentId; // ← 자녀의 studentId
 
-
-
-    // 기본 생성자
+    // --- 기본 생성자 ---
     public LoginResponse() {}
-    
-    
 
- // 통합 생성자 추가
+    // --- 통합 생성자 ---
     public LoginResponse(String status, String role, String username, String name, String token,
-                         String phone, String address, String school, int grade, String gender, int academyNumber) {
+                         String phone, String address, String school, int grade,
+                         String gender, int academyNumber) {
         this.status = status;
         this.role = role;
         this.username = username;
@@ -43,7 +41,6 @@ public class LoginResponse {
         this.gender = gender;
         this.academyNumber = academyNumber;
     }
-
 
     // --- Getters ---
     public String getStatus() { return status; }
@@ -58,9 +55,9 @@ public class LoginResponse {
     public String getGender() { return gender; }
     public int getAcademyNumber() { return academyNumber; }
     public String getParentsNumber() { return parentsNumber; }
-    
+    public String getChildStudentId() { return childStudentId; }
 
-    // --- Setters (optional) ---
+    // --- Setters ---
     public void setStatus(String status) { this.status = status; }
     public void setRole(String role) { this.role = role; }
     public void setUsername(String username) { this.username = username; }
@@ -72,7 +69,6 @@ public class LoginResponse {
     public void setGrade(int grade) { this.grade = grade; }
     public void setGender(String gender) { this.gender = gender; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
-    public void setParentsNumber(String parentsNumber) {
-        this.parentsNumber = parentsNumber;
-    }
+    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
+    public void setChildStudentId(String childStudentId) { this.childStudentId = childStudentId; }
 }

@@ -120,13 +120,7 @@ public class ParentController {
         return ResponseEntity.ok(allAttendance);
     }
     // ✅ 학생 출석 조회 API (학생/학부모 공통 사용)
-    @GetMapping("/{studentId}/attendance")
-    public ResponseEntity<?> getAttendanceByStudentId(@PathVariable String studentId) {
-        List<Attendance> attendances = attendanceRepo.findByStudentInAttendanceList(studentId);
-        
-        
-        return ResponseEntity.ok(attendances);
-    }
+    
 
 
 

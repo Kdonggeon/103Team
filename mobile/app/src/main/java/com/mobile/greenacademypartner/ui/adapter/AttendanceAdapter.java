@@ -1,6 +1,7 @@
 package com.mobile.greenacademypartner.ui.adapter;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.*;
 import android.widget.*;
 
@@ -58,6 +59,9 @@ public class AttendanceAdapter extends BaseAdapter {
         holder.classNameView.setText(item.getClassName());
         holder.dateView.setText(item.getDate());
         holder.statusView.setText(item.getStatus());
+
+        Log.d("AttendanceAdapter", "수업명: " + item.getClassName());
+
 
         return convertView;
     }
