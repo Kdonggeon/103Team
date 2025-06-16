@@ -4,14 +4,14 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.content.ContextCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.RetrofitClient;
@@ -32,7 +32,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
     private Toolbar toolbar;
     private DrawerLayout drawerLayout;
     private LinearLayout navContainer;
-    private ListView attendanceListView;
+    private RecyclerView attendanceListView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,8 +45,8 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         navContainer = findViewById(R.id.nav_container);
         attendanceListView = findViewById(R.id.attendance_list_view);
 
-        setupToolbarAndDrawer(); // 🛠️ 반드시 호출 필요
-        fetchAttendanceFromServer();
+        setupToolbarAndDrawer(); // 🛠️ 사이드바 및 툴바 설정
+        fetchAttendanceFromServer(); // 📡 출석 데이터 로드
     }
 
     private void setupToolbarAndDrawer() {
@@ -82,12 +82,14 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     List<Attendance> list = response.body();
                     Log.d("Attendance", "출석 데이터 개수: " + list.size());
 
+                    // ✅ 리사이클러뷰 세팅
+                    attendanceListView.setLayoutManager(new LinearLayoutManager(StudentAttendanceActivity.this));
+                    AttendanceAdapter adapter = new AttendanceAdapter(StudentAttendanceActivity.this, list);
+                    attendanceListView.setAdapter(adapter);
+
                     for (Attendance att : list) {
                         Log.d("Attendance", "수업명: " + att.getClassName() + ", 날짜: " + att.getDate() + ", 상태: " + att.getStatus());
                     }
-
-                    AttendanceAdapter adapter = new AttendanceAdapter(StudentAttendanceActivity.this, list);
-                    attendanceListView.setAdapter(adapter);
                 } else {
                     Toast.makeText(StudentAttendanceActivity.this, "출석 데이터를 불러오지 못했습니다", Toast.LENGTH_SHORT).show();
                     Log.e("Attendance", "응답 실패: " + response.code());

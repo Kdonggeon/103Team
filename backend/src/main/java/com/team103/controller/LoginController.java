@@ -5,9 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-
 import com.team103.dto.LoginRequest;
 import com.team103.dto.LoginResponse;
 import com.team103.model.Parent;
@@ -18,6 +17,7 @@ import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
 import com.team103.security.JwtUtil;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -35,12 +35,11 @@ public class LoginController {
         String username = request.getUsername();
         String password = request.getPassword();
 
-     // 1. 학생 로그인 처리
+        // 1. 학생 로그인 처리
         Student student = studentRepo.findByStudentId(username);
         if (student != null && passwordEncoder.matches(password, student.getStudentPw())) {
             String token = jwtUtil.generateToken(student.getStudentId(), "student");
 
-            // 🎯 객체 먼저 생성
             LoginResponse res = new LoginResponse(
                 "success",
                 "student",
@@ -52,12 +51,79 @@ public class LoginController {
                 student.getSchool(),
                 student.getGrade(),
                 student.getGender(),
-                0
+                0 // academyNumber (학생은 0으로 처리)
             );
 
-            // 🎯 전체 내용 JSON으로 출력
             try {
-                System.out.println("🔥 응답 DTO → " + new ObjectMapper().writeValueAsString(res));
+                System.out.println("🔥 학생 로그인 응답 → " + new ObjectMapper().writeValueAsString(res));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return ResponseEntity.ok(res);
+        }
+
+        // 2. 교사 로그인 처리
+        Teacher teacher = teacherRepo.findByTeacherId(username);
+        if (teacher != null && passwordEncoder.matches(password, teacher.getTeacherPw())) {
+            String token = jwtUtil.generateToken(teacher.getTeacherId(), "teacher");
+
+            LoginResponse res = new LoginResponse(
+                "success",
+                "teacher",
+                teacher.getTeacherId(),
+                teacher.getTeacherName(),
+                token,
+                teacher.getTeacherPhoneNumber(),
+                null, // address
+                null, // school
+                0,    // grade
+                null, // gender
+                teacher.getAcademyNumber()
+            );
+
+            try {
+                System.out.println("🔥 교사 로그인 응답 → " + new ObjectMapper().writeValueAsString(res));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return ResponseEntity.ok(res);
+        }
+
+     // 3. 학부모 로그인 처리
+        Parent parent = parentRepo.findByParentsId(username);
+        if (parent != null && passwordEncoder.matches(password, parent.getParentsPw())) {
+            String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
+
+            LoginResponse res = new LoginResponse(
+                "success",
+                "parent",
+                parent.getParentsId(),
+                parent.getParentsName(),
+                token,
+                parent.getParentsPhoneNumber(),
+                null, null, 0, null, 0
+            );
+
+            res.setParentsNumber(parent.getParentsNumber());
+
+            // ✅ 여기 로그 추가
+            System.out.println("🔍 부모 번호로 자녀 조회: " + parent.getParentsNumber());
+
+            // ✅ 부모번호로 자녀 리스트 조회 → 첫 번째 자녀만 사용
+            List<Student> children = studentRepo.findByParentsNumber(parent.getParentsNumber());
+            if (children != null && !children.isEmpty()) {
+                Student child = children.get(0);
+                System.out.println("✅ 자녀 ID: " + child.getStudentId()); // ✅ 여기 찍기
+                res.setChildStudentId(child.getStudentId());
+            } else {
+                System.out.println("⚠ 연결된 자녀 없음"); // ✅ 자녀 없을 때 로그
+            }
+
+            // ✅ 최종 응답 객체 확인
+            try {
+                System.out.println("📦 최종 응답 → " + new ObjectMapper().writeValueAsString(res));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -66,46 +132,8 @@ public class LoginController {
         }
 
 
-        // 2. 교사 로그인 처리
-        Teacher teacher = teacherRepo.findByTeacherId(username);
-        if (teacher != null && passwordEncoder.matches(password, teacher.getTeacherPw())) {
-            String token = jwtUtil.generateToken(teacher.getTeacherId(), "teacher");
-            return ResponseEntity.ok(new LoginResponse(
-            	    "success",
-            	    "teacher",
-            	    teacher.getTeacherId(),
-            	    teacher.getTeacherName(),
-            	    token,
-            	    teacher.getTeacherPhoneNumber(),
-            	    null, // address
-            	    null, // school
-            	    0,    // grade
-            	    null, // gender
-            	    teacher.getAcademyNumber()
-            	));
+        
 
-
-        }
-
-        // 3. 학부모 로그인 처리
-        Parent parent = parentRepo.findByParentsId(username);
-        if (parent != null && passwordEncoder.matches(password, parent.getParentsPw())) {
-            String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
-            LoginResponse res = new LoginResponse(
-            	    "success",
-            	    "parent",
-            	    parent.getParentsId(),
-            	    parent.getParentsName(),
-            	    token,
-            	    parent.getParentsPhoneNumber(),
-            	    null, null, 0, null, 0 // address, school, grade, gender, academyNumber
-            	);
-            	res.setParentsNumber(parent.getParentsNumber()); // 👉 parentsNumber 추가
-
-            	return ResponseEntity.ok(res);
-
-
-        }
 
         // 로그인 실패
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

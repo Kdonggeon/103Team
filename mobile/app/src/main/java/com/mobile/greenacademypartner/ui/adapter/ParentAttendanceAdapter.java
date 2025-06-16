@@ -4,15 +4,17 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.model.Attendance;
 
 import java.util.List;
 
-public class ParentAttendanceAdapter extends BaseAdapter {
+public class ParentAttendanceAdapter extends RecyclerView.Adapter<ParentAttendanceAdapter.ViewHolder> {
 
     private final Context context;
     private final List<Attendance> attendanceList;
@@ -22,45 +24,34 @@ public class ParentAttendanceAdapter extends BaseAdapter {
         this.attendanceList = attendanceList;
     }
 
+    @NonNull
     @Override
-    public int getCount() {
-        return attendanceList.size();
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_parent_attendance, parent, false);
+        return new ViewHolder(view);
     }
 
     @Override
-    public Object getItem(int position) {
-        return attendanceList.get(position);
-    }
-
-    @Override
-    public long getItemId(int position) {
-        return position;
-    }
-
-    static class ViewHolder {
-        TextView className, date, status;
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-        ViewHolder holder;
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Attendance attendance = attendanceList.get(position);
-
-        if (convertView == null) {
-            convertView = LayoutInflater.from(context).inflate(R.layout.item_parent_attendance, parent, false);
-            holder = new ViewHolder();
-            holder.className = convertView.findViewById(R.id.text_class_name);
-            holder.date = convertView.findViewById(R.id.text_date);
-            holder.status = convertView.findViewById(R.id.text_status);
-            convertView.setTag(holder);
-        } else {
-            holder = (ViewHolder) convertView.getTag();
-        }
-
         holder.className.setText("수업: " + attendance.getClassName());
         holder.date.setText("날짜: " + attendance.getDate());
         holder.status.setText("출석: " + attendance.getStatus());
+    }
 
-        return convertView;
+    @Override
+    public int getItemCount() {
+        return attendanceList.size();
+    }
+
+    static class ViewHolder extends RecyclerView.ViewHolder {
+        TextView className, date, status;
+
+        public ViewHolder(@NonNull View itemView) {
+            super(itemView);
+            className = itemView.findViewById(R.id.text_class_name);
+            date = itemView.findViewById(R.id.text_date);
+            status = itemView.findViewById(R.id.text_status);
+        }
     }
 }

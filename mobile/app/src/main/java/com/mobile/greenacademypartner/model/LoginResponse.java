@@ -6,10 +6,11 @@ import com.google.gson.annotations.SerializedName;
 public class LoginResponse {
 
     @SerializedName("status")
-
+    @Expose
     private String status;
 
     @SerializedName("role")
+    @Expose
     private String role;
 
     @SerializedName("username")
@@ -28,6 +29,7 @@ public class LoginResponse {
     @Expose
     private String phone;
 
+    // ✅ 학생 전용 필드
     @SerializedName("address")
     @Expose
     private String address;
@@ -44,16 +46,20 @@ public class LoginResponse {
     @Expose
     private String gender;
 
+    // ✅ 교사 전용 필드
     @SerializedName("academyNumber")
     @Expose
     private int academyNumber;
 
+    // ✅ 학부모 전용 필드
+    @SerializedName("parentsNumber")
+    @Expose
     private String parentsNumber;
 
-    public String getParentsNumber() {
-        return parentsNumber;
-    }
-
+    // ✅ 학부모가 자녀 출석 조회를 위해 사용하는 자녀 ID
+    @SerializedName("childStudentId")
+    @Expose
+    private String childStudentId;
 
     // --- Getter / Setter ---
     public String getStatus() { return status; }
@@ -89,6 +95,13 @@ public class LoginResponse {
     public int getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
 
+    public String getParentsNumber() { return parentsNumber; }
+    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
+
+    public String getChildStudentId() { return childStudentId; }
+    public void setChildStudentId(String childStudentId) { this.childStudentId = childStudentId; }
+
+    // --- 생성자 ---
     public LoginResponse(String status, String role, String username, String name,
                          String token, String phone, String address, String school,
                          int grade, String gender, int academyNumber) {
@@ -105,4 +118,7 @@ public class LoginResponse {
         this.academyNumber = academyNumber;
     }
 
+    public LoginResponse() {
+        // 기본 생성자
+    }
 }

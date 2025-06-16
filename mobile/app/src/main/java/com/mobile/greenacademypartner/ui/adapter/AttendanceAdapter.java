@@ -1,15 +1,21 @@
 package com.mobile.greenacademypartner.ui.adapter;
 
 import android.content.Context;
-import android.view.*;
-import android.widget.*;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.model.Attendance;
 
 import java.util.List;
 
-public class AttendanceAdapter extends BaseAdapter {
+public class AttendanceAdapter extends RecyclerView.Adapter<AttendanceAdapter.ViewHolder> {
+
     private final Context context;
     private final List<Attendance> attendanceList;
 
@@ -18,47 +24,34 @@ public class AttendanceAdapter extends BaseAdapter {
         this.attendanceList = attendanceList;
     }
 
+    @NonNull
     @Override
-    public int getCount() {
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_attendance, parent, false);
+        return new ViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        Attendance item = attendanceList.get(position);
+        holder.textClassName.setText(item.getClassName());
+        holder.textDate.setText(item.getDate());
+        holder.textStatus.setText(item.getStatus());
+    }
+
+    @Override
+    public int getItemCount() {
         return attendanceList.size();
     }
 
-    @Override
-    public Object getItem(int position) {
-        return attendanceList.get(position);
-    }
+    static class ViewHolder extends RecyclerView.ViewHolder {
+        TextView textClassName, textDate, textStatus;
 
-    @Override
-    public long getItemId(int position) {
-        return position;
-    }
-
-    static class ViewHolder {
-        TextView classNameView;
-        TextView dateView;
-        TextView statusView;
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-        ViewHolder holder;
-
-        if (convertView == null) {
-            convertView = LayoutInflater.from(context).inflate(R.layout.item_attendance, parent, false);
-            holder = new ViewHolder();
-            holder.classNameView = convertView.findViewById(R.id.text_class_name);
-            holder.dateView = convertView.findViewById(R.id.text_date);
-            holder.statusView = convertView.findViewById(R.id.text_status);
-            convertView.setTag(holder);
-        } else {
-            holder = (ViewHolder) convertView.getTag();
+        public ViewHolder(@NonNull View itemView) {
+            super(itemView);
+            textClassName = itemView.findViewById(R.id.text_class_name);
+            textDate = itemView.findViewById(R.id.text_date);
+            textStatus = itemView.findViewById(R.id.text_status);
         }
-
-        Attendance item = attendanceList.get(position);
-        holder.classNameView.setText(item.getClassName());
-        holder.dateView.setText(item.getDate());
-        holder.statusView.setText(item.getStatus());
-
-        return convertView;
     }
 }

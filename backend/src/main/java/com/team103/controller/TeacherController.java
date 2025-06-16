@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/teachers")
 public class TeacherController {
@@ -77,6 +77,15 @@ public class TeacherController {
             @RequestParam String date) {
 
         List<Attendance> attendances = attendanceRepo.findByClassIdAndDate(classId, date);
+        System.out.println("조회 결과: " + attendances); // 추가
         return ResponseEntity.ok(attendances);
     }
+    
+ // ✅ 교사 ID로 수업 목록 조회
+    @GetMapping("/{teacherId}/classes")
+    public ResponseEntity<?> getTeacherClasses(@PathVariable String teacherId) {
+        List<Course> classes = courseRepo.findByTeacherId(teacherId);
+        return ResponseEntity.ok(classes);
+    }
+
 }

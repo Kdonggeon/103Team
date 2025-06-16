@@ -29,8 +29,8 @@ public class AttendanceController {
         List<AttendanceResponse> result = new ArrayList<>();
 
         for (Attendance att : attendances) {
-            Optional<Course> courseOpt = courseRepository.findById(att.getClassId());
-            String className = courseOpt.map(Course::getClassName).orElse("수업명 없음");
+            Course course = courseRepository.findByClassId(att.getClassId());
+            String className = (course != null) ? course.getClassName() : "수업명 없음";
 
             for (AttendanceEntry entry : att.getAttendanceList()) {
                 if (entry.getStudentId().equals(studentId)) {
@@ -42,4 +42,6 @@ public class AttendanceController {
 
         return ResponseEntity.ok(result);
     }
+
+       
 }

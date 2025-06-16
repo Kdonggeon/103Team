@@ -1,29 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
+    android:padding="16dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="12dp">
-
-    <TextView
-        android:id="@+id/text_class_name"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="수업명"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+    android:background="?attr/selectableItemBackground">
 
     <TextView
         android:id="@+id/text_date"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="날짜"
+        android:textStyle="bold"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/text_class_id"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="수업 ID"
+        android:layout_marginTop="4dp"
         android:textSize="14sp" />
 
     <TextView
-        android:id="@+id/text_status"
+        android:id="@+id/text_attendance_list"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="출석 여부"
+        android:text="출석 리스트"
+        android:layout_marginTop="4dp"
         android:textSize="14sp" />
 </LinearLayout>

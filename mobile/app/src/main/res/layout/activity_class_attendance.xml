@@ -1,32 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 본문 -->
+    <!-- 메인 컨텐츠 -->
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- 툴바 -->
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
-
+            android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:layout_width="match_parent"
-            android:background="?attr/colorPrimary"
-            android:titleTextColor="@android:color/white"
-           />
+            android:background="@color/green"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            android:title="출석 상세"
+            android:titleTextColor="@android:color/white" />
 
-        <!-- 출석 리스트 -->
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/attendance_list_view"
+            android:id="@+id/recycler_attendance"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
-
+            android:layout_height="0dp"
+            android:layout_weight="1" />
     </LinearLayout>
 
     <!-- 사이드바 메뉴 -->
@@ -34,7 +31,7 @@
         android:id="@+id/nav_container"
         android:layout_width="280dp"
         android:layout_height="match_parent"
-        android:layout_gravity="start"
         android:orientation="vertical"
-        android:background="@color/gray" />
+        android:background="@color/white"
+        android:layout_gravity="start" />
 </androidx.drawerlayout.widget.DrawerLayout>
