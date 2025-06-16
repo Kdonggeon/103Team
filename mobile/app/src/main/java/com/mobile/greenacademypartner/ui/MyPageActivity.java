@@ -1,5 +1,6 @@
 package com.mobile.greenacademypartner.ui;
 
+<<<<<<< HEAD
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -10,6 +11,12 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+=======
+
+import android.os.Bundle;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+>>>>>>> sub
 
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,6 +24,7 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.mobile.greenacademypartner.R;
+<<<<<<< HEAD
 import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.api.TeacherApi;
@@ -32,10 +40,15 @@ import java.util.Map;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+=======
+import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
+import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+>>>>>>> sub
 
 public class MyPageActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
+<<<<<<< HEAD
     private LinearLayout navContainer;
     private Toolbar toolbar;
     private EditText editName, editId, editPhone, editAddress, editSchool, editGrade, editGender, editAcademyNumber;
@@ -44,15 +57,30 @@ public class MyPageActivity extends AppCompatActivity {
     private String role;
 
     int defaultIndex = 0;
+=======
+    private Toolbar toolbar;
+    private LinearLayout navContainer;
+    private TextView mainContentText;
+>>>>>>> sub
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+<<<<<<< HEAD
         setContentView(R.layout.activity_my_page);
 
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);
         toolbar = findViewById(R.id.toolbar);
+=======
+        setContentView(R.layout.activity_mypage);  // XML 연결
+
+        drawerLayout = findViewById(R.id.drawer_layout_mypage);
+        toolbar = findViewById(R.id.toolbar_mypage);
+        navContainer = findViewById(R.id.nav_container_mypage);
+        mainContentText = findViewById(R.id.main_content_text_mypage);
+
+>>>>>>> sub
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
 
@@ -64,6 +92,7 @@ public class MyPageActivity extends AppCompatActivity {
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
+<<<<<<< HEAD
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, defaultIndex);
 
         initViews();
@@ -204,4 +233,14 @@ public class MyPageActivity extends AppCompatActivity {
         String msg = roleName + (success ? " 정보가 성공적으로 수정되었습니다." : " 정보 수정에 실패했습니다.");
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
+=======
+        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText);
+    }
+
+
+
+
+
+
+>>>>>>> sub
 }

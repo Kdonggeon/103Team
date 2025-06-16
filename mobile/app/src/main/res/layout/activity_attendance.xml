@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!-- res/layout/activity_attendance.xml -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -12,3 +13,44 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"/>
 </LinearLayout>
+=======
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/drawer_layout_attendance"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 메인 컨텐츠 -->
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar_attendance"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/green"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            android:title="출석 관리"
+            android:titleTextColor="@android:color/white" />
+
+        <TextView
+            android:id="@+id/main_content_text_attendance"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="출석 화면입니다"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <!-- 사이드바 -->
+    <LinearLayout
+        android:id="@+id/nav_container_attendance"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="@android:color/darker_gray" />
+</androidx.drawerlayout.widget.DrawerLayout>
+>>>>>>> sub

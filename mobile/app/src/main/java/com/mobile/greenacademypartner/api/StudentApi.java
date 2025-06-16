@@ -1,10 +1,14 @@
 package com.mobile.greenacademypartner.api;
 
+<<<<<<< HEAD
 import com.mobile.greenacademypartner.model.Attendance;
+=======
+>>>>>>> sub
 import com.mobile.greenacademypartner.model.LoginRequest;
 import com.mobile.greenacademypartner.model.LoginResponse;
 import com.mobile.greenacademypartner.model.StudentSignupRequest;
 import com.mobile.greenacademypartner.model.Student;
+<<<<<<< HEAD
 import com.mobile.greenacademypartner.model.StudentUpdateRequest;
 
 import java.util.List;
@@ -17,6 +21,13 @@ import retrofit2.http.POST;
 import retrofit2.http.PUT;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
+=======
+
+import retrofit2.Call;
+import retrofit2.http.Body;
+import retrofit2.http.Headers;
+import retrofit2.http.POST;
+>>>>>>> sub
 
 public interface StudentApi {
 
@@ -26,6 +37,7 @@ public interface StudentApi {
     @Headers("Content-Type: application/json")
     @POST("/api/students")
     Call<Student> signupStudent(@Body StudentSignupRequest request);
+<<<<<<< HEAD
     @PUT("/api/students/{id}")
     Call<Void> updateStudent(@Path("id") String studentId, @Body StudentUpdateRequest request);
 
@@ -44,5 +56,7 @@ public interface StudentApi {
 
 
 
+=======
+>>>>>>> sub
 
 }
