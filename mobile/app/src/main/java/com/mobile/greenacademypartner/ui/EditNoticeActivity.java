@@ -26,7 +26,7 @@ public class EditNoticeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_notice);
 
-        api = RetrofitClient.getClient().create(NoticeApi.class);
+        api = RetrofitClient.getInstance().create(NoticeApi.class);
         noticeId = getIntent().getStringExtra("NOTICE_ID");
 
         editTitle   = findViewById(R.id.edit_notice_title);

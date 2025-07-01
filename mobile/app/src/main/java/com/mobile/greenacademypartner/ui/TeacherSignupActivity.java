@@ -63,7 +63,7 @@ public class TeacherSignupActivity extends AppCompatActivity {
 
             TeacherSignupRequest request = new TeacherSignupRequest(name, id, pw, phoneStr, academy);
 
-            TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
+            TeacherApi api = RetrofitClient.getInstance().create(TeacherApi.class);
             api.signupTeacher(request).enqueue(new Callback<Void>() {
                 @Override
                 public void onResponse(Call<Void> call, Response<Void> response) {

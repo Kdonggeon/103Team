@@ -18,7 +18,7 @@ import com.mobile.greenacademypartner.ui.MainActivity;
 import com.mobile.greenacademypartner.ui.AttendanceActivity;
 import com.mobile.greenacademypartner.ui.MyPageActivity;
 import com.mobile.greenacademypartner.ui.NoticeActivity;
-import com.mobile.greenacademypartner.ui.QAActivity;
+import com.mobile.greenacademypartner.ui.QuestionsActivity;
 import com.mobile.greenacademypartner.ui.SettingActivity;
 
 public class NavigationMenuHelper {
@@ -51,7 +51,7 @@ public class NavigationMenuHelper {
             MyPageActivity.class,
             AttendanceActivity.class,
             MainActivity.class,
-            QAActivity.class,
+            QuestionsActivity.class,
             NoticeActivity.class,
             SettingActivity.class
     };

@@ -100,7 +100,7 @@ public class StudentSignupActivity extends AppCompatActivity {
 
             Log.d("회원가입 요청", "PW: " + request.getStudentPw()); // ← 서버 전송 전 확인
 
-            StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
+            StudentApi api = RetrofitClient.getInstance().create(StudentApi.class);
             api.signupStudent(request).enqueue(new Callback<Student>() {
                 @Override
                 public void onResponse(Call<Student> call, Response<Student> response) {

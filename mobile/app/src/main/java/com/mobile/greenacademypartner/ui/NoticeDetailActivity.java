@@ -54,7 +54,7 @@ public class NoticeDetailActivity extends AppCompatActivity {
         }
 
         // 🔹 API 객체 준비
-        api = RetrofitClient.getClient().create(NoticeApi.class);
+        api = RetrofitClient.getInstance().create(NoticeApi.class);
 
         // 🔹 뷰 바인딩
         TextView tvTitle   = findViewById(R.id.tv_detail_title);

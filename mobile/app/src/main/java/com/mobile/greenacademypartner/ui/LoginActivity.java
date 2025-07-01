@@ -87,7 +87,7 @@ public class LoginActivity extends AppCompatActivity {
             }
 
             LoginRequest request = new LoginRequest(inputId, inputPw);
-            AuthApi api = RetrofitClient.getClient().create(AuthApi.class);
+            AuthApi api = RetrofitClient.getInstance().create(AuthApi.class);
 
             Log.d("LoginData", "입력 아이디: " + inputId + ", 입력 비번: " + inputPw);
 

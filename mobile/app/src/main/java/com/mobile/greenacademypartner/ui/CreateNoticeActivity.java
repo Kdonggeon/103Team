@@ -27,7 +27,7 @@ public class CreateNoticeActivity extends AppCompatActivity {
         etTitle   = findViewById(R.id.edit_notice_title);
         etContent = findViewById(R.id.edit_notice_content);
         btnSubmit = findViewById(R.id.btn_notice_submit);
-        api       = RetrofitClient.getClient().create(NoticeApi.class);
+        api = RetrofitClient.getInstance().create(NoticeApi.class);
 
         btnSubmit.setOnClickListener(v -> {
             String t = etTitle.getText().toString().trim();

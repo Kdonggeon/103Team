@@ -70,7 +70,7 @@ public class NoticeActivity extends AppCompatActivity {
         if (!"teacher".equals(prefs.getString("role", ""))) btnAdd.setVisibility(View.GONE);
 
         rvNotices.setLayoutManager(new LinearLayoutManager(this));
-        api = RetrofitClient.getClient().create(NoticeApi.class);
+        api = RetrofitClient.getInstance().create(NoticeApi.class);
         fetchNotices();
 
         btnAdd.setOnClickListener(v ->
@@ -87,7 +87,7 @@ public class NoticeActivity extends AppCompatActivity {
 
     private void fetchNotices() {
         progressBar.setVisibility(View.VISIBLE);
-        api.getNotices().enqueue(new Callback<List<Notice>>() {
+        api.listNotices().enqueue(new Callback<List<Notice>>() {
             @Override
             public void onResponse(Call<List<Notice>> call, Response<List<Notice>> response) {
                 progressBar.setVisibility(View.GONE);

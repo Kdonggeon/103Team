@@ -12,7 +12,7 @@ import retrofit2.http.Path;
 
 public interface NoticeApi {
     @GET("/api/notices")
-    Call<List<Notice>> getNotices();
+    Call<List<Notice>> listNotices();
 
     @GET("/api/notices/{id}")
     Call<Notice> getNotice(@Path("id") String id);

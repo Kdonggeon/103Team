@@ -62,7 +62,7 @@ public class ResetPasswordActivity extends AppCompatActivity {
 
             PasswordResetRequest request = new PasswordResetRequest(role, id, name, phone, newPw);
 
-            PasswordResetApi api = RetrofitClient.getClient().create(PasswordResetApi.class);
+            PasswordResetApi api = RetrofitClient.getInstance().create(PasswordResetApi.class);
             api.resetPassword(request).enqueue(new Callback<Void>() {
                 @Override
                 public void onResponse(Call<Void> call, Response<Void> response) {
