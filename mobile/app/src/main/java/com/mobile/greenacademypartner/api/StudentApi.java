@@ -3,10 +3,12 @@ package com.mobile.greenacademypartner.api;
 
 import com.mobile.greenacademypartner.model.Attendance;
 
+
 import com.mobile.greenacademypartner.model.LoginRequest;
 import com.mobile.greenacademypartner.model.LoginResponse;
 import com.mobile.greenacademypartner.model.StudentSignupRequest;
 import com.mobile.greenacademypartner.model.Student;
+
 
 import com.mobile.greenacademypartner.model.StudentUpdateRequest;
 
@@ -20,6 +22,7 @@ import retrofit2.http.POST;
 import retrofit2.http.PUT;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
+
 
 
 
@@ -48,6 +51,7 @@ public interface StudentApi {
             @Path("studentId") String studentId,
             @Query("date") String date
     );
+
 
 
 

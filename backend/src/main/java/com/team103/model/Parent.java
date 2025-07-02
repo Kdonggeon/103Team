@@ -15,6 +15,7 @@ public class Parent {
     private String parentsName;
     @Field("Parents_Phone_Number")
     private String parentsPhoneNumber;
+
     @Field("Parents_Number")
     private String parentsNumber;
 
@@ -25,13 +26,15 @@ public class Parent {
 
 
     public Parent(String parentsId, String parentsPw, String parentsName, String parentsPhoneNumber, String parentsNumber) {
+
         this.parentsId = parentsId;
         this.parentsPw = parentsPw;
         this.parentsName = parentsName;
         this.parentsPhoneNumber = parentsPhoneNumber;
         this.parentsNumber = parentsNumber;
-    }
+
     
+    }
 
     public String getId() { return id; }
 

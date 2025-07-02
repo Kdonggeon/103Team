@@ -1,5 +1,4 @@
 package com.mobile.greenacademypartner.ui;
-
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -33,6 +32,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+
 public class MyPageActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
@@ -54,7 +54,6 @@ public class MyPageActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);
         toolbar = findViewById(R.id.toolbar);
-
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
 
@@ -65,7 +64,6 @@ public class MyPageActivity extends AppCompatActivity {
         );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
-
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, defaultIndex);
 
         // 주요 구성요소 초기화

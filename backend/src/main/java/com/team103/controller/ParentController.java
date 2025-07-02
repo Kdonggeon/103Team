@@ -18,12 +18,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
+
 @RestController
 @RequestMapping("/api/parents")
 @CrossOrigin(origins = "*")
 public class ParentController {
 
     private final ParentRepository parentRepo;
+
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -39,11 +41,13 @@ public class ParentController {
 
     public ParentController(ParentRepository parentRepo) {
         this.parentRepo = parentRepo;
+
     }
 
     @GetMapping
     public List<Parent> getAllParents() {
         return parentRepo.findAll();
+
     }
 
     @PostMapping

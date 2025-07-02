@@ -17,6 +17,7 @@ public class ParentSignupRequest {
 
     public Parent toEntity(String encodedPw) {
         return new Parent(parentsId, encodedPw, parentsName, parentsPhoneNumber, parentsNumber);
+
     }
 
     // Getter/Setter

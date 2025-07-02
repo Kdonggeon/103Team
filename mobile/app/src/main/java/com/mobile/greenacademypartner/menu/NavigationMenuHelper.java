@@ -18,7 +18,7 @@ import com.mobile.greenacademypartner.ui.MainActivity;
 import com.mobile.greenacademypartner.ui.AttendanceActivity;
 import com.mobile.greenacademypartner.ui.MyPageActivity;
 import com.mobile.greenacademypartner.ui.NoticeActivity;
-import com.mobile.greenacademypartner.ui.QAActivity;
+import com.mobile.greenacademypartner.ui.QuestionsActivity;
 import com.mobile.greenacademypartner.ui.SettingActivity;
 
 public class NavigationMenuHelper {
@@ -51,10 +51,11 @@ public class NavigationMenuHelper {
             MyPageActivity.class,
             AttendanceActivity.class,
             MainActivity.class,
-            QAActivity.class,
+            QuestionsActivity.class,
             NoticeActivity.class,
             SettingActivity.class
     };
+
 
     public static void setupMenu(Activity activity, LinearLayout navContainer, DrawerLayout drawerLayout, TextView mainContentText, int initialSelectedIndex) {
         LayoutInflater inflater = LayoutInflater.from(activity);
@@ -80,6 +81,7 @@ public class NavigationMenuHelper {
 
             layout.setOnClickListener(v -> {
                 // 이전 선택 해제
+
                 if (selectedItem != null) {
                     int prevIndex = ((ViewGroup) selectedItem.getParent()).indexOfChild(selectedItem);
                     ImageView prevIcon = selectedItem.findViewById(R.id.nav_icon);
@@ -89,7 +91,7 @@ public class NavigationMenuHelper {
                     selectedItem.setBackgroundColor(ContextCompat.getColor(activity, R.color.gray));
                 }
 
-                // 현재 강조
+
                 icon.setImageResource(icons_dark[index]);
                 text.setTextColor(ContextCompat.getColor(activity, R.color.white));
                 layout.setBackgroundColor(ContextCompat.getColor(activity, R.color.black));
@@ -100,6 +102,7 @@ public class NavigationMenuHelper {
                 boolean isSameActivity = activity.getClass().equals(targetActivities[index]);
 
                 if (targetActivities[index] != null && (isAttendance || !isSameActivity)) {
+
                     activity.startActivity(new Intent(activity, targetActivities[index]));
                 } else {
                     if (mainContentText != null) {

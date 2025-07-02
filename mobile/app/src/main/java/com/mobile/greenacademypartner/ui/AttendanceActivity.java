@@ -1,10 +1,8 @@
 package com.mobile.greenacademypartner.ui;
-
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.mobile.greenacademypartner.R;
 
 public class AttendanceActivity extends AppCompatActivity {

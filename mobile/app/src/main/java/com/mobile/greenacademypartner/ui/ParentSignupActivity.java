@@ -71,6 +71,7 @@ public class ParentSignupActivity extends AppCompatActivity {
 
             // Retrofit API 호출
             ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
+
             api.signupParent(request).enqueue(new Callback<Void>() {
                 @Override
                 public void onResponse(Call<Void> call, Response<Void> response) {

@@ -1,6 +1,5 @@
 package com.mobile.greenacademypartner.api;
 
-
 import com.mobile.greenacademypartner.model.Attendance;
 import com.mobile.greenacademypartner.model.Course;
 import com.mobile.greenacademypartner.model.CreateClassRequest;
@@ -19,10 +18,12 @@ import retrofit2.http.PUT;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
 
+
 import com.mobile.greenacademypartner.model.TeacherSignupRequest;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.POST;
+
 
 
 public interface TeacherApi {
@@ -52,11 +53,4 @@ public interface TeacherApi {
             @Path("teacherId") String teacherId,
             @Query("date") String date
     );
-
-
-
-
-
-
-
 }

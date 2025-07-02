@@ -25,6 +25,7 @@ public class FindAccountActivity extends AppCompatActivity {
     int defaultIndex = 2; // 시간표
 
 
+
     @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +54,6 @@ public class FindAccountActivity extends AppCompatActivity {
         // ✅ 4. 메뉴 생성 및 클릭 처리
 
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText, defaultIndex);
-
 
 
         // 5. 시작 시 특정 항목 선택 (예: 시간표)

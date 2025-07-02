@@ -4,8 +4,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
+
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -16,7 +18,7 @@
         android:theme="@style/Theme.GreenAcademyPartner"
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="31">
-
+        <!-- SplashActivity를 앱의 시작점으로 설정 -->
         <activity
             android:name=".ui.SplashActivity"
             android:exported="true">
@@ -27,13 +29,14 @@
         </activity>
 
         <!-- 공통 및 HEAD에 있던 액티비티들 -->
+
         <activity android:name=".ui.MainActivity" />
         <activity android:name=".ui.FindAccountActivity" />
         <activity android:name=".ui.SettingActivity" />
         <activity android:name=".ui.MyPageActivity" />
         <activity android:name=".ui.AttendanceActivity" />
         <activity android:name=".ui.NoticeActivity" />
-        <activity android:name=".ui.QAActivity" />
+        <activity android:name=".ui.QuestionsActivity" />
         <activity android:name=".ui.LoginActivity" />
         <activity android:name=".ui.RoleSelectActivity" />
         <activity android:name=".ui.StudentSignupActivity" />
@@ -53,11 +56,19 @@
         <activity android:name=".ui.ParentChildrenListActivity"/>
         <activity android:name=".ui.TeacherTimetableActivity"/>
         <activity android:name=".ui.CreateClassActivity"/>
-
         <!-- sub 브랜치에서 새로 추가된 액티비티들 -->
         <activity android:name=".ui.CreateNoticeActivity" />
         <activity android:name=".ui.NoticeDetailActivity" />
         <activity android:name=".ui.EditNoticeActivity" />
+        <activity android:name=".ui.CreateEditQuestionActivity" />
+        <activity android:name=".ui.QuestionDetailActivity" />
+        <activity android:name=".ui.AnswerActivity" />
+        <activity android:name=".ui.EditAnswerActivity" />
+
+
+
+
+
 
     </application>
 

@@ -40,8 +40,6 @@ public class EditNoticeActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Notice> call, Response<Notice> resp) {
                 if (resp.isSuccessful() && resp.body() != null) {
-
-                    //기존 내용을 editText에 표시
                     editTitle.setText(resp.body().getTitle());
                     editContent.setText(resp.body().getContent());
                 }
@@ -61,7 +59,6 @@ public class EditNoticeActivity extends AppCompatActivity {
                     if (resp.isSuccessful()) {
                         Toast.makeText(EditNoticeActivity.this, "수정 완료", Toast.LENGTH_SHORT).show();
 
-                        // 수정되면  NoticeActivity로 이동
                         Intent intent = new Intent(EditNoticeActivity.this, NoticeActivity.class);
                         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(intent);

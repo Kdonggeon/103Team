@@ -1,5 +1,7 @@
 package com.mobile.greenacademypartner.ui;
 
+
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -11,6 +13,7 @@ public class SplashActivity extends AppCompatActivity {
 
     private static final int SPLASH_DELAY = 1500; // 1.5초 지연
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -19,7 +22,6 @@ public class SplashActivity extends AppCompatActivity {
             SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
             boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
             boolean autoLogin = prefs.getBoolean("auto_login", false);
-
             Intent intent;
             if (isLoggedIn && autoLogin) {
                 intent = new Intent(this, MainActivity.class);
