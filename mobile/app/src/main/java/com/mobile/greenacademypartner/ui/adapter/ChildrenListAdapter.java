@@ -9,8 +9,8 @@ import android.view.LayoutInflater;
 import android.widget.TextView;
 
 import com.mobile.greenacademypartner.R;
-import com.mobile.greenacademypartner.model.Student;
-import com.mobile.greenacademypartner.ui.ChildAttendanceActivity;
+import com.mobile.greenacademypartner.model.student.Student;
+import com.mobile.greenacademypartner.ui.attendance.ChildAttendanceActivity;
 
 import java.util.List;
 

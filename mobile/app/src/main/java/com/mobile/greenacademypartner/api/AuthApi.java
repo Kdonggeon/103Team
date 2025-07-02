@@ -1,7 +1,7 @@
 package com.mobile.greenacademypartner.api;
 
-import com.mobile.greenacademypartner.model.LoginRequest;
-import com.mobile.greenacademypartner.model.LoginResponse;
+import com.mobile.greenacademypartner.model.login.LoginRequest;
+import com.mobile.greenacademypartner.model.login.LoginResponse;
 
 import retrofit2.Call;
 import retrofit2.http.Body;

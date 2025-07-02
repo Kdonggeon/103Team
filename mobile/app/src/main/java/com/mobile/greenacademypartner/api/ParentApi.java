@@ -1,10 +1,10 @@
 package com.mobile.greenacademypartner.api;
 
 
-import com.mobile.greenacademypartner.model.Attendance;
-import com.mobile.greenacademypartner.model.ParentSignupRequest;
-import com.mobile.greenacademypartner.model.ParentUpdateRequest;
-import com.mobile.greenacademypartner.model.Student;
+import com.mobile.greenacademypartner.model.attendance.Attendance;
+import com.mobile.greenacademypartner.model.parent.ParentSignupRequest;
+import com.mobile.greenacademypartner.model.parent.ParentUpdateRequest;
+import com.mobile.greenacademypartner.model.student.Student;
 
 import java.util.List;
 

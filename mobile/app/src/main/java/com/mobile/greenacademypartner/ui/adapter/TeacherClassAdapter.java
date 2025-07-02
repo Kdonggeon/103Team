@@ -6,11 +6,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.mobile.greenacademypartner.R;
-import com.mobile.greenacademypartner.model.TeacherClass;
+import com.mobile.greenacademypartner.model.teacher.TeacherClass;
 
 import java.util.List;
 

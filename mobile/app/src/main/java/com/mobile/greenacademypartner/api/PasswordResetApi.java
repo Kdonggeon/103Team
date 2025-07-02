@@ -1,6 +1,6 @@
 package com.mobile.greenacademypartner.api;
 
-import com.mobile.greenacademypartner.model.PasswordResetRequest;
+import com.mobile.greenacademypartner.model.login.PasswordResetRequest;
 
 import retrofit2.Call;
 import retrofit2.http.Body;

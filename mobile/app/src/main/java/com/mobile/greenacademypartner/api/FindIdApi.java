@@ -1,7 +1,7 @@
 package com.mobile.greenacademypartner.api;
 
-import com.mobile.greenacademypartner.model.FindIdRequest;
-import com.mobile.greenacademypartner.model.FindIdResponse;
+import com.mobile.greenacademypartner.model.login.FindIdRequest;
+import com.mobile.greenacademypartner.model.login.FindIdResponse;
 
 import retrofit2.Call;
 import retrofit2.http.Body;

@@ -5,7 +5,7 @@ import android.view.*;
 import android.widget.*;
 
 import com.mobile.greenacademypartner.R;
-import com.mobile.greenacademypartner.model.Course;
+import com.mobile.greenacademypartner.model.classes.Course;
 
 import java.util.List;
 

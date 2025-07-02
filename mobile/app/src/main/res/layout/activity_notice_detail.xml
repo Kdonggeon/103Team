@@ -5,7 +5,7 @@
     android:id="@+id/drawer_layout_notice_detail"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.NoticeDetailActivity">
+    tools:context=".ui.notice.NoticeDetailActivity">
 
     <!-- 상단 툴바 + 콘텐츠 컨테이너 -->
     <LinearLayout

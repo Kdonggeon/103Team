@@ -14,12 +14,12 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.core.view.GravityCompat;
 
 import com.mobile.greenacademypartner.R;
-import com.mobile.greenacademypartner.ui.MainActivity;
-import com.mobile.greenacademypartner.ui.AttendanceActivity;
-import com.mobile.greenacademypartner.ui.MyPageActivity;
-import com.mobile.greenacademypartner.ui.NoticeActivity;
-import com.mobile.greenacademypartner.ui.QAActivity;
-import com.mobile.greenacademypartner.ui.SettingActivity;
+import com.mobile.greenacademypartner.ui.main.MainActivity;
+import com.mobile.greenacademypartner.ui.attendance.AttendanceActivity;
+import com.mobile.greenacademypartner.ui.mypage.MyPageActivity;
+import com.mobile.greenacademypartner.ui.notice.NoticeActivity;
+import com.mobile.greenacademypartner.ui.qa.QAActivity;
+import com.mobile.greenacademypartner.ui.setting.SettingActivity;
 
 public class NavigationMenuHelper {
 

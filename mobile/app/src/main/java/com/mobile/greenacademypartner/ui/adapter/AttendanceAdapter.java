@@ -10,7 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.mobile.greenacademypartner.R;
-import com.mobile.greenacademypartner.model.Attendance;
+import com.mobile.greenacademypartner.model.attendance.Attendance;
 
 import java.util.List;
 

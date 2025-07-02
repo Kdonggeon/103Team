@@ -18,7 +18,7 @@
         tools:targetApi="31">
 
         <activity
-            android:name=".ui.SplashActivity"
+            android:name=".ui.start.SplashActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -27,37 +27,37 @@
         </activity>
 
         <!-- 공통 및 HEAD에 있던 액티비티들 -->
-        <activity android:name=".ui.MainActivity" />
-        <activity android:name=".ui.FindAccountActivity" />
-        <activity android:name=".ui.SettingActivity" />
-        <activity android:name=".ui.MyPageActivity" />
-        <activity android:name=".ui.AttendanceActivity" />
-        <activity android:name=".ui.NoticeActivity" />
-        <activity android:name=".ui.QAActivity" />
-        <activity android:name=".ui.LoginActivity" />
-        <activity android:name=".ui.RoleSelectActivity" />
-        <activity android:name=".ui.StudentSignupActivity" />
-        <activity android:name=".ui.ParentSignupActivity" />
-        <activity android:name=".ui.TeacherSignupActivity" />
-        <activity android:name=".ui.FindIdActivity" />
-        <activity android:name=".ui.ResetPasswordActivity" />
-        <activity android:name=".ui.FindSelectActivity" />
-        <activity android:name=".ui.FindIdResultActivity" />
-        <activity android:name=".ui.StudentAttendanceActivity" />
-        <activity android:name=".ui.ParentAttendanceActivity" />
-        <activity android:name=".ui.TeacherClassesActivity" />
-        <activity android:name=".ui.ClassAttendanceActivity" />
-        <activity android:name=".ui.QRScannerActivity" />
-        <activity android:name=".ui.StudentTimetableActivity"/>
-        <activity android:name=".ui.ChildAttendanceActivity"/>
-        <activity android:name=".ui.ParentChildrenListActivity"/>
-        <activity android:name=".ui.TeacherTimetableActivity"/>
-        <activity android:name=".ui.CreateClassActivity"/>
+        <activity android:name=".ui.main.MainActivity" />
+        <activity android:name=".ui.login.FindAccountActivity" />
+        <activity android:name=".ui.setting.SettingActivity" />
+        <activity android:name=".ui.mypage.MyPageActivity" />
+        <activity android:name=".ui.attendance.AttendanceActivity" />
+        <activity android:name=".ui.notice.NoticeActivity" />
+        <activity android:name=".ui.qa.QAActivity" />
+        <activity android:name=".ui.login.LoginActivity" />
+        <activity android:name=".ui.login.RoleSelectActivity" />
+        <activity android:name=".ui.signup.StudentSignupActivity" />
+        <activity android:name=".ui.signup.ParentSignupActivity" />
+        <activity android:name=".ui.signup.TeacherSignupActivity" />
+        <activity android:name=".ui.login.FindIdActivity" />
+        <activity android:name=".ui.login.ResetPasswordActivity" />
+        <activity android:name=".ui.login.FindSelectActivity" />
+        <activity android:name=".ui.login.FindIdResultActivity" />
+        <activity android:name=".ui.attendance.StudentAttendanceActivity" />
+        <activity android:name=".ui.attendance.ParentAttendanceActivity" />
+        <activity android:name=".ui.classes.TeacherClassesActivity" />
+        <activity android:name=".ui.attendance.ClassAttendanceActivity" />
+        <activity android:name=".ui.timetable.QRScannerActivity" />
+        <activity android:name=".ui.timetable.StudentTimetableActivity"/>
+        <activity android:name=".ui.attendance.ChildAttendanceActivity"/>
+        <activity android:name=".ui.timetable.ParentChildrenListActivity"/>
+        <activity android:name=".ui.timetable.TeacherTimetableActivity"/>
+        <activity android:name=".ui.classes.CreateClassActivity"/>
 
         <!-- sub 브랜치에서 새로 추가된 액티비티들 -->
-        <activity android:name=".ui.CreateNoticeActivity" />
-        <activity android:name=".ui.NoticeDetailActivity" />
-        <activity android:name=".ui.EditNoticeActivity" />
+        <activity android:name=".ui.notice.CreateNoticeActivity" />
+        <activity android:name=".ui.notice.NoticeDetailActivity" />
+        <activity android:name=".ui.notice.EditNoticeActivity" />
 
     </application>
 

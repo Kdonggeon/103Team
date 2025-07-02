@@ -10,7 +10,8 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.mobile.greenacademypartner.R;
-import com.mobile.greenacademypartner.model.Attendance;
+import com.mobile.greenacademypartner.model.attendance.Attendance;
+import com.mobile.greenacademypartner.model.attendance.AttendanceEntry;
 
 import java.util.List;
 
@@ -45,7 +46,7 @@ public class ParentAttendanceAdapter extends RecyclerView.Adapter<ParentAttendan
         // ✅ 해당 자녀의 출석 상태 찾기
         String matchedStatus = "출석 정보 없음";
         if (attendance.getAttendanceList() != null) {
-            for (com.mobile.greenacademypartner.model.AttendanceEntry entry : attendance.getAttendanceList()) {
+            for (AttendanceEntry entry : attendance.getAttendanceList()) {
                 if (entry.getStudentId().equals(studentId)) {
                     matchedStatus = entry.getStatus();
                     break;
