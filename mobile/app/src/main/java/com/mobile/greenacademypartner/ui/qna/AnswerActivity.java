@@ -1,5 +1,6 @@
-package com.mobile.greenacademypartner.ui;
+package com.mobile.greenacademypartner.ui.qna;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -32,6 +33,10 @@ public class AnswerActivity extends AppCompatActivity {
 
         questionId = getIntent().getStringExtra("questionId");
 
+        //  role 불러오기
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String userRole = prefs.getString("role", "");
+
         btnPostAnswer.setOnClickListener(v -> {
             String content = etAnswerContent.getText().toString().trim();
 
@@ -40,8 +45,10 @@ public class AnswerActivity extends AppCompatActivity {
                 return;
             }
 
+            // role을 작성자로 넣기
             Answer a = new Answer();
             a.setContent(content);
+            a.setAuthor(userRole);
 
             AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
             api.createAnswer(questionId, a).enqueue(new Callback<Answer>() {

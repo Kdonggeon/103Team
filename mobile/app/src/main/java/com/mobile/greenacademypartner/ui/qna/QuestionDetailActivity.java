@@ -1,4 +1,4 @@
-package com.mobile.greenacademypartner.ui;
+package com.mobile.greenacademypartner.ui.qna;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -23,11 +23,13 @@ import com.mobile.greenacademypartner.model.Answer;
 import com.mobile.greenacademypartner.model.Question;
 
 import java.util.List;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class QuestionDetailActivity extends AppCompatActivity {
+
     private Toolbar toolbar;
     private LinearLayout navContainer;
     private TextView mainContentText;
@@ -44,13 +46,14 @@ public class QuestionDetailActivity extends AppCompatActivity {
     private AnswerAdapter answerAdapter;
 
     private String questionId;
+    private String userRole;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_question_detail);
 
-        // ✅ Toolbar 세팅 - 뒤로가기(←) 활성화
+        //  Toolbar 설정
         toolbar = findViewById(R.id.toolbar_question_detail);
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
@@ -58,56 +61,57 @@ public class QuestionDetailActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
 
-        // 상단 레이아웃
+        //  상단 네비게이션
         navContainer = findViewById(R.id.nav_container_question_detail);
         mainContentText = findViewById(R.id.main_content_text_question_detail);
 
+        //  버튼
         btnDeleteQuestion = findViewById(R.id.btn_delete_question);
-        btnDeleteQuestion.setOnClickListener(v -> deleteQuestion());
+        btnAddAnswer = findViewById(R.id.btn_add_answer);
 
-        // 질문 상세 뷰
+        //  질문 상세 정보 뷰
         tvTitle = findViewById(R.id.tv_question_title);
         tvContent = findViewById(R.id.tv_question_content);
         tvAuthor = findViewById(R.id.tv_question_author);
         tvDate = findViewById(R.id.tv_question_date);
 
-        // 답변 RecyclerView
+        //  RecyclerView 세팅
         rvAnswers = findViewById(R.id.rv_answers);
         rvAnswers.setLayoutManager(new LinearLayoutManager(this));
-        answerAdapter = new AnswerAdapter();
-        rvAnswers.setAdapter(answerAdapter);
 
-        // 질문 ID 전달받기
+        //  로그인 사용자 ID 가져오기
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        userRole = prefs.getString("role", "");
+
+        //  QuestionId 전달받기
         questionId = getIntent().getStringExtra("questionId");
         if (questionId == null || questionId.isEmpty()) {
             finish();
             return;
         }
 
-        // 질문, 답변 불러오기
+        //  AnswerAdapter 생성
+        answerAdapter = new AnswerAdapter(this, userRole, questionId);
+        rvAnswers.setAdapter(answerAdapter);
+
+        //  질문/답변 불러오기
         loadQuestionDetail(questionId);
         loadAnswerList(questionId);
 
-        // 답변작성 버튼
-        btnAddAnswer = findViewById(R.id.btn_add_answer);
+        //  질문 삭제 버튼
+        btnDeleteQuestion.setOnClickListener(v -> deleteQuestion());
+
+        //  답변 작성 버튼
         btnAddAnswer.setOnClickListener(v -> {
-            Intent intent = new Intent(QuestionDetailActivity.this, AnswerActivity.class);
+            Intent intent = new Intent(QuestionDetailActivity.this, EditAnswerActivity.class);
             intent.putExtra("questionId", questionId);
             startActivity(intent);
         });
 
-        // ✅ TEACHER만 보이게
-        String userRole = getUserRoleFromSessionOrPrefs();
-        if (userRole != null) {
-            userRole = userRole.trim();
-        } else {
-            userRole = "";
-        }
-
+        //  교사만 답변 작성 버튼 보이기
+        String userRole = prefs.getString("role", "");
         if (!"TEACHER".equalsIgnoreCase(userRole)) {
             btnAddAnswer.setVisibility(View.GONE);
-        } else {
-            btnAddAnswer.setVisibility(View.VISIBLE);
         }
     }
 
@@ -117,6 +121,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
         return true;
     }
 
+    //  질문 상세 불러오기
     private void loadQuestionDetail(String id) {
         QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
         api.getQuestion(id).enqueue(new Callback<Question>() {
@@ -137,6 +142,8 @@ public class QuestionDetailActivity extends AppCompatActivity {
                     }
 
                     mainContentText.setVisibility(View.GONE);
+                } else {
+                    mainContentText.setText("질문을 불러오지 못했습니다.");
                 }
             }
 
@@ -145,6 +152,11 @@ public class QuestionDetailActivity extends AppCompatActivity {
                 mainContentText.setText("질문을 불러오지 못했습니다.");
             }
         });
+    }
+
+    //  답변 목록 불러오기
+    public void loadAnswerList() {
+        loadAnswerList(questionId);
     }
 
     private void loadAnswerList(String questionId) {
@@ -159,10 +171,12 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<List<Answer>> call, Throwable t) {
+                // 실패 시 로그만
             }
         });
     }
 
+    //  질문 삭제
     private void deleteQuestion() {
         QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
         api.deleteQuestion(questionId).enqueue(new Callback<Void>() {
@@ -187,10 +201,5 @@ public class QuestionDetailActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         loadAnswerList(questionId);
-    }
-
-    private String getUserRoleFromSessionOrPrefs() {
-        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
-        return prefs.getString("userRole", "");
     }
 }

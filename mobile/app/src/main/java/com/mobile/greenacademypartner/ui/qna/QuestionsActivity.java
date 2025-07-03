@@ -1,4 +1,4 @@
-package com.mobile.greenacademypartner.ui;
+package com.mobile.greenacademypartner.ui.qna;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -77,7 +77,7 @@ public class QuestionsActivity extends AppCompatActivity {
                 findViewById(R.id.nav_container_questions),
                 drawerLayout,
                 tvMessage,
-                        4
+                        3
         );
 
         // 데이터 로딩

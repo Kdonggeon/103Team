@@ -59,7 +59,7 @@ public class NoticeActivity extends AppCompatActivity {
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
         // 4. 사이드 메뉴 생성
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null,3);
+        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null,4);
 
         // 5. RecyclerView 설정
         rvNotices.setLayoutManager(new LinearLayoutManager(this));

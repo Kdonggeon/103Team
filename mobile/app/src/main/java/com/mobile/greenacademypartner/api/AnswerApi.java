@@ -6,6 +6,7 @@ import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.http.Body;
+import retrofit2.http.DELETE;
 import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
@@ -28,4 +29,9 @@ public interface AnswerApi {
     //  답변 수정
     @PUT("/api/answers/{id}")
     Call<Answer> updateAnswer(@Path("id") String id, @Body Answer answer);
+
+    @DELETE("/qa-answer/{id}")
+    Call<Void> deleteAnswer(@Path("id") String id);
+
+
 }

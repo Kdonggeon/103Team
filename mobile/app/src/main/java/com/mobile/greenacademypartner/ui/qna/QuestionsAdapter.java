@@ -1,4 +1,4 @@
-package com.mobile.greenacademypartner.ui;
+package com.mobile.greenacademypartner.ui.qna;
 
 import android.view.LayoutInflater;
 import android.view.View;

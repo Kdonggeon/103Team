@@ -33,7 +33,7 @@
         <activity android:name=".ui.mypage.MyPageActivity" />
         <activity android:name=".ui.attendance.AttendanceActivity" />
         <activity android:name=".ui.notice.NoticeActivity" />
-        <activity android:name=".ui.qa.QAActivity" />
+        <activity android:name=".ui.qna.QuestionsActivity" />
         <activity android:name=".ui.login.LoginActivity" />
         <activity android:name=".ui.login.RoleSelectActivity" />
         <activity android:name=".ui.signup.StudentSignupActivity" />
@@ -58,10 +58,10 @@
         <activity android:name=".ui.notice.CreateNoticeActivity" />
         <activity android:name=".ui.notice.NoticeDetailActivity" />
         <activity android:name=".ui.notice.EditNoticeActivity" />
-        <activity android:name=".ui.CreateEditQuestionActivity" />
-        <activity android:name=".ui.QuestionDetailActivity" />
-        <activity android:name=".ui.AnswerActivity" />
-        <activity android:name=".ui.EditAnswerActivity" />
+        <activity android:name=".ui.qna.CreateEditQuestionActivity" />
+        <activity android:name=".ui.qna.QuestionDetailActivity" />
+        <activity android:name=".ui.qna.AnswerActivity" />
+        <activity android:name=".ui.qna.EditAnswerActivity" />
     </application>
 
 </manifest>

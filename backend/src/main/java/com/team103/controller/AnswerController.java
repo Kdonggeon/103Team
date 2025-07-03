@@ -4,6 +4,7 @@ import com.team103.model.Answer;
 import com.team103.repository.AnswerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
@@ -27,7 +28,7 @@ public class AnswerController {
                                @RequestBody Answer answer) {
 
         // ✅ 로그인 사용자 ID (실제는 세션이나 토큰에서 꺼냄)
-        String loggedInUserId = "teacher001";  // 예시로 하드코딩
+        String loggedInUserId = SecurityContextHolder.getContext().getAuthentication().getName();
 
         answer.setQuestionId(questionId);
         answer.setAuthor(loggedInUserId);     // 서버가 작성자 세팅

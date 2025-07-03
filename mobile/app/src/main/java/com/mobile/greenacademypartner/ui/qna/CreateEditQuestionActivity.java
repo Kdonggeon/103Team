@@ -1,4 +1,4 @@
-package com.mobile.greenacademypartner.ui;
+package com.mobile.greenacademypartner.ui.qna;
 
 import android.os.Bundle;
 import android.widget.Button;
