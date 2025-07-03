@@ -15,7 +15,6 @@ import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.drawerlayout.widget.DrawerLayout;
-
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
@@ -45,7 +44,6 @@ public class SettingActivity extends AppCompatActivity {
         colorGrid = findViewById(R.id.color_grid);
         mainContentText = findViewById(R.id.main_content_text);
         btnLogout = findViewById(R.id.btn_logout);
-
         // 2. 툴바 색상 적용
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
@@ -61,7 +59,6 @@ public class SettingActivity extends AppCompatActivity {
 
         // 4. 메뉴 생성
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText, defaultIndex);
-
         // 5. 색상 선택
         setupColorSelection();
 

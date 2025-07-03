@@ -1,6 +1,7 @@
 package com.mobile.greenacademypartner.api;
 
 
+import com.mobile.greenacademypartner.model.attendance.Attendance;
 import com.mobile.greenacademypartner.model.classes.Course;
 import com.mobile.greenacademypartner.model.classes.CreateClassRequest;
 import com.mobile.greenacademypartner.model.teacher.TeacherAttendance;
@@ -17,6 +18,11 @@ import retrofit2.http.POST;
 import retrofit2.http.PUT;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
+
+import com.mobile.greenacademypartner.model.teacher.TeacherSignupRequest;
+import retrofit2.Call;
+import retrofit2.http.Body;
+import retrofit2.http.POST;
 
 
 public interface TeacherApi {

@@ -16,6 +16,7 @@ import retrofit2.http.PUT;
 import retrofit2.http.Path;
 
 
+
 public interface ParentApi {
     @POST("/api/signup/parent")
     Call<Void> signupParent(@Body ParentSignupRequest request);
@@ -32,9 +33,4 @@ public interface ParentApi {
 
     @GET("/api/parents/{parentId}/children")
     Call<List<Student>> getChildrenByParentId(@Path("parentId") String parentId);
-
-
-
-
-
 }

@@ -2,6 +2,7 @@ package com.team103.dto;
 
 public class LoginResponse {
 
+
     private String status;
     private String role;
     private String username;
@@ -29,6 +30,7 @@ public class LoginResponse {
     public LoginResponse(String status, String role, String username, String name, String token,
                          String phone, String address, String school, int grade,
                          String gender, int academyNumber) {
+
         this.status = status;
         this.role = role;
         this.username = username;
@@ -71,4 +73,5 @@ public class LoginResponse {
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
     public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
     public void setChildStudentId(String childStudentId) { this.childStudentId = childStudentId; }
+
 }

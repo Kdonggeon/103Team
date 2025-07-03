@@ -52,6 +52,7 @@ public class FindIdActivity extends AppCompatActivity {
 
             // API 호출
             FindIdApi api = RetrofitClient.getClient().create(FindIdApi.class);
+
             api.findId(request).enqueue(new Callback<FindIdResponse>() {
                 @Override
                 public void onResponse(Call<FindIdResponse> call, Response<FindIdResponse> response) {

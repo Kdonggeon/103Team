@@ -8,29 +8,24 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.LinearLayout;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.NoticeApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.Notice;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
-
 import java.util.List;
-
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class NoticeActivity extends AppCompatActivity {
-
     private DrawerLayout drawerLayout;
     private Toolbar toolbar;
     private LinearLayout navContainer;
@@ -43,7 +38,6 @@ public class NoticeActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice);
-
         // 1. 뷰 초기화
         drawerLayout = findViewById(R.id.drawer_layout_notice);
         toolbar = findViewById(R.id.toolbar_notice);
@@ -64,7 +58,6 @@ public class NoticeActivity extends AppCompatActivity {
         );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
-
         // 4. 사이드 메뉴 생성
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null,3);
 
@@ -91,11 +84,13 @@ public class NoticeActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         fetchNotices(); // 다시 불러오기 (작성 후 반영)
+
     }
 
     private void fetchNotices() {
         progressBar.setVisibility(View.VISIBLE);
-        api.getNotices().enqueue(new Callback<List<Notice>>() {
+
+        api.listNotices().enqueue(new Callback<List<Notice>>() {
             @Override
             public void onResponse(Call<List<Notice>> call, Response<List<Notice>> response) {
                 progressBar.setVisibility(View.GONE);

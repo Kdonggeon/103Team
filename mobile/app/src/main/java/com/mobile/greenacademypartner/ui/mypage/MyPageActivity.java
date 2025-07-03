@@ -1,5 +1,6 @@
 package com.mobile.greenacademypartner.ui.mypage;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
@@ -53,7 +54,6 @@ public class MyPageActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);
         toolbar = findViewById(R.id.toolbar);
-
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
 

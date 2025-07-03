@@ -25,6 +25,7 @@ import com.mobile.greenacademypartner.ui.main.MainActivity;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import retrofit2.http.HEAD;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -37,11 +38,11 @@ public class LoginActivity extends AppCompatActivity {
     private boolean isPasswordVisible = false;
     private SharedPreferences prefs;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
         prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
 
         // 뷰 초기화
@@ -52,7 +53,6 @@ public class LoginActivity extends AppCompatActivity {
         loginButton = findViewById(R.id.buttonLogin);
         autoLoginCheckBox = findViewById(R.id.login_check);
         btnTogglePassword = findViewById(R.id.btn_toggle_password);
-
         autoLoginCheckBox.setChecked(prefs.getBoolean("auto_login", false));
 
         // 비밀번호 보기 토글
@@ -138,7 +138,6 @@ public class LoginActivity extends AppCompatActivity {
                             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                             startActivity(intent);
                             finish();
-
                         } else {
                             String errorBody = response.errorBody() != null ? response.errorBody().string() : "없음";
                             Log.e("LoginResponse", "실패 바디: " + errorBody);

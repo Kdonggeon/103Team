@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout_questions"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 메인 컨텐츠: Notice 화면과 동일한 틀 적용 -->
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- 1) Toolbar (Notice와 동일하게 중앙 정렬 텍스트 적용) -->
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar_questions"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:gravity="center"
+            android:title="QnA"
+            android:titleTextColor="@android:color/white" />
+
+        <!-- 2) 로딩바 -->
+        <ProgressBar
+            android:id="@+id/pb_loading_questions"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:indeterminate="true"
+            android:visibility="gone" />
+
+        <!-- 메시지 텍스트 추가 -->
+        <TextView
+            android:id="@+id/main_content_text_questions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="질문 목록을 불러오는 중..."
+            android:visibility="gone"
+            android:padding="8dp" />
+
+        <!-- 3) 질문 목록 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_questions"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- 4) 질문 등록 버튼 -->
+        <Button
+            android:id="@+id/btn_add_question"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="질문 등록" />
+
+    </LinearLayout>
+
+    <!-- 사이드바 (햄버거 메뉴 컨테이너) -->
+    <LinearLayout
+        android:id="@+id/nav_container_questions"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="@android:color/darker_gray" />
+
+</androidx.drawerlayout.widget.DrawerLayout>

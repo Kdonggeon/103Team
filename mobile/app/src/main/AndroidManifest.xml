@@ -58,7 +58,10 @@
         <activity android:name=".ui.notice.CreateNoticeActivity" />
         <activity android:name=".ui.notice.NoticeDetailActivity" />
         <activity android:name=".ui.notice.EditNoticeActivity" />
-
+        <activity android:name=".ui.CreateEditQuestionActivity" />
+        <activity android:name=".ui.QuestionDetailActivity" />
+        <activity android:name=".ui.AnswerActivity" />
+        <activity android:name=".ui.EditAnswerActivity" />
     </application>
 
 </manifest>
