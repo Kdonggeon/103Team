@@ -12,6 +12,7 @@ public class Question {
     private String content;
     private String author;     // 학생 또는 학부모 아이디
     private Date createdAt;
+    
 
     public Question() {
         this.createdAt = new Date();

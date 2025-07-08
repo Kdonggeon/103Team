@@ -28,18 +28,21 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
         btnSave   = findViewById(R.id.btn_save_question);
 
         questionId = getIntent().getStringExtra("questionId");
-        isEdit     = questionId != null;
+        isEdit     = questionId != null && !questionId.isEmpty();
 
-        if (isEdit) loadQuestion(questionId);
+        if (isEdit) {
+            loadQuestion(questionId);
+        }
 
         btnSave.setOnClickListener(v -> {
             Question q = new Question();
             q.setTitle(etTitle.getText().toString());
             q.setContent(etContent.getText().toString());
-            // 현재 사용자 ID SharedPreferences에서 로드
-            String authorId = getSharedPreferences("userPrefs", MODE_PRIVATE)
+
+            String authorId = getSharedPreferences("login_prefs", MODE_PRIVATE)
                     .getString("userId", "");
             q.setAuthor(authorId);
+
             QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
             Call<Question> call = isEdit
                     ? api.updateQuestion(questionId, q)

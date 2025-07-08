@@ -51,8 +51,16 @@ public class QuestionDetailActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        questionId = getIntent().getStringExtra("questionId");
+        if (questionId == null || questionId.isEmpty()) {
+            finish();  // ID 없으면 화면 종료
+            return;
+        }
+
         setContentView(R.layout.activity_question_detail);
 
+        // 2) 툴바 및 네비게이션
         toolbar = findViewById(R.id.toolbar_question_detail);
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
@@ -63,30 +71,9 @@ public class QuestionDetailActivity extends AppCompatActivity {
         navContainer = findViewById(R.id.nav_container_question_detail);
         mainContentText = findViewById(R.id.main_content_text_question_detail);
 
+        // 3) 버튼
         btnDeleteQuestion = findViewById(R.id.btn_delete_question);
         btnDeleteQuestion.setOnClickListener(v -> deleteQuestion());
-
-        tvTitle = findViewById(R.id.tv_question_title);
-        tvContent = findViewById(R.id.tv_question_content);
-        tvAuthor = findViewById(R.id.tv_question_author);
-        tvDate = findViewById(R.id.tv_question_date);
-
-        questionId = getIntent().getStringExtra("questionId");
-        if (questionId == null || questionId.isEmpty()) {
-            finish();
-            return;
-        }
-
-        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        userRole = prefs.getString("role", "");
-
-        rvAnswers = findViewById(R.id.rv_answers);
-        rvAnswers.setLayoutManager(new LinearLayoutManager(this));
-        answerAdapter = new AnswerAdapter(this, questionId, userRole);
-        rvAnswers.setAdapter(answerAdapter);
-
-        loadQuestionDetail(questionId);
-        loadAnswerList(questionId);
 
         btnAddAnswer = findViewById(R.id.btn_add_answer);
         btnAddAnswer.setOnClickListener(v -> {
@@ -95,6 +82,24 @@ public class QuestionDetailActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        // 4) 뷰 바인딩
+        tvTitle   = findViewById(R.id.tv_question_title);
+        tvContent = findViewById(R.id.tv_question_content);
+        tvAuthor  = findViewById(R.id.tv_question_author);
+        tvDate    = findViewById(R.id.tv_question_date);
+
+        rvAnswers = findViewById(R.id.rv_answers);
+        rvAnswers.setLayoutManager(new LinearLayoutManager(this));
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        userRole = prefs.getString("role", "");
+        answerAdapter = new AnswerAdapter(this, questionId, userRole);
+        rvAnswers.setAdapter(answerAdapter);
+
+        // 5) 데이터 로드
+        loadQuestionDetail(questionId);
+        loadAnswerList(questionId);
+
+        // 6) 권한에 따라 버튼 숨기기
         if (!"TEACHER".equalsIgnoreCase(userRole)) {
             btnAddAnswer.setVisibility(View.GONE);
             btnDeleteQuestion.setVisibility(View.GONE);
@@ -116,8 +121,9 @@ public class QuestionDetailActivity extends AppCompatActivity {
                     Question q = response.body();
 
                     tvTitle.setText(q.getTitle());
-                    tvContent.setText(q.getContent());
+                    // ← 여기에서 "작성자 ID"를 그대로 노출
                     tvAuthor.setText(q.getAuthor());
+                    tvContent.setText(q.getContent());
 
                     if (q.getCreatedAt() != null && q.getCreatedAt().contains("T")) {
                         String date = q.getCreatedAt().split("T")[0];
@@ -137,12 +143,10 @@ public class QuestionDetailActivity extends AppCompatActivity {
         });
     }
 
-    // ✅ 기존 기본형 (그대로 유지)
     public void loadAnswerList(String questionId) {
         loadAnswerList(questionId, () -> {});
     }
 
-    // ✅ 콜백 받는 새 버전
     public void loadAnswerList(String questionId, Runnable onComplete) {
         AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
         api.listAnswers(questionId).enqueue(new Callback<List<Answer>>() {
@@ -157,7 +161,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
                             Toast.LENGTH_SHORT
                     ).show();
                 }
-                if (onComplete != null) onComplete.run();
+                onComplete.run();
             }
 
             @Override
@@ -167,7 +171,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
                         "오류: " + t.getMessage(),
                         Toast.LENGTH_SHORT
                 ).show();
-                if (onComplete != null) onComplete.run();
+                onComplete.run();
             }
         });
     }
