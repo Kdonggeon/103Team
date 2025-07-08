@@ -55,8 +55,8 @@ public class CreateNoticeActivity extends AppCompatActivity {
             // 로그인 정보에서 작성자명 가져오기(작성자 표시에 필요)
 
             SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-            String username = prefs.getString("username", "");
-            notice.setAuthor(username);
+            String name = prefs.getString("name", "");
+            notice.setAuthor(name);
 
             api.createNotice(notice).enqueue(new Callback<Notice>() {
                 @Override

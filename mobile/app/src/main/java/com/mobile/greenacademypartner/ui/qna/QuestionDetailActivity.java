@@ -53,7 +53,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_question_detail);
 
-        //  Toolbar 설정
         toolbar = findViewById(R.id.toolbar_question_detail);
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
@@ -61,57 +60,44 @@ public class QuestionDetailActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
 
-        //  상단 네비게이션
         navContainer = findViewById(R.id.nav_container_question_detail);
         mainContentText = findViewById(R.id.main_content_text_question_detail);
 
-        //  버튼
         btnDeleteQuestion = findViewById(R.id.btn_delete_question);
-        btnAddAnswer = findViewById(R.id.btn_add_answer);
+        btnDeleteQuestion.setOnClickListener(v -> deleteQuestion());
 
-        //  질문 상세 정보 뷰
         tvTitle = findViewById(R.id.tv_question_title);
         tvContent = findViewById(R.id.tv_question_content);
         tvAuthor = findViewById(R.id.tv_question_author);
         tvDate = findViewById(R.id.tv_question_date);
 
-        //  RecyclerView 세팅
-        rvAnswers = findViewById(R.id.rv_answers);
-        rvAnswers.setLayoutManager(new LinearLayoutManager(this));
-
-        //  로그인 사용자 ID 가져오기
-        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        userRole = prefs.getString("role", "");
-
-        //  QuestionId 전달받기
         questionId = getIntent().getStringExtra("questionId");
         if (questionId == null || questionId.isEmpty()) {
             finish();
             return;
         }
 
-        //  AnswerAdapter 생성
-        answerAdapter = new AnswerAdapter(this, userRole, questionId);
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        userRole = prefs.getString("role", "");
+
+        rvAnswers = findViewById(R.id.rv_answers);
+        rvAnswers.setLayoutManager(new LinearLayoutManager(this));
+        answerAdapter = new AnswerAdapter(this, questionId, userRole);
         rvAnswers.setAdapter(answerAdapter);
 
-        //  질문/답변 불러오기
         loadQuestionDetail(questionId);
         loadAnswerList(questionId);
 
-        //  질문 삭제 버튼
-        btnDeleteQuestion.setOnClickListener(v -> deleteQuestion());
-
-        //  답변 작성 버튼
+        btnAddAnswer = findViewById(R.id.btn_add_answer);
         btnAddAnswer.setOnClickListener(v -> {
-            Intent intent = new Intent(QuestionDetailActivity.this, EditAnswerActivity.class);
+            Intent intent = new Intent(QuestionDetailActivity.this, AnswerActivity.class);
             intent.putExtra("questionId", questionId);
             startActivity(intent);
         });
 
-        //  교사만 답변 작성 버튼 보이기
-        String userRole = prefs.getString("role", "");
         if (!"TEACHER".equalsIgnoreCase(userRole)) {
             btnAddAnswer.setVisibility(View.GONE);
+            btnDeleteQuestion.setVisibility(View.GONE);
         }
     }
 
@@ -121,7 +107,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
         return true;
     }
 
-    //  질문 상세 불러오기
     private void loadQuestionDetail(String id) {
         QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
         api.getQuestion(id).enqueue(new Callback<Question>() {
@@ -142,8 +127,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
                     }
 
                     mainContentText.setVisibility(View.GONE);
-                } else {
-                    mainContentText.setText("질문을 불러오지 못했습니다.");
                 }
             }
 
@@ -154,29 +137,41 @@ public class QuestionDetailActivity extends AppCompatActivity {
         });
     }
 
-    //  답변 목록 불러오기
-    public void loadAnswerList() {
-        loadAnswerList(questionId);
+    // ✅ 기존 기본형 (그대로 유지)
+    public void loadAnswerList(String questionId) {
+        loadAnswerList(questionId, () -> {});
     }
 
-    private void loadAnswerList(String questionId) {
+    // ✅ 콜백 받는 새 버전
+    public void loadAnswerList(String questionId, Runnable onComplete) {
         AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
         api.listAnswers(questionId).enqueue(new Callback<List<Answer>>() {
             @Override
             public void onResponse(Call<List<Answer>> call, Response<List<Answer>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     answerAdapter.submitList(response.body());
+                } else {
+                    Toast.makeText(
+                            QuestionDetailActivity.this,
+                            "답변을 불러오지 못했습니다.",
+                            Toast.LENGTH_SHORT
+                    ).show();
                 }
+                if (onComplete != null) onComplete.run();
             }
 
             @Override
             public void onFailure(Call<List<Answer>> call, Throwable t) {
-                // 실패 시 로그만
+                Toast.makeText(
+                        QuestionDetailActivity.this,
+                        "오류: " + t.getMessage(),
+                        Toast.LENGTH_SHORT
+                ).show();
+                if (onComplete != null) onComplete.run();
             }
         });
     }
 
-    //  질문 삭제
     private void deleteQuestion() {
         QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
         api.deleteQuestion(questionId).enqueue(new Callback<Void>() {
@@ -186,13 +181,21 @@ public class QuestionDetailActivity extends AppCompatActivity {
                     Toast.makeText(QuestionDetailActivity.this, "삭제되었습니다.", Toast.LENGTH_SHORT).show();
                     finish();
                 } else {
-                    Toast.makeText(QuestionDetailActivity.this, "삭제 실패: " + response.code(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(
+                            QuestionDetailActivity.this,
+                            "삭제 실패: " + response.code(),
+                            Toast.LENGTH_SHORT
+                    ).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
-                Toast.makeText(QuestionDetailActivity.this, "오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(
+                        QuestionDetailActivity.this,
+                        "오류: " + t.getMessage(),
+                        Toast.LENGTH_SHORT
+                ).show();
             }
         });
     }

@@ -7,4 +7,5 @@ import java.util.List;
 public interface AnswerRepository extends MongoRepository<Answer, String> {
     List<Answer> findByQuestionId(String questionId);
     void deleteByQuestionId(String questionId);
+    List<Answer> findByQuestionIdAndDeletedFalse(String questionId);
 }

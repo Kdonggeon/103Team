@@ -6,13 +6,18 @@ import java.util.Date;
 
 @Document(collection = "notices")
 public class Notice {
-
+	
+	
+	
     @Id
     private String id;
     private String title;
     private String content;
     private String author;
     private Date createdAt;
+    private String teacherName;
+
+
 
     // 생성자에서 createdAt 초기화
     public Notice() {
@@ -58,5 +63,13 @@ public class Notice {
 
     public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
+    }
+    
+    public String getTeacherName() {
+        return teacherName;
+    }
+
+    public void setTeacherName(String teacherName) {
+        this.teacherName = teacherName;
     }
 }

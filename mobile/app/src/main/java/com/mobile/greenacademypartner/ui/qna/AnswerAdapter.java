@@ -33,13 +33,13 @@ public class AnswerAdapter extends RecyclerView.Adapter<AnswerAdapter.ViewHolder
     private String currentUserRole;
 
     // 생성자
-    public AnswerAdapter(Context context, String currentUserId, String questionId) {
+    public AnswerAdapter(Context context, String questionId, String currentUserRole) {
         this.context = context;
-        this.currentUserRole = currentUserId != null ? currentUserId.trim() : "";
         this.questionId = questionId;
+        this.currentUserRole = currentUserRole != null ? currentUserRole.trim() : "";
     }
 
-    //  리스트 갱신
+    // 리스트 갱신
     public void submitList(List<Answer> list) {
         this.answers = list;
         notifyDataSetChanged();
@@ -58,10 +58,28 @@ public class AnswerAdapter extends RecyclerView.Adapter<AnswerAdapter.ViewHolder
         holder.bind(answer);
 
         holder.itemView.setOnClickListener(v -> {
-            if ("teacher".equalsIgnoreCase(currentUserRole)) {
-                showEditDeletePopup(answer);
+            if (!"TEACHER".equalsIgnoreCase(currentUserRole)) {
+                Log.d("AnswerAdapter", "currentUserRole: [" + currentUserRole + "]");
+                return;
             }
-            Log.d("AnswerAdapter", "currentUserRole: [" + currentUserRole + "]");
+
+            String clickedId = answer.getId();
+
+            refresh(() -> {
+                Answer refreshedAnswer = null;
+                for (Answer a : answers) {
+                    if (a.getId().equals(clickedId)) {
+                        refreshedAnswer = a;
+                        break;
+                    }
+                }
+
+                if (refreshedAnswer != null) {
+                    showEditDeletePopup(refreshedAnswer);
+                } else {
+                    Toast.makeText(context, "이 답변은 삭제되었거나 수정되었습니다.", Toast.LENGTH_SHORT).show();
+                }
+            });
         });
     }
 
@@ -70,21 +88,25 @@ public class AnswerAdapter extends RecyclerView.Adapter<AnswerAdapter.ViewHolder
         return answers.size();
     }
 
-    // ✅ 팝업 다이얼로그
+    // 팝업 다이얼로그
     private void showEditDeletePopup(Answer answer) {
         new AlertDialog.Builder(context)
                 .setTitle("답변 관리")
                 .setItems(new String[]{"수정", "삭제"}, (dialog, which) -> {
                     if (which == 0) {
+                        Log.d("AnswerAdapter", "[Popup] Answer ID: " + answer.getId());
+                        Log.d("AnswerAdapter", "[Popup] Question ID: " + questionId);
                         openEditAnswerActivity(answer);
                     } else {
+                        Log.d("AnswerAdapter", "[Popup] Answer ID: " + answer.getId());
+                        Log.d("AnswerAdapter", "[Popup] Question ID: " + questionId);
                         deleteAnswer(answer);
                     }
                 })
                 .show();
     }
 
-    // ✅ 수정 → EditAnswerActivity 이동
+    // 수정 → EditAnswerActivity 이동
     private void openEditAnswerActivity(Answer answer) {
         Intent intent = new Intent(context, EditAnswerActivity.class);
         intent.putExtra("answerId", answer.getId());
@@ -92,12 +114,14 @@ public class AnswerAdapter extends RecyclerView.Adapter<AnswerAdapter.ViewHolder
         context.startActivity(intent);
     }
 
-    // ✅ 삭제 → 서버 호출
     private void deleteAnswer(Answer answer) {
+        Log.d("AnswerAdapter", "[Delete] Attempting to delete AnswerID: " + answer.getId());
+
         AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
         api.deleteAnswer(answer.getId()).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
+                Log.d("AnswerAdapter", "[Delete] Response code: " + response.code());
                 if (response.isSuccessful()) {
                     Toast.makeText(context, "삭제 완료", Toast.LENGTH_SHORT).show();
                     refresh();
@@ -108,19 +132,27 @@ public class AnswerAdapter extends RecyclerView.Adapter<AnswerAdapter.ViewHolder
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
+                Log.e("AnswerAdapter", "[Delete] Network Failure", t);
                 Toast.makeText(context, "네트워크 오류", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    // ✅ 새로고침
+    // 기존 새로고침 (콜백 없는 기본)
     private void refresh() {
+        refresh(() -> {});
+    }
+
+    // 콜백 받는 새로고침
+    private void refresh(Runnable onComplete) {
         if (context instanceof QuestionDetailActivity) {
-            ((QuestionDetailActivity) context).loadAnswerList();
+            ((QuestionDetailActivity) context).loadAnswerList(questionId, onComplete);
+        } else {
+            onComplete.run();
         }
     }
 
-    // ✅ ViewHolder
+    // ViewHolder
     public static class ViewHolder extends RecyclerView.ViewHolder {
         private TextView tvContent;
         private TextView tvAuthor;

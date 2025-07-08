@@ -30,7 +30,7 @@ public interface AnswerApi {
     @PUT("/api/answers/{id}")
     Call<Answer> updateAnswer(@Path("id") String id, @Body Answer answer);
 
-    @DELETE("/qa-answer/{id}")
+    @DELETE("/api/answers/{id}")
     Call<Void> deleteAnswer(@Path("id") String id);
 
 

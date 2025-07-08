@@ -74,12 +74,19 @@ public class NoticeDetailActivity extends AppCompatActivity {
                     Notice n = resp.body();
                     tvTitle.setText(n.getTitle());
                     tvContent.setText(n.getContent());
-                    tvAuthor.setText(n.getAuthor());
 
+                    // 작성자 이름 표시: author가 비어있으면 teacherName 사용
+                    String displayName = (n.getAuthor() != null && !n.getAuthor().isEmpty())
+                            ? n.getAuthor()
+                            : n.getTeacherName();
+                    tvAuthor.setText(displayName);
+
+                    // 날짜 포맷팅
                     String formatted = n.getCreatedAt();
                     if (formatted != null) {
                         try {
-                            Date parsed = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(formatted);
+                            Date parsed = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                                    .parse(formatted);
                             if (parsed != null) {
                                 formatted = new SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(parsed);
                             }
