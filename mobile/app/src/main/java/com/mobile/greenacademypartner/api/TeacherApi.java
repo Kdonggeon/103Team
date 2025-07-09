@@ -53,10 +53,4 @@ public interface TeacherApi {
             @Query("date") String date
     );
 
-
-
-
-
-
-
 }
