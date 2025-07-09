@@ -1,5 +1,6 @@
 package com.team103.controller;
 
+import com.team103.dto.AddChildrenRequest;
 import com.team103.dto.ParentSignupRequest;
 import com.team103.model.Attendance;
 import com.team103.model.Course;
@@ -26,28 +27,25 @@ public class ParentController {
 
     private final ParentRepository parentRepo;
 
-
     @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
     private StudentRepository studentRepo;
-    
+
     @Autowired
     private CourseRepository classRepo;
-    
+
     @Autowired
     private AttendanceRepository attendanceRepo;
 
     public ParentController(ParentRepository parentRepo) {
         this.parentRepo = parentRepo;
-
     }
 
     @GetMapping
     public List<Parent> getAllParents() {
         return parentRepo.findAll();
-
     }
 
     @PostMapping
@@ -57,7 +55,7 @@ public class ParentController {
         }
 
         String encodedPw = passwordEncoder.encode(request.getParentsPw());
-        Parent parent = request.toEntity(encodedPw);  
+        Parent parent = request.toEntity(encodedPw);
         Parent saved = parentRepo.save(parent);
         return ResponseEntity.ok(saved);
     }
@@ -67,43 +65,34 @@ public class ParentController {
         return parentRepo.findByParentsId(id);
     }
 
-//    // ✅ 자녀 조회 API
-//    @GetMapping("/{parentId}/children")
-//    public ResponseEntity<?> getChildren(@PathVariable String parentId) {
-//        Parent parent = parentRepo.findByParentsId(parentId);
-//        if (parent == null) return ResponseEntity.notFound().build();
-//
-//        // 전화번호 대신 Parents_Number 사용
-//        String parentNumber = parent.getParentsNumber();  
-//        List<Student> children = studentRepo.findByParentsNumber(parentNumber);
-//
-//        return ResponseEntity.ok(children);
-//    }
-    
- // ✅ 자녀의 수업 목록 조회
-    @GetMapping("/{parentId}/children/{studentId}/classes")
-    public ResponseEntity<?> getChildClasses(
-            @PathVariable String parentId,
-            @PathVariable String studentId) {
+    @PostMapping("/{parentId}/children")
+    public ResponseEntity<?> addChildren(@PathVariable String parentId, @RequestBody AddChildrenRequest request) {
+        Parent parent = parentRepo.findByParentsId(parentId);
+        if (parent == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("부모 정보를 찾을 수 없습니다.");
+        }
 
-        // 자녀가 수강 중인 수업 조회
+        List<String> currentChildren = parent.getStudentIds();
+        if (currentChildren == null) currentChildren = new ArrayList<>();
+
+        for (String studentId : request.getStudentIds()) {
+            if (!currentChildren.contains(studentId)) {
+                currentChildren.add(studentId);
+            }
+        }
+
+        parent.setStudentIds(currentChildren);
+        parentRepo.save(parent);
+
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{parentId}/children/{studentId}/classes")
+    public ResponseEntity<?> getChildClasses(@PathVariable String parentId, @PathVariable String studentId) {
         List<Course> classes = classRepo.findByStudentsContaining(studentId);
         return ResponseEntity.ok(classes);
     }
 
-//    // ✅ 자녀의 수업 출석 내역 조회
-//    @GetMapping("/{parentId}/children/{studentId}/attendance")
-//    public ResponseEntity<?> getChildAttendance(
-//            @PathVariable String parentId,
-//            @PathVariable String studentId,
-//            @RequestParam String classId) {
-//
-//        // 자녀의 해당 수업 출석 내역 조회
-//        List<Attendance> attendances = attendanceRepo
-//                .findByClassIdAndAttendedStudentsContaining(classId, studentId);
-//
-//        return ResponseEntity.ok(attendances);
-//    }
     @GetMapping("/parents/{parentId}/attendance")
     public ResponseEntity<?> getChildAttendance(@PathVariable String parentId) {
         Parent parent = parentRepo.findByParentsId(parentId);
@@ -111,8 +100,7 @@ public class ParentController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("부모님 정보 없음");
         }
 
-        String parentNumber = parent.getParentsNumber(); // ✅ 문자열로 사용
-
+        String parentNumber = parent.getParentsNumber();
         List<Student> children = studentRepo.findByParentsNumber(parentNumber);
 
         List<Attendance> allAttendance = new ArrayList<>();
@@ -123,21 +111,35 @@ public class ParentController {
 
         return ResponseEntity.ok(allAttendance);
     }
-    // ✅ 학생 출석 조회 API (학생/학부모 공통 사용)
-    
+
     @GetMapping("/{parentId}/children")
     public ResponseEntity<?> getChildren(@PathVariable String parentId) {
         Parent parent = parentRepo.findByParentsId(parentId);
         if (parent == null) return ResponseEntity.notFound().build();
 
-        String parentNumber = parent.getParentsNumber();  
+        String parentNumber = parent.getParentsNumber();
         List<Student> children = studentRepo.findByParentsNumber(parentNumber);
 
         return ResponseEntity.ok(children);
     }
 
+    @GetMapping("/{parentId}/children/names")
+    public ResponseEntity<?> getChildNames(@PathVariable String parentId) {
+        Parent parent = parentRepo.findByParentsId(parentId);
+        if (parent == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("부모 정보를 찾을 수 없습니다.");
+        }
 
+        List<String> studentIds = parent.getStudentIds();
+        if (studentIds == null || studentIds.isEmpty()) {
+            return ResponseEntity.ok(new ArrayList<>());
+        }
 
+        List<Student> students = studentRepo.findByStudentIdIn(studentIds);
+        List<String> studentNames = students.stream()
+                .map(Student::getStudentName)
+                .toList();
 
-
+        return ResponseEntity.ok(studentNames);
+    }
 }
