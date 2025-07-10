@@ -7,7 +7,7 @@ public class Student {
     @SerializedName("_id")
     private String _id;
 
-    @SerializedName("studentName")  // ✅ 대문자 아님
+    @SerializedName("studentName")
     private String studentName;
 
     @SerializedName("studentId")
