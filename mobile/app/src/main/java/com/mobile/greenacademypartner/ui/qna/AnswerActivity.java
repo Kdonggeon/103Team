@@ -35,7 +35,7 @@ public class AnswerActivity extends AppCompatActivity {
 
         //  role 불러오기
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        String userRole = prefs.getString("role", "");
+        String userRole = prefs.getString("name", "");
 
         btnPostAnswer.setOnClickListener(v -> {
             String content = etAnswerContent.getText().toString().trim();

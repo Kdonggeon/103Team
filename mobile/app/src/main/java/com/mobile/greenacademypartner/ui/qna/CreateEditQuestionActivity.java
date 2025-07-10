@@ -40,7 +40,7 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
             q.setContent(etContent.getText().toString());
 
             String authorId = getSharedPreferences("login_prefs", MODE_PRIVATE)
-                    .getString("userId", "");
+                    .getString("username", "");
             q.setAuthor(authorId);
 
             QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
