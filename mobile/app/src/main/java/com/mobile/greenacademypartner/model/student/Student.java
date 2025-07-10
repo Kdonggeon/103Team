@@ -7,11 +7,11 @@ public class Student {
     @SerializedName("_id")
     private String _id;
 
-    @SerializedName("Student_Name")
+    @SerializedName("studentName")  // ✅ 대문자 아님
     private String studentName;
 
-    @SerializedName("Student_ID")
-    private String studentId; // ✅ long → String
+    @SerializedName("studentId")
+    private String studentId;
 
     @SerializedName("Student_PW")
     private String studentPw; // ✅ int → String (암호화 문자열 받기 위해)
