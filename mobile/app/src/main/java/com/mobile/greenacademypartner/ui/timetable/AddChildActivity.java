@@ -20,6 +20,7 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.parent.AddChildrenRequest;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.Collections;
 
@@ -58,6 +59,7 @@ public class AddChildActivity extends AppCompatActivity {
 
         // 사이드 메뉴 설정
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 2);
+        ThemeColorUtil.applyThemeColor(this);
 
 
         // UI 요소 연결

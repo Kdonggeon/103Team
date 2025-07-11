@@ -22,6 +22,7 @@ import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.teacher.TeacherClass;
 import com.mobile.greenacademypartner.ui.adapter.TeacherClassAdapter;
 import com.mobile.greenacademypartner.ui.attendance.ClassAttendanceActivity;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.List;
 
@@ -61,6 +62,7 @@ public class TeacherClassesActivity extends AppCompatActivity {
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 1);
 
         loadTeacherClasses();
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 
     private void loadTeacherClasses() {

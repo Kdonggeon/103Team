@@ -21,6 +21,7 @@ import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.model.attendance.Attendance;
 import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.List;
 
@@ -67,6 +68,7 @@ public class StudentTimetableActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         loadTodayAttendance();
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 
     private void loadTodayAttendance() {

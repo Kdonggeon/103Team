@@ -76,6 +76,8 @@ public class SettingActivity extends AppCompatActivity {
         // 7. 설정 선택 상태로 표시
         View settingView = navContainer.getChildAt(defaultIndex);
         if (settingView != null) settingView.performClick();
+        // 전체 색상 변경
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 
     private void setupColorSelection() {
@@ -104,8 +106,10 @@ public class SettingActivity extends AppCompatActivity {
                 toolbar.setBackgroundColor(color);
                 getSharedPreferences("settings", MODE_PRIVATE)
                         .edit()
-                        .putInt("toolbar_color", color)
+                        .putInt("theme_color", color)
                         .apply();
+
+                ThemeColorUtil.applyThemeColor(SettingActivity.this, toolbar);
             });
 
             colorGrid.addView(colorBox);

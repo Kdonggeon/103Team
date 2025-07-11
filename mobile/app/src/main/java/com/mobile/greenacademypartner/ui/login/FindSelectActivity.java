@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.widget.Button;
 import androidx.appcompat.app.AppCompatActivity;
 import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 public class FindSelectActivity extends AppCompatActivity {
 
@@ -25,5 +26,6 @@ public class FindSelectActivity extends AppCompatActivity {
         btnResetPw.setOnClickListener(v -> {
             startActivity(new Intent(this, ResetPasswordActivity.class));  // 비밀번호 변경 화면으로 이동
         });
+        ThemeColorUtil.applyThemeColor(this);
     }
 }

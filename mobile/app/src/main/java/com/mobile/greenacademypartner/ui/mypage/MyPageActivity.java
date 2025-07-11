@@ -26,6 +26,7 @@ import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.parent.ParentUpdateRequest;
 import com.mobile.greenacademypartner.model.student.StudentUpdateRequest;
 import com.mobile.greenacademypartner.model.teacher.TeacherUpdateRequest;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.Map;
 
@@ -72,6 +73,8 @@ public class MyPageActivity extends AppCompatActivity {
         loadUserInfo();
         setupUIByRole();
         setupSaveButton();
+        ThemeColorUtil.applyThemeColor(this, toolbar);
+
     }
 
     private void initViews() {

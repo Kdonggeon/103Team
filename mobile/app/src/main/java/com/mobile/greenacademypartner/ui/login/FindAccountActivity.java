@@ -14,6 +14,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 public class FindAccountActivity extends AppCompatActivity {
 
@@ -60,5 +61,6 @@ public class FindAccountActivity extends AppCompatActivity {
         int defaultIndex = 2;
         View defaultView = navContainer.getChildAt(defaultIndex);
         if (defaultView != null) defaultView.performClick();
+        ThemeColorUtil.applyThemeColor(this);
     }
 }

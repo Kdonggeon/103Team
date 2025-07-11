@@ -18,6 +18,7 @@ import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.teacher.TeacherAttendance;
 import com.mobile.greenacademypartner.ui.adapter.TeacherAttendanceAdapter;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.List;
 
@@ -44,7 +45,9 @@ public class ClassAttendanceActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawer_layout);
         recyclerView = findViewById(R.id.recycler_attendance);
 
+
         setSupportActionBar(toolbar);
+
 
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
@@ -60,6 +63,7 @@ public class ClassAttendanceActivity extends AppCompatActivity {
         NavigationMenuHelper.setupMenu(this, findViewById(R.id.nav_container), drawerLayout, null, 1);
 
         fetchAttendanceData();
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 
     private void fetchAttendanceData() {

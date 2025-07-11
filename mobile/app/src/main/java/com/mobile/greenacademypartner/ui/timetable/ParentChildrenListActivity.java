@@ -21,6 +21,7 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.model.student.Student;
 import com.mobile.greenacademypartner.ui.adapter.ChildrenListAdapter;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.List;
 
@@ -59,7 +60,7 @@ public class ParentChildrenListActivity extends AppCompatActivity {
 
         // 사이드 메뉴 설정
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 2);
-
+        ThemeColorUtil.applyThemeColor(this);
         // 리스트 초기화
         listView = findViewById(R.id.children_list_view);
         addButton = findViewById(R.id.btn_add_child);

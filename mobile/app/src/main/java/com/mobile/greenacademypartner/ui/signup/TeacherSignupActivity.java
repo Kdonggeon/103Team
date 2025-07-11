@@ -13,6 +13,7 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.TeacherApi;
 import com.mobile.greenacademypartner.model.teacher.TeacherSignupRequest;
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -85,5 +86,6 @@ public class TeacherSignupActivity extends AppCompatActivity {
                 }
             });
         });
+        ThemeColorUtil.applyThemeColor(this);
     }
 }

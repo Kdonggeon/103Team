@@ -13,6 +13,7 @@ import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.model.student.StudentSignupRequest;
 import com.mobile.greenacademypartner.model.student.Student;
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.io.IOException;
 import java.util.Calendar;
@@ -34,6 +35,7 @@ public class StudentSignupActivity extends AppCompatActivity {
 
         initViews();
         setupListeners();
+        ThemeColorUtil.applyThemeColor(this);
     }
 
     private void initViews() {

@@ -21,6 +21,7 @@ import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.attendance.Attendance;
 import com.mobile.greenacademypartner.model.attendance.AttendanceEntry;
 import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.List;
 
@@ -116,5 +117,6 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                 Log.e("StudentAttendance", "API 실패", t);
             }
         });
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 }

@@ -12,6 +12,7 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.PasswordResetApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.login.PasswordResetRequest;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -80,6 +81,7 @@ public class ResetPasswordActivity extends AppCompatActivity {
                     Toast.makeText(ResetPasswordActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             });
+            ThemeColorUtil.applyThemeColor(this);
         });
     }
 

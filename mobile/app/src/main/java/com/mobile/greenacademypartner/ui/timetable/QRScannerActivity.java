@@ -36,6 +36,7 @@ public class QRScannerActivity extends AppCompatActivity {
         integrator.setBeepEnabled(true);
         integrator.setOrientationLocked(true);
         integrator.initiateScan();
+
     }
 
     @Override

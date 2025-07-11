@@ -20,6 +20,8 @@ import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.model.attendance.Attendance;
 import com.mobile.greenacademypartner.ui.adapter.ParentAttendanceAdapter;
+import com.mobile.greenacademypartner.ui.setting.SettingActivity;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -101,5 +103,7 @@ public class ChildAttendanceActivity extends AppCompatActivity {
                 Log.e("ChildAttendance", "error: ", t);
             }
         });
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
+
 }
