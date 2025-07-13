@@ -177,12 +177,27 @@ public class QuestionDetailActivity extends AppCompatActivity {
     }
 
     private void deleteQuestion() {
+        // 답변이 하나라도 있을 경우 삭제 불가 처리
+        if (answerAdapter.getItemCount() > 0) {
+            Toast.makeText(
+                    QuestionDetailActivity.this,
+                    "답변이 있는 질문은 삭제가 불가능합니다",
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
+
+        // 기존 삭제 로직
         QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
         api.deleteQuestion(questionId).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
-                    Toast.makeText(QuestionDetailActivity.this, "삭제되었습니다.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(
+                            QuestionDetailActivity.this,
+                            "삭제되었습니다.",
+                            Toast.LENGTH_SHORT
+                    ).show();
                     finish();
                 } else {
                     Toast.makeText(

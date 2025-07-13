@@ -1,6 +1,7 @@
 package com.mobile.greenacademypartner.ui.qna;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -52,9 +53,17 @@ public class QuestionsActivity extends AppCompatActivity {
 
         // 버튼 뷰 바인딩
         btnAddQuestion = findViewById(R.id.btn_add_question);
-        btnAddQuestion.setOnClickListener(v -> {
-            startActivity(new Intent(this, CreateEditQuestionActivity.class));
-        });
+
+        // 선생님(role="teacher")이면 버튼 숨기기, 아니면 클릭 리스너 연결
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String role = prefs.getString("role", "");
+        if ("teacher".equals(role)) {
+            btnAddQuestion.setVisibility(View.GONE);
+        } else {
+            btnAddQuestion.setOnClickListener(v -> {
+                startActivity(new Intent(this, CreateEditQuestionActivity.class));
+            });
+        }
 
         // 로딩 및 메시지 뷰
         pbLoading = findViewById(R.id.pb_loading_questions);
