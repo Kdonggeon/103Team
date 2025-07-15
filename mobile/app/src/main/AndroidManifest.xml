@@ -53,6 +53,7 @@
         <activity android:name=".ui.timetable.ParentChildrenListActivity"/>
         <activity android:name=".ui.timetable.TeacherTimetableActivity"/>
         <activity android:name=".ui.classes.CreateClassActivity"/>
+        <activity android:name=".ui.timetable.AddChildActivity" />
 
         <!-- sub 브랜치에서 새로 추가된 액티비티들 -->
         <activity android:name=".ui.notice.CreateNoticeActivity" />

@@ -23,6 +23,7 @@ import com.mobile.greenacademypartner.model.teacher.TeacherClass;
 import com.mobile.greenacademypartner.ui.adapter.TeacherClassAdapter;
 import com.mobile.greenacademypartner.ui.attendance.ClassAttendanceActivity;
 import com.mobile.greenacademypartner.ui.classes.CreateClassActivity;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -81,6 +82,7 @@ public class TeacherTimetableActivity extends AppCompatActivity
         // API 호출
         api = RetrofitClient.getClient().create(TeacherApi.class);
         loadTodayClasses();
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 
     private void loadTodayClasses() {

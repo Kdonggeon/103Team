@@ -20,4 +20,7 @@ public interface StudentRepository extends MongoRepository<Student, String> {
     // 🔥 명시적 쿼리로 수정
     @Query("{ 'Student_Name': ?0, 'Student_Phone_Number': ?1 }")
     Student findByStudentNameAndStudentPhoneNumber(String name, String phoneNumber);
+    
+    List<Student> findByStudentIdIn(List<String> studentIds);
+
 }

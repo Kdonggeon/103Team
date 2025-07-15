@@ -20,6 +20,7 @@ import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.attendance.Attendance;
 import com.mobile.greenacademypartner.ui.adapter.ParentAttendanceAdapter;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.List;
 
@@ -106,5 +107,6 @@ public class ParentAttendanceActivity extends AppCompatActivity {
                 Log.e("ParentAttendance", "API 호출 실패", t);
             }
         });
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 }

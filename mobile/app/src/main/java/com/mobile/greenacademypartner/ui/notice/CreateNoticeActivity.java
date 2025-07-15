@@ -32,6 +32,7 @@ public class CreateNoticeActivity extends AppCompatActivity {
         etContent = findViewById(R.id.edit_notice_content);
         btnSubmit = findViewById(R.id.btn_notice_submit);
 
+
         // Retrofit을 이용해 API 인스턴스 생성
         api       = RetrofitClient.getClient().create(NoticeApi.class);
 

@@ -10,6 +10,7 @@ import com.mobile.greenacademypartner.api.FindIdApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.login.FindIdRequest;
 import com.mobile.greenacademypartner.model.login.FindIdResponse;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -73,5 +74,6 @@ public class FindIdActivity extends AppCompatActivity {
                 }
             });
         });
+        ThemeColorUtil.applyThemeColor(this);
     }
 }

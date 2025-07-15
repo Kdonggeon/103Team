@@ -6,6 +6,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 public class FindIdResultActivity extends AppCompatActivity {
 
@@ -26,5 +27,6 @@ public class FindIdResultActivity extends AppCompatActivity {
             startActivity(intent);
             finish();
         });
+        ThemeColorUtil.applyThemeColor(this);
     }
 }

@@ -10,6 +10,7 @@ import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.parent.ParentSignupRequest;
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -25,8 +26,11 @@ public class ParentSignupActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_parent_signup);
 
+
+
         initViews();
         setupListeners();
+        ThemeColorUtil.applyThemeColor(this);
     }
 
     private void initViews() {

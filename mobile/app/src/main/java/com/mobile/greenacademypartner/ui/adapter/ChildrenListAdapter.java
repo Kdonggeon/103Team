@@ -39,6 +39,7 @@ public class ChildrenListAdapter extends BaseAdapter {
         return i;
     }
 
+
     @Override
     public View getView(int position, View view, ViewGroup viewGroup) {
         if (view == null) {
@@ -46,8 +47,13 @@ public class ChildrenListAdapter extends BaseAdapter {
         }
 
         TextView childName = view.findViewById(R.id.text_child_name);
+        TextView childId = view.findViewById(R.id.text_child_id); // ✅ ID 텍스트도 동적으로
+
         Student student = children.get(position);
-        childName.setText(student.getStudentName());
+
+        //  이름과 ID를 실제 데이터로 표시
+        childName.setText("이름: " + student.getStudentName());
+        childId.setText("ID: " + student.getStudentId());
 
         view.setOnClickListener(v -> {
             Intent intent = new Intent(context, ChildAttendanceActivity.class);
@@ -57,4 +63,5 @@ public class ChildrenListAdapter extends BaseAdapter {
 
         return view;
     }
+
 }
