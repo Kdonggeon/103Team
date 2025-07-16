@@ -7,6 +7,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @Document(collection = "teachers")
 public class Teacher {
 
+	private String fcmToken;
     @Id
     private String id;
 
@@ -53,4 +54,7 @@ public class Teacher {
 
     public int getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 }

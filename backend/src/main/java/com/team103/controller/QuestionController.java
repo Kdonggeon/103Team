@@ -6,6 +6,7 @@ import com.team103.repository.QuestionRepository;
 import jakarta.servlet.http.HttpSession;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,10 +36,23 @@ public class QuestionController {
 
     // 질문 생성
     @PostMapping
-    public Question createQuestion(@RequestBody Question question) {
-        return questionRepository.save(question);
-    }
+    public ResponseEntity<?> createQuestion(
+            @RequestBody Question question,
+            HttpSession session) {
 
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
+
+        if (userId == null || role == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인 후 이용해주세요.");
+        }
+
+        question.setAuthor(userId);
+        question.setAuthorRole(role);
+
+        Question saved = questionRepository.save(question);
+        return ResponseEntity.ok(saved);
+    }
     // 질문 수정
     @PutMapping("/{id}")
     public ResponseEntity<Question> updateQuestion(

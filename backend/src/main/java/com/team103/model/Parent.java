@@ -11,6 +11,7 @@ public class Parent {
     @Id
     private String id;
 
+    private String fcmToken;
     private String parentsId;
     private String parentsPw;
     private String parentsName;
@@ -91,6 +92,7 @@ public class Parent {
         return parentsNumber;
     }
 
+
     public void setParentsNumber(String parentsNumber) {
         this.parentsNumber = parentsNumber;
     }
@@ -102,4 +104,8 @@ public class Parent {
     public void setStudentIds(List<String> studentIds) {
         this.studentIds = studentIds;
     }
+
+	public String getFcmToken() { return fcmToken; }
+	public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
+
 }

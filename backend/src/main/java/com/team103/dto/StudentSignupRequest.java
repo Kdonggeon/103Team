@@ -40,9 +40,19 @@ public class StudentSignupRequest {
 
     public Student toEntity() {
         return new Student(
-                id, studentName, studentId, studentPw, address,
-                phoneNumber, school, grade, parentsNumber,
-                seatNumber, checkedIn, gender
+                id,
+                null,           
+                studentName,
+                studentId,
+                studentPw,
+                address,
+                phoneNumber,
+                school,
+                grade,
+                parentsNumber,
+                seatNumber,
+                checkedIn,
+                gender
         );
     }
 

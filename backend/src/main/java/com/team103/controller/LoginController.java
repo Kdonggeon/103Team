@@ -17,6 +17,7 @@ import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
 import com.team103.security.JwtUtil;
 
+import jakarta.servlet.http.HttpSession;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,9 @@ public class LoginController {
     @Autowired private ParentRepository parentRepo;
     @Autowired private JwtUtil jwtUtil;
     @Autowired private PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private HttpSession session;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
@@ -39,7 +43,17 @@ public class LoginController {
         // 1. 학생 로그인 처리
         Student student = studentRepo.findByStudentId(username);
         if (student != null && passwordEncoder.matches(password, student.getStudentPw())) {
+            
+            // ✅ FCM_Token 업데이트
+            if (request.getFcmToken() != null && !request.getFcmToken().isEmpty()) {
+                student.setFcmToken(request.getFcmToken());
+                studentRepo.save(student);
+            }
+
             String token = jwtUtil.generateToken(student.getStudentId(), "student");
+
+            session.setAttribute("username", student.getStudentId());
+            session.setAttribute("role", "student");
 
             LoginResponse res = new LoginResponse(
                 "success",
@@ -52,11 +66,11 @@ public class LoginController {
                 student.getSchool(),
                 student.getGrade(),
                 student.getGender(),
-                0 // academyNumber (학생은 0으로 처리)
+                0
             );
 
             try {
-                System.out.println("🔥 학생 로그인 응답 → " + new ObjectMapper().writeValueAsString(res));
+                System.out.println(" 학생 로그인 응답 → " + new ObjectMapper().writeValueAsString(res));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -68,6 +82,9 @@ public class LoginController {
         Teacher teacher = teacherRepo.findByTeacherId(username);
         if (teacher != null && passwordEncoder.matches(password, teacher.getTeacherPw())) {
             String token = jwtUtil.generateToken(teacher.getTeacherId(), "teacher");
+            
+            session.setAttribute("username", teacher.getTeacherId());
+            session.setAttribute("role", "teacher");
 
             LoginResponse res = new LoginResponse(
                 "success",
@@ -84,7 +101,7 @@ public class LoginController {
             );
 
             try {
-                System.out.println("🔥 교사 로그인 응답 → " + new ObjectMapper().writeValueAsString(res));
+                System.out.println(" 교사 로그인 응답 → " + new ObjectMapper().writeValueAsString(res));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -96,6 +113,9 @@ public class LoginController {
         Parent parent = parentRepo.findByParentsId(username);
         if (parent != null && passwordEncoder.matches(password, parent.getParentsPw())) {
             String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
+            
+            session.setAttribute("username", parent.getParentsId());
+            session.setAttribute("role", "parent");
 
             LoginResponse res = new LoginResponse(
                 "success",
@@ -109,20 +129,20 @@ public class LoginController {
 
             res.setParentsNumber(parent.getParentsNumber());
 
-            // ✅ 여기 로그 추가
+            //  여기 로그 추가
             System.out.println("🔍 부모 번호로 자녀 조회: " + parent.getParentsNumber());
 
-            // ✅ 부모번호로 자녀 리스트 조회 → 첫 번째 자녀만 사용
+            //  부모번호로 자녀 리스트 조회 → 첫 번째 자녀만 사용
             List<Student> children = studentRepo.findByParentsNumber(parent.getParentsNumber());
             if (children != null && !children.isEmpty()) {
                 Student child = children.get(0);
-                System.out.println("✅ 자녀 ID: " + child.getStudentId()); // ✅ 여기 찍기
+                System.out.println("✅ 자녀 ID: " + child.getStudentId()); //  여기 찍기
                 res.setChildStudentId(child.getStudentId());
             } else {
-                System.out.println("⚠ 연결된 자녀 없음"); // ✅ 자녀 없을 때 로그
+                System.out.println("⚠ 연결된 자녀 없음"); //  자녀 없을 때 로그
             }
 
-            // ✅ 최종 응답 객체 확인
+            //  최종 응답 객체 확인
             try {
                 System.out.println("📦 최종 응답 → " + new ObjectMapper().writeValueAsString(res));
             } catch (Exception e) {

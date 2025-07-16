@@ -16,6 +16,7 @@ import java.util.List;
 public class StudentController {
 
     private final StudentRepository repo;
+    
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -23,6 +24,8 @@ public class StudentController {
     public StudentController(StudentRepository repo) {
         this.repo = repo;
     }
+
+
 
     @GetMapping
     public List<Student> getAllStudents() {
@@ -54,4 +57,19 @@ public class StudentController {
     public Student getStudentByStudentId(@PathVariable("id") String studentId) {
         return repo.findByStudentId(studentId);
     }
+    
+    @PutMapping("/{id}/fcm-token")
+    public ResponseEntity<Void> updateFcmToken(
+            @PathVariable("id") String studentId,
+            @RequestParam("token") String token
+    ) {
+        Student student = repo.findByStudentId(studentId);
+        if (student == null) {
+            return ResponseEntity.notFound().build();
+        }
+        student.setFcmToken(token);
+        repo.save(student);
+        return ResponseEntity.ok().build();
+    }
+    
 }

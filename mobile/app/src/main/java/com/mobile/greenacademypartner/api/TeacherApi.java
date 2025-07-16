@@ -52,5 +52,10 @@ public interface TeacherApi {
             @Path("teacherId") String teacherId,
             @Query("date") String date
     );
+    @PUT("/api/teachers/{id}/fcm-token")
+    Call<Void> updateFcmToken(
+            @Path("id") String id,
+            @Query("token") String token
+    );
 
 }
