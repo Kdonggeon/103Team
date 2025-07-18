@@ -47,6 +47,7 @@ public class ParentAttendanceActivity extends AppCompatActivity {
         attendanceListView = findViewById(R.id.attendance_list_view);
 
         setupToolbarAndDrawer();
+        ThemeColorUtil.applyThemeColor(this, toolbar);
         fetchChildAttendance();
     }
 
@@ -107,6 +108,6 @@ public class ParentAttendanceActivity extends AppCompatActivity {
                 Log.e("ParentAttendance", "API 호출 실패", t);
             }
         });
-        ThemeColorUtil.applyThemeColor(this, toolbar);
+
     }
 }

@@ -19,6 +19,8 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.Question;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
+
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -41,7 +43,7 @@ public class QuestionsActivity extends AppCompatActivity {
         // 네비게이션 메뉴 설정
         drawerLayout = findViewById(R.id.drawer_layout_questions);
         toolbar = findViewById(R.id.toolbar_questions);
-        ToolbarColorUtil.applyToolbarColor(this, toolbar);
+        ThemeColorUtil.applyThemeColor(this, toolbar);
         setSupportActionBar(toolbar);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,

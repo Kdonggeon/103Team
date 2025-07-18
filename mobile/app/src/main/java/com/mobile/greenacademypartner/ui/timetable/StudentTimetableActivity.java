@@ -46,6 +46,7 @@ public class StudentTimetableActivity extends AppCompatActivity {
         navContainer = findViewById(R.id.nav_container);
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        ThemeColorUtil.applyThemeColor(this, toolbar);
 
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
@@ -68,7 +69,7 @@ public class StudentTimetableActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         loadTodayAttendance();
-        ThemeColorUtil.applyThemeColor(this, toolbar);
+
     }
 
     private void loadTodayAttendance() {

@@ -60,7 +60,8 @@ public class ParentChildrenListActivity extends AppCompatActivity {
 
         // 사이드 메뉴 설정
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 2);
-        ThemeColorUtil.applyThemeColor(this);
+        ThemeColorUtil.applyThemeColor(this, toolbar); // 툴바 색상까지 적용됨
+
         // 리스트 초기화
         listView = findViewById(R.id.children_list_view);
         addButton = findViewById(R.id.btn_add_child);

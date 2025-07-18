@@ -20,6 +20,8 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.Notice;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
+
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -47,7 +49,7 @@ public class NoticeActivity extends AppCompatActivity {
         btnAdd = findViewById(R.id.btn_add_notice);
 
         // 2. 툴바 색상 및 설정
-        ToolbarColorUtil.applyToolbarColor(this, toolbar);
+        ThemeColorUtil.applyThemeColor(this, toolbar);
         setSupportActionBar(toolbar);
 
         // 3. 드로어 설정
