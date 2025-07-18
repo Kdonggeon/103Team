@@ -55,6 +55,9 @@ public class TeacherTimetableActivity extends AppCompatActivity
         setSupportActionBar(toolbar);
         getSupportActionBar().setTitle("오늘의 수업");
 
+        // ✅ 이 시점에 바로 테마 색상 적용!
+        ThemeColorUtil.applyThemeColor(this, toolbar);
+
         // 드로어 및 사이드 메뉴 설정
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);

@@ -28,7 +28,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class NoticeDetailActivity extends AppCompatActivity {
+public class    NoticeDetailActivity extends AppCompatActivity {
     private NoticeApi api;
     private String noticeId;
 

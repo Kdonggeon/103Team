@@ -15,7 +15,10 @@
             android:hint="아이디"
             android:inputType="text"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:background="@drawable/edit_text_background"
+            android:padding="10dp"
+            android:textSize="14sp"/>
 
         <!-- 비밀번호 -->
         <EditText
@@ -23,7 +26,10 @@
             android:hint="비밀번호"
             android:inputType="textPassword"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:background="@drawable/edit_text_background"
+            android:padding="10dp"
+            android:textSize="14sp"/>
 
         <!-- 비밀번호 확인 -->
         <EditText
@@ -31,14 +37,20 @@
             android:hint="비밀번호 확인"
             android:inputType="textPassword"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:background="@drawable/edit_text_background"
+            android:padding="10dp"
+            android:textSize="14sp"/>
 
         <!-- 이름 -->
         <EditText
             android:id="@+id/edit_name"
             android:hint="이름"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:background="@drawable/edit_text_background"
+            android:padding="10dp"
+            android:textSize="14sp"/>
 
         <!-- 이메일 -->
         <EditText
@@ -46,7 +58,10 @@
             android:hint="이메일"
             android:inputType="textEmailAddress"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:background="@drawable/edit_text_background"
+            android:padding="10dp"
+            android:textSize="14sp"/>
 
         <!-- 전화번호 -->
         <EditText
@@ -54,7 +69,10 @@
             android:hint="전화번호"
             android:inputType="phone"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:background="@drawable/edit_text_background"
+            android:padding="10dp"
+            android:textSize="14sp"/>
 
         <!-- 생년월일 -->
         <EditText
@@ -62,7 +80,10 @@
             android:hint="생년월일 (YYYY-MM-DD)"
             android:inputType="date"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:background="@drawable/edit_text_background"
+            android:padding="10dp"
+            android:textSize="14sp"/>
 
         <!-- 성별 -->
         <RadioGroup

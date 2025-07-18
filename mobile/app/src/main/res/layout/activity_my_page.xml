@@ -46,21 +46,30 @@
                     android:hint="이름"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="textPersonName" />
+                    android:inputType="textPersonName"
+                    android:background="@drawable/edit_text_background"
+                    android:padding="10dp"
+                    android:textSize="14sp" />
 
                 <EditText
                     android:id="@+id/edit_id"
                     android:hint="아이디"
                     android:enabled="false"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/edit_text_background"
+                    android:padding="10dp"
+                    android:textSize="14sp" />
 
                 <EditText
                     android:id="@+id/edit_phone"
                     android:hint="전화번호"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="phone" />
+                    android:inputType="phone"
+                    android:background="@drawable/edit_text_background"
+                    android:padding="10dp"
+                    android:textSize="14sp" />
 
                 <!-- 학생용 -->
                 <EditText
@@ -68,6 +77,9 @@
                     android:hint="주소"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="@drawable/edit_text_background"
+                    android:padding="10dp"
+                    android:textSize="14sp"
                     android:visibility="gone" />
 
                 <EditText
@@ -75,6 +87,9 @@
                     android:hint="학교"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="@drawable/edit_text_background"
+                    android:padding="10dp"
+                    android:textSize="14sp"
                     android:visibility="gone" />
 
                 <EditText
@@ -83,6 +98,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="number"
+                    android:background="@drawable/edit_text_background"
+                    android:padding="10dp"
+                    android:textSize="14sp"
                     android:visibility="gone" />
 
                 <EditText
@@ -90,6 +108,9 @@
                     android:hint="성별"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="@drawable/edit_text_background"
+                    android:padding="10dp"
+                    android:textSize="14sp"
                     android:visibility="gone" />
 
                 <!-- 교사용 -->
@@ -99,6 +120,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="number"
+                    android:background="@drawable/edit_text_background"
+                    android:padding="10dp"
+                    android:textSize="14sp"
                     android:visibility="gone" />
 
                 <!-- 저장 버튼 -->

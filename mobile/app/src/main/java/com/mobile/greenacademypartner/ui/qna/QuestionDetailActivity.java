@@ -21,6 +21,7 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.Answer;
 import com.mobile.greenacademypartner.model.Question;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.List;
 
@@ -62,7 +63,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
         // 2) 툴바 및 네비게이션
         toolbar = findViewById(R.id.toolbar_question_detail);
-        ToolbarColorUtil.applyToolbarColor(this, toolbar);
+        ThemeColorUtil.applyThemeColor(this, toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
