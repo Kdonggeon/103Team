@@ -21,6 +21,13 @@
             android:title="QnA"
             android:titleTextColor="@android:color/white" />
 
+        <Spinner
+            android:id="@+id/spinner_academy"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_margin="16dp"/>
+
         <!-- 2) 로딩바 -->
         <ProgressBar
             android:id="@+id/pb_loading_questions"

@@ -1,7 +1,8 @@
 package com.team103.dto;
 
-public class LoginResponse {
+import java.util.List;
 
+public class LoginResponse {
 
     private String status;
     private String role;
@@ -16,8 +17,8 @@ public class LoginResponse {
     private int grade;
     private String gender;
 
-    // ✅ 교사용 필드
-    private int academyNumber;
+    // ✅ 교사/학생/학부모 공통 필드 (학원 여러 개)
+    private List<Integer> academyNumbers;
 
     // ✅ 학부모용 필드
     private String parentsNumber;
@@ -26,11 +27,10 @@ public class LoginResponse {
     // --- 기본 생성자 ---
     public LoginResponse() {}
 
-    // --- 통합 생성자 ---
-    public LoginResponse(String status, String role, String username, String name, String token,
-                         String phone, String address, String school, int grade,
-                         String gender, int academyNumber) {
-
+    // --- ✅ 리스트 기반 통합 생성자 ---
+    public LoginResponse(String status, String role, String username, String name,
+                         String token, String phone, String address, String school,
+                         int grade, String gender, List<Integer> academyNumbers) {
         this.status = status;
         this.role = role;
         this.username = username;
@@ -41,10 +41,10 @@ public class LoginResponse {
         this.school = school;
         this.grade = grade;
         this.gender = gender;
-        this.academyNumber = academyNumber;
+        this.academyNumbers = academyNumbers;
     }
 
-    // --- Getters ---
+    // --- Getter ---
     public String getStatus() { return status; }
     public String getRole() { return role; }
     public String getUsername() { return username; }
@@ -55,11 +55,11 @@ public class LoginResponse {
     public String getSchool() { return school; }
     public int getGrade() { return grade; }
     public String getGender() { return gender; }
-    public int getAcademyNumber() { return academyNumber; }
+    public List<Integer> getAcademyNumbers() { return academyNumbers; }
     public String getParentsNumber() { return parentsNumber; }
     public String getChildStudentId() { return childStudentId; }
 
-    // --- Setters ---
+    // --- Setter ---
     public void setStatus(String status) { this.status = status; }
     public void setRole(String role) { this.role = role; }
     public void setUsername(String username) { this.username = username; }
@@ -70,8 +70,7 @@ public class LoginResponse {
     public void setSchool(String school) { this.school = school; }
     public void setGrade(int grade) { this.grade = grade; }
     public void setGender(String gender) { this.gender = gender; }
-    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
     public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
     public void setChildStudentId(String childStudentId) { this.childStudentId = childStudentId; }
-
 }

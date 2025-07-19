@@ -26,4 +26,7 @@ public interface NoticeApi {
 
     @DELETE("/api/notices/{id}")
     Call<Void> deleteNotice(@Path("id") String id);
+
+    @GET("/api/notices/academy/{academyNumber}")
+    Call<List<Notice>> getNoticesByAcademy(@Path("academyNumber") int academyNumber);
 }

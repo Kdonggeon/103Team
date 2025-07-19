@@ -1,5 +1,8 @@
 package com.team103.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -45,6 +48,9 @@ public class Student {
 
     @Field("Gender")
     private String gender;
+    
+    @Field("Academy_Numbers")
+    private List<Integer> academyNumbers = new ArrayList<>();
 
     public Student() {}
 
@@ -104,4 +110,8 @@ public class Student {
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+    
+    public List<Integer> getAcademyNumbers() {return academyNumbers;}
+
+    public void setAcademyNumbers(List<Integer> academyNumbers) {this.academyNumbers = academyNumbers;}
 }

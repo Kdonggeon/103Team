@@ -3,6 +3,9 @@ package com.team103.controller;
 import com.team103.dto.TeacherUpdateRequest;
 import com.team103.model.Teacher;
 import com.team103.repository.TeacherRepository;
+
+import java.util.Collections;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +26,7 @@ public class TeacherUpdateController {
 
         teacher.setTeacherName(request.getTeacherName());
         teacher.setTeacherPhoneNumber(request.getTeacherPhoneNumber());
-        teacher.setAcademyNumber(request.getAcademyNumber());
+        teacher.setAcademyNumbers(Collections.singletonList(request.getAcademyNumber()));
 
         teacherRepository.save(teacher);
         return ResponseEntity.ok("교사 정보 수정 완료");

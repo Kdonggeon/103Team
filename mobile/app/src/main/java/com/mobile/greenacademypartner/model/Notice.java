@@ -21,6 +21,9 @@ public class Notice {
     @SerializedName("teacherName")
     private String teacherName;
 
+    @SerializedName("academyNumber")
+    private int academyNumber;
+
     // --- getters & setters ---
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -39,4 +42,7 @@ public class Notice {
 
     public String getTeacherName() { return teacherName; }
     public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
+    public int getAcademyNumber() {return academyNumber; }
+
+    public void setAcademyNumber(int academyNumber) {this.academyNumber = academyNumber;}
 }

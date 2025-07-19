@@ -26,7 +26,7 @@ public class QuestionController {
         return questionRepository.findAll();
     }
 
-    // 단건 질문 조회
+    // 단일 질문 조회
     @GetMapping("/{id}")
     public ResponseEntity<Question> getQuestion(@PathVariable String id) {
         Optional<Question> opt = questionRepository.findById(id);
@@ -75,4 +75,10 @@ public class QuestionController {
         questionRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
+    
+    @GetMapping(params = "academyNumber")
+    public List<Question> findByAcademyNumber(@RequestParam("academyNumber") int academyNumber) {
+        return questionRepository.findByAcademyNumber(academyNumber);
+    }
+    
 }

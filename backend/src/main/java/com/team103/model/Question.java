@@ -13,6 +13,7 @@ public class Question {
     private String author;     // 학생 또는 학부모 아이디
     private Date createdAt;
     private String authorRole; 
+    private int academyNumber;
     
 
     public Question() {
@@ -32,4 +33,6 @@ public class Question {
     public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
     public String getAuthorRole() {return authorRole;}
     public void setAuthorRole(String authorRole) {this.authorRole = authorRole;}
+    public int getAcademyNumber() {return academyNumber;}
+    public void setAcademyNumber(int academyNumber){this.academyNumber = academyNumber;}
 }

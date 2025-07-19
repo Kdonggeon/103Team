@@ -1,5 +1,7 @@
 package com.team103.dto;
 
+import java.util.Collections;
+
 import com.team103.model.Teacher;
 
 public class TeacherSignupRequest {
@@ -12,7 +14,7 @@ public class TeacherSignupRequest {
     private int academyNumber;
 
     public Teacher toEntity(String encodedPw) {
-        return new Teacher(id, teacherName, teacherId, encodedPw, teacherPhoneNumber, academyNumber);
+        return new Teacher(id, teacherName, teacherId, encodedPw, teacherPhoneNumber,  Collections.singletonList(academyNumber));
     }
 
     // Getters and setters

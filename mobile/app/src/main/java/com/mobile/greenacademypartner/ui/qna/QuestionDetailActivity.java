@@ -91,6 +91,8 @@ public class QuestionDetailActivity extends AppCompatActivity {
         rvAnswers = findViewById(R.id.rv_answers);
         rvAnswers.setLayoutManager(new LinearLayoutManager(this));
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.apply();
         userRole = prefs.getString("role", "");
         answerAdapter = new AnswerAdapter(this, questionId, userRole);
         rvAnswers.setAdapter(answerAdapter);

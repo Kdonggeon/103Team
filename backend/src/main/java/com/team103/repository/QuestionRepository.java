@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface QuestionRepository extends MongoRepository<Question, String> {
     List<Question> findByAuthor(String author);
+    List<Question> findByAcademyNumber(int academyNumber);
 }

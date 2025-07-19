@@ -1,5 +1,8 @@
 package com.team103.model;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -24,16 +27,16 @@ public class Teacher {
     private String teacherPhoneNumber;
 
     @Field("Academy_Number")
-    private int academyNumber;
+    private List<Integer> academyNumbers;
 
     public Teacher(String id, String teacherName, String teacherId, String teacherPw,
-                   String teacherPhoneNumber, int academyNumber) {
+                   String teacherPhoneNumber, List<Integer> academyNumbers) {
         this.id = id;
         this.teacherName = teacherName;
         this.teacherId = teacherId;
         this.teacherPw = teacherPw;
         this.teacherPhoneNumber = teacherPhoneNumber;
-        this.academyNumber = academyNumber;
+        this.academyNumbers = academyNumbers;
     }
 
     // Getters and setters
@@ -52,8 +55,8 @@ public class Teacher {
     public String getTeacherPhoneNumber() { return teacherPhoneNumber; }
     public void setTeacherPhoneNumber(String teacherPhoneNumber) { this.teacherPhoneNumber = teacherPhoneNumber; }
 
-    public int getAcademyNumber() { return academyNumber; }
-    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+    public List<Integer> getAcademyNumbers() { return academyNumbers; }
+    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
 
     public String getFcmToken() { return fcmToken; }
     public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }

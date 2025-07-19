@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.InputType;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -13,12 +14,18 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.gson.Gson;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.AuthApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.login.LoginRequest;
 import com.mobile.greenacademypartner.model.login.LoginResponse;
 import com.mobile.greenacademypartner.ui.main.MainActivity;
+
+import org.json.JSONArray;
+
+import java.io.IOException;
+import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -86,76 +93,65 @@ public class LoginActivity extends AppCompatActivity {
                 return;
             }
 
-            // 로그인 API 호출
-            AuthApi authApi = RetrofitClient.getClient()
-                    .create(AuthApi.class);
+            AuthApi authApi = RetrofitClient.getClient().create(AuthApi.class);
             authApi.login(new LoginRequest(inputId, inputPw))
                     .enqueue(new Callback<LoginResponse>() {
                         @Override
-                        public void onResponse(
-                                Call<LoginResponse> call,
-                                Response<LoginResponse> response
-                        ) {
+                        public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                             if (response.isSuccessful() && response.body() != null) {
+                                Log.d("Login", "성공: " + new Gson().toJson(response.body()));
                                 LoginResponse res = response.body();
 
-                                // SharedPreferences에 사용자 정보 저장
                                 SharedPreferences.Editor editor = prefs.edit();
                                 editor.putBoolean("is_logged_in", true);
-                                editor.putBoolean(
-                                        "auto_login",
-                                        autoLoginCheckBox.isChecked()
-                                );
+                                editor.putBoolean("auto_login", autoLoginCheckBox.isChecked());
                                 editor.putString("token", res.getToken());
-                                editor.putString("role",
-                                        res.getRole().toLowerCase());
-                                editor.putString("username",
-                                        res.getUsername());
+                                editor.putString("role", res.getRole().toLowerCase());
+                                editor.putString("username", res.getUsername());
                                 editor.putString("name", res.getName());
                                 editor.putString("phone", res.getPhone());
-
                                 editor.putString("userId", res.getUsername());
 
                                 if ("student".equalsIgnoreCase(res.getRole())) {
-                                    editor.putString("address",
-                                            res.getAddress());
-                                    editor.putString("school",
-                                            res.getSchool());
+                                    editor.putString("address", res.getAddress());
+                                    editor.putString("school", res.getSchool());
                                     editor.putInt("grade", res.getGrade());
-                                    editor.putString("gender",
-                                            res.getGender());
+                                    editor.putString("gender", res.getGender());
                                 }
+
+                                // academyNumbers 공통 처리 (student/teacher/parent)
+                                List<Integer> academyNumbers = res.getAcademyNumbers();
+                                if (academyNumbers != null) {
+                                    JSONArray jsonArray = new JSONArray(academyNumbers);
+                                    editor.putString("academyNumbers", jsonArray.toString());
+                                } else {
+                                    editor.putString("academyNumbers", "[]");
+                                }
+
                                 editor.apply();
 
-                                // SplashActivity에서 토큰 전송 처리하므로 제거
-
-                                // 메인화면으로 이동
-                                startActivity(
-                                        new Intent(
-                                                LoginActivity.this,
-                                                MainActivity.class
-                                        )
-                                );
+                                startActivity(new Intent(LoginActivity.this, MainActivity.class));
                                 finish();
                             } else {
-                                Toast.makeText(
-                                        LoginActivity.this,
+                                Log.e("Login", "응답 실패: code = " + response.code());
+                                try {
+                                    Log.e("Login", "에러 바디: " + response.errorBody().string());
+                                } catch (IOException e) {
+                                    Log.e("Login", "에러 바디 파싱 실패", e);
+                                }
+
+                                Toast.makeText(LoginActivity.this,
                                         "로그인 실패: 아이디 또는 비밀번호를 확인하세요",
-                                        Toast.LENGTH_SHORT
-                                ).show();
+                                        Toast.LENGTH_SHORT).show();
                             }
                         }
 
                         @Override
-                        public void onFailure(
-                                Call<LoginResponse> call,
-                                Throwable t
-                        ) {
-                            Toast.makeText(
-                                    LoginActivity.this,
+                        public void onFailure(Call<LoginResponse> call, Throwable t) {
+                            Log.e("Login", "서버 연결 실패", t);
+                            Toast.makeText(LoginActivity.this,
                                     "서버 연결 실패",
-                                    Toast.LENGTH_SHORT
-                            ).show();
+                                    Toast.LENGTH_SHORT).show();
                         }
                     });
         });

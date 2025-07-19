@@ -1,29 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layout_create_edit_question"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:padding="16dp">
 
+    <!-- 학원 선택 Spinner -->
+    <Spinner
+        android:id="@+id/spinner_academy"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <!-- 질문 제목 입력 -->
     <EditText
         android:id="@+id/et_question_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="제목" />
+        android:layout_marginTop="12dp"
+        android:hint="제목을 입력하세요" />
 
+    <!-- 질문 내용 입력 -->
     <EditText
         android:id="@+id/et_question_content"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/et_question_title"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_marginTop="8dp"
-        android:hint="내용" />
+        android:gravity="top"
+        android:hint="내용을 입력하세요"
+        android:inputType="textMultiLine" />
 
+    <!-- 저장 버튼 -->
     <Button
         android:id="@+id/btn_save_question"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentBottom="true"
+        android:layout_marginTop="16dp"
         android:text="저장" />
 
-</RelativeLayout>
+</LinearLayout>

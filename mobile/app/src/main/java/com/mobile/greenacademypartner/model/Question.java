@@ -7,6 +7,7 @@ public class Question {
     private String content;
     private String author;
     private String createdAt;
+    private int academyNumber;
 
     public Question() {
     }
@@ -49,5 +50,13 @@ public class Question {
 
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public int getAcademyNumber() {
+        return academyNumber;
+    }
+
+    public void setAcademyNumber(int academyNumber) {
+        this.academyNumber = academyNumber;
     }
 }
