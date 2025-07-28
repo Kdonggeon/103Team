@@ -42,4 +42,8 @@ public interface ParentApi {
     Call<Void> addChildren(@Path("parentId") String parentId, @Body AddChildrenRequest request);
 
 
+    @PUT("/api/parents/{id}/fcm-token")
+    Call<Void> updateFcmToken(@Path("id") String parentId,
+                              @Body String fcmToken);
+
 }

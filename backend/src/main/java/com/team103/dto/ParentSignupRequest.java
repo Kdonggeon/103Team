@@ -10,14 +10,21 @@ public class ParentSignupRequest {
     private String parentsName;
     private String parentsPhoneNumber;
     private String parentsNumber;
+    private int academyNumber;
 
     // 🔽 toEntity 메서드 정의
     public String getParentsNumber() { return parentsNumber; }
     public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
 
     public Parent toEntity(String encodedPw) {
-        return new Parent(parentsId, encodedPw, parentsName, parentsPhoneNumber, parentsNumber);
-
+        return new Parent(
+            parentsId,
+            encodedPw,
+            parentsName,
+            parentsPhoneNumber,
+            parentsNumber,
+            academyNumber
+        );
     }
 
     // Getter/Setter
@@ -35,4 +42,12 @@ public class ParentSignupRequest {
 
     public String getParentsPhoneNumber() { return parentsPhoneNumber; }
     public void setParentsPhoneNumber(String parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
+    
+    public int getAcademyNumber() {
+        return academyNumber;
+    }
+
+    public void setAcademyNumber(int academyNumber) {
+        this.academyNumber = academyNumber;
+    }
 }

@@ -3,6 +3,7 @@ package com.team103.dto;
 public class LoginRequest {
     private String username;
     private String password;
+    private String fcmToken;
 
     public LoginRequest() {
     }
@@ -27,4 +28,6 @@ public class LoginRequest {
     public void setPassword(String password) {
         this.password = password;
     }
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 }

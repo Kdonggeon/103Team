@@ -1,5 +1,8 @@
 package com.team103.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -10,11 +13,14 @@ public class Student {
     @Id
     private String id;
 
+    @Field("Fcm_Token")
+    private String fcmToken;
+
     @Field("Student_Name")
     private String studentName;
 
     @Field("Student_ID")
-    private String studentId;  // 🔄 long → String
+    private String studentId;
 
     @Field("Student_PW")
     private String studentPw;
@@ -23,8 +29,7 @@ public class Student {
     private String address;
 
     @Field("Student_Phone_Number")
-    private String studentPhoneNumber; // 이름 정확히 맞춰야 함!
-
+    private String studentPhoneNumber;
 
     @Field("School")
     private String school;
@@ -43,13 +48,17 @@ public class Student {
 
     @Field("Gender")
     private String gender;
+    
+    @Field("Academy_Numbers")
+    private List<Integer> academyNumbers = new ArrayList<>();
 
     public Student() {}
 
-    public Student(String id, String studentName, String studentId, String studentPw, String address,
-                   String studentPhoneNumber, String school, int grade, String parentsNumber,
-                   int seatNumber, boolean checkedIn, String gender) {
+    public Student(String id, String fcmToken, String studentName, String studentId, String studentPw,
+                   String address, String studentPhoneNumber, String school, int grade,
+                   String parentsNumber, int seatNumber, boolean checkedIn, String gender) {
         this.id = id;
+        this.fcmToken = fcmToken;
         this.studentName = studentName;
         this.studentId = studentId;
         this.studentPw = studentPw;
@@ -66,26 +75,23 @@ public class Student {
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
+
     public String getStudentName() { return studentName; }
     public void setStudentName(String studentName) { this.studentName = studentName; }
 
-    public String getStudentId() { return studentId; }  // 🔄 getter 변경
-    public void setStudentId(String studentId) { this.studentId = studentId; }  // 🔄 setter 변경
+    public String getStudentId() { return studentId; }
+    public void setStudentId(String studentId) { this.studentId = studentId; }
 
     public String getStudentPw() { return studentPw; }
     public void setStudentPw(String studentPw) { this.studentPw = studentPw; }
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
-    
-    public String getStudentPhoneNumber() {
-        return studentPhoneNumber;
-    }
 
-    public void setStudentPhoneNumber(String studentPhoneNumber) {
-        this.studentPhoneNumber = studentPhoneNumber;
-    }
-
+    public String getStudentPhoneNumber() { return studentPhoneNumber; }
+    public void setStudentPhoneNumber(String studentPhoneNumber) { this.studentPhoneNumber = studentPhoneNumber; }
 
     public String getSchool() { return school; }
     public void setSchool(String school) { this.school = school; }
@@ -104,4 +110,8 @@ public class Student {
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+    
+    public List<Integer> getAcademyNumbers() {return academyNumbers;}
+
+    public void setAcademyNumbers(List<Integer> academyNumbers) {this.academyNumbers = academyNumbers;}
 }

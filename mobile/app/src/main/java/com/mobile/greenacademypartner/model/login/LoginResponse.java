@@ -2,6 +2,7 @@ package com.mobile.greenacademypartner.model.login;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
+import java.util.List;  // 추가: List import
 
 public class LoginResponse {
 
@@ -61,6 +62,11 @@ public class LoginResponse {
     @Expose
     private String childStudentId;
 
+    // 추가: 학원 여러 개 필드
+    @SerializedName("academyNumbers")
+    @Expose
+    private List<Integer> academyNumbers;
+
     // --- Getter / Setter ---
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
@@ -101,10 +107,14 @@ public class LoginResponse {
     public String getChildStudentId() { return childStudentId; }
     public void setChildStudentId(String childStudentId) { this.childStudentId = childStudentId; }
 
+    public List<Integer> getAcademyNumbers() { return academyNumbers; }
+    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
+
     // --- 생성자 ---
+
     public LoginResponse(String status, String role, String username, String name,
                          String token, String phone, String address, String school,
-                         int grade, String gender, int academyNumber) {
+                         int grade, String gender, List<Integer> academyNumbers) {
         this.status = status;
         this.role = role;
         this.username = username;
@@ -115,8 +125,9 @@ public class LoginResponse {
         this.school = school;
         this.grade = grade;
         this.gender = gender;
-        this.academyNumber = academyNumber;
+        this.academyNumbers = academyNumbers;
     }
+
 
     public LoginResponse() {
         // 기본 생성자

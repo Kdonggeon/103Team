@@ -2,6 +2,8 @@ package com.mobile.greenacademypartner.model.student;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.List;
+
 public class Student {
 
     @SerializedName("_id")
@@ -40,6 +42,9 @@ public class Student {
     @SerializedName("Gender")
     private String gender;
 
+    @SerializedName("Academy_Number")
+    private List<Integer> Academy_Numbers;
+
     // ✅ Getter & Setter
     public String get_id() { return _id; }
     public void set_id(String _id) { this._id = _id; }
@@ -76,4 +81,7 @@ public class Student {
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+
+    public List<Integer> getAcademy_Numbers() {return Academy_Numbers;}
+    public void setAcademy_Numbers(List<Integer> academy_Numbers) {this.Academy_Numbers = academy_Numbers;}
 }

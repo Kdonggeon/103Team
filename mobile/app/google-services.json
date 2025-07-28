@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "815916425642",
+    "project_id": "team103-44ead",
+    "storage_bucket": "team103-44ead.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:815916425642:android:a44d6a10f06da0d33a4bd3",
+        "android_client_info": {
+          "package_name": "com.mobile.greenacademypartner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaactMOrJJmvr0vzwL2Q2O5b1XjnpRtzM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
