@@ -84,4 +84,17 @@ public class NoticeController {
         noticeRepo.deleteById(id);
         return ResponseEntity.noContent().build();
     }
+    
+    @GetMapping("/academy/{academyNumber}")
+    public List<Notice> getByAcademy(@PathVariable int academyNumber) {
+        List<Notice> notices = noticeRepo.findByAcademyNumber(academyNumber);
+        for (Notice n : notices) {
+            String teacherId = n.getAuthor();
+            if (teacherId != null) {
+                teacherRepo.findById(teacherId)
+                    .ifPresent(t -> n.setAuthor(t.getTeacherName()));
+            }
+        }
+        return notices;
+    }
 }

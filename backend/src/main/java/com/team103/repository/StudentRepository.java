@@ -2,6 +2,8 @@ package com.team103.repository;
 
 import com.team103.model.Student;
 import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
@@ -15,7 +17,9 @@ public interface StudentRepository extends MongoRepository<Student, String> {
     boolean existsByStudentId(String studentId);
     
     List<Student> findByParentsNumber(String parentsNumber);
-
+    
+    
+    
 
     // 🔥 명시적 쿼리로 수정
     @Query("{ 'Student_Name': ?0, 'Student_Phone_Number': ?1 }")

@@ -35,19 +35,20 @@ public class StudentSignupController {
 
         // Student 객체 생성
         Student student = new Student(
-                req.getId(),
-                req.getStudentName(),
-                req.getStudentId(),
-                encryptedPw,  // ✅ 암호화된 문자열 저장
-                req.getAddress(),
-                req.getPhoneNumber(),
-                req.getSchool(),
-                req.getGrade(),
-                req.getParentsNumber(),
-                req.getSeatNumber(),
-                req.isCheckedIn(),
-                req.getGender()
-        );
+        	    req.getId(),
+        	    null,                      
+        	    req.getStudentName(),
+        	    req.getStudentId(),
+        	    encryptedPw,
+        	    req.getAddress(),
+        	    req.getPhoneNumber(),
+        	    req.getSchool(),
+        	    req.getGrade(),
+        	    req.getParentsNumber(),
+        	    req.getSeatNumber(),
+        	    req.isCheckedIn(),
+        	    req.getGender()
+        	);
 
         studentRepo.save(student);
         return ResponseEntity.ok("학생 회원가입 성공");

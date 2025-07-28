@@ -4,9 +4,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -21,7 +24,10 @@ import com.mobile.greenacademypartner.model.Notice;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
-
+import com.mobile.greenacademypartner.model.Notice;
+import org.json.JSONArray;
+import org.json.JSONException;
+import java.util.ArrayList;
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -35,6 +41,8 @@ public class NoticeActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private Button btnAdd;
     private NoticeApi api;
+    private Spinner spinnerAcademy;
+    private List<Integer> userAcademyNumbers = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,9 +55,10 @@ public class NoticeActivity extends AppCompatActivity {
         rvNotices = findViewById(R.id.rv_notices);
         progressBar = findViewById(R.id.pb_loading_notices);
         btnAdd = findViewById(R.id.btn_add_notice);
+        spinnerAcademy = findViewById(R.id.spinner_academy);
 
         // 2. 툴바 색상 및 설정
-        ThemeColorUtil.applyThemeColor(this, toolbar);
+        ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
 
         // 3. 드로어 설정
@@ -73,8 +82,38 @@ public class NoticeActivity extends AppCompatActivity {
             btnAdd.setVisibility(View.GONE);
         }
 
-        // 7. 공지사항 불러오기
-        fetchNotices();
+        String academyArray = prefs.getString("academyNumbers", "[]");
+        try {
+            JSONArray arr = new JSONArray(academyArray);
+            for (int i = 0; i < arr.length(); i++) {
+                userAcademyNumbers.add(arr.getInt(i));
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        List<String> labels = new ArrayList<>();
+        for (Integer num : userAcademyNumbers) {
+            labels.add(String.valueOf(num));
+        }
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                labels
+        );
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerAcademy.setAdapter(spinnerAdapter);
+
+        spinnerAcademy.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                fetchNotices(userAcademyNumbers.get(position));
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
 
         // 8. 추가 버튼 클릭 시 작성 화면으로 이동
         btnAdd.setOnClickListener(v ->
@@ -85,14 +124,15 @@ public class NoticeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        fetchNotices(); // 다시 불러오기 (작성 후 반영)
-
+        if (!userAcademyNumbers.isEmpty()) {
+            fetchNotices(userAcademyNumbers.get(spinnerAcademy.getSelectedItemPosition()));
+        }
     }
 
     private void fetchNotices() {
         progressBar.setVisibility(View.VISIBLE);
 
-        api.listNotices().enqueue(new Callback<List<Notice>>() {
+        api.getNoticesByAcademy(academyNumber).enqueue(new Callback<List<Notice>>() {
             @Override
             public void onResponse(Call<List<Notice>> call, Response<List<Notice>> response) {
                 progressBar.setVisibility(View.GONE);

@@ -16,6 +16,7 @@ public class Notice {
     private String author;
     private Date createdAt;
     private String teacherName;
+    private int academyNumber;
 
 
 
@@ -71,5 +72,13 @@ public class Notice {
 
     public void setTeacherName(String teacherName) {
         this.teacherName = teacherName;
+    }
+    
+    public int getAcademyNumber() {
+        return academyNumber;
+    }
+
+    public void setAcademyNumber(int academyNumber) {
+        this.academyNumber = academyNumber;
     }
 }

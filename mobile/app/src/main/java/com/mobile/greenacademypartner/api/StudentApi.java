@@ -8,6 +8,7 @@ import com.mobile.greenacademypartner.model.login.LoginResponse;
 import com.mobile.greenacademypartner.model.student.StudentSignupRequest;
 import com.mobile.greenacademypartner.model.student.Student;
 
+
 import com.mobile.greenacademypartner.model.student.StudentUpdateRequest;
 
 
@@ -49,7 +50,11 @@ public interface StudentApi {
             @Path("studentId") String studentId,
             @Query("date") String date
     );
-
+    @PUT("/api/students/{studentId}/fcm-token")
+    Call<Void> updateFcmToken(
+            @Path("studentId") String studentId,
+            @Query("token") String token
+    );
 
 
 
