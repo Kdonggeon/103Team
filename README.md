@@ -14,6 +14,3 @@ https://www.figma.com/design/WCeHqNpAEPBDEbJtZZAjVQ/project103?node-id=0-1&t=Yx3
 
 mongo db
 https://cloud.mongodb.com/v2/6823eca9d45e026468987dab#/metrics/replicaSet/6823ed4be169d81ef01aa047/explorer/103DB/academy/find
-
-
-푸시 알림 작동 시킬려면 C:\project\103Team-sub\backend\src\main\resources\firebase에 있는 zip파일 풀어주세요(보안상의 이유로 파일이 깃허브에 안올라갑니다)
