@@ -80,7 +80,8 @@ public class NoticeActivity extends AppCompatActivity {
 
         // 6. 권한에 따라 공지 추가 버튼 제어
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        if (!"teacher".equals(prefs.getString("role", ""))) {
+        String role = prefs.getString("role", "");
+        if (!"teacher".equals(role) && !"director".equals(role)) {
             btnAdd.setVisibility(View.GONE);
         }
 

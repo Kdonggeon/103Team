@@ -63,7 +63,7 @@ public class QuestionsActivity extends AppCompatActivity {
         );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
-
+        
 
         // 뷰 바인딩
         spinnerAcademy = findViewById(R.id.spinner_academy);

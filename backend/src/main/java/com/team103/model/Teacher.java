@@ -38,7 +38,7 @@ public class Teacher {
         this.teacherPhoneNumber = teacherPhoneNumber;
         this.academyNumbers = academyNumbers;
     }
-
+    
     // Getters and setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
