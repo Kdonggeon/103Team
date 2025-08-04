@@ -73,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
                 intent = new Intent(this, StudentTimetableActivity.class);
                 break;
             case "teacher":
+            case "director": // 일단 원장도 교사용 시간표로 이동
                 intent = new Intent(this, TeacherTimetableActivity.class);
                 break;
             case "parent":

@@ -9,9 +9,11 @@ import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team103.dto.LoginRequest;
 import com.team103.dto.LoginResponse;
+import com.team103.model.Director;
 import com.team103.model.Parent;
 import com.team103.model.Student;
 import com.team103.model.Teacher;
+import com.team103.repository.DirectorRepository;
 import com.team103.repository.ParentRepository;
 import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
@@ -35,6 +37,7 @@ public class LoginController {
     @Autowired private JwtUtil jwtUtil;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private HttpSession session;
+    @Autowired private DirectorRepository directorRepo;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
@@ -107,16 +110,43 @@ public class LoginController {
             }
             return ResponseEntity.ok(res);
         }
+        
+        // 3. 원장 로그인
+        Director director = directorRepo.findByUsername(username);
+        
+        System.out.println("디버깅: 입력 ID = " + username);
+        System.out.println("디버깅: 찾은 원장 = " + (director != null ? director.getUsername() : "없음"));
+        System.out.println("디버깅: 저장된 해시 = " + (director != null ? director.getPassword() : "없음"));
+        System.out.println("디버깅: 비번 일치 = " + (director != null && passwordEncoder.matches(password, director.getPassword())));
 
-        // 3. 학부모 로그인 처리
-     // 3. 학부모 로그인 처리
+        if (director != null && passwordEncoder.matches(password, director.getPassword())) {
+            String token = jwtUtil.generateToken(username,"director");
+
+            LoginResponse response = new LoginResponse(
+                "success",
+                "director",
+                director.getUsername(),
+                director.getName(),
+                token,
+                director.getPhone(),
+                null, null, 0, null,  // 학생 전용 필드
+                director.getAcademyNumbers()
+            );
+
+            session.setAttribute("username", director.getUsername());
+            session.setAttribute("role", "director");
+            return ResponseEntity.ok(response);
+        }
+
+
+     // 4. 학부모 로그인 처리
         Parent parent = parentRepo.findByParentsId(username);
         if (parent != null && passwordEncoder.matches(password, parent.getParentsPw())) {
             String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
             session.setAttribute("username", parent.getParentsId());
             session.setAttribute("role", "parent");
 
-            // ✅ 자녀(Student)의 academyNumbers 수집
+            //  자녀(Student)의 academyNumbers 수집
             List<Student> children = studentRepo.findByParentsNumber(parent.getParentsNumber());
             Set<Integer> academyNumberSet = new HashSet<>();
 
@@ -131,7 +161,7 @@ public class LoginController {
                 firstChildId = children.get(0).getStudentId();  // 첫 번째 자녀 ID 저장
             }
 
-            // ✅ 학원 번호 리스트로 변환
+            //  학원 번호 리스트로 변환
             List<Integer> academyNumbers = new ArrayList<>(academyNumberSet);
 
             // ✅ 응답 생성 시 academyNumbers 전달
