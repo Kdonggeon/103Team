@@ -26,9 +26,7 @@ import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 import org.json.JSONArray;
 import org.json.JSONException;
-
 import java.util.ArrayList;
-import java.util.List;
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -80,6 +78,11 @@ public class QuestionsActivity extends AppCompatActivity {
         });
 
         // RecyclerView 초기화
+        pbLoading = findViewById(R.id.pb_loading_questions);
+        tvMessage = findViewById(R.id.main_content_text_questions);
+
+        // RecyclerView 설정
+        rvQuestions = findViewById(R.id.rv_questions);
         rvQuestions.setLayoutManager(new LinearLayoutManager(this));
         adapter = new QuestionsAdapter(q -> {
             Intent intent = new Intent(this, QuestionDetailActivity.class);
@@ -97,7 +100,6 @@ public class QuestionsActivity extends AppCompatActivity {
                 tvMessage,
                         3
         );
-
         // 로그인 정보 확인 및 Spinner에 학원 번호 로드 (해결 방법 1)
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         Log.d("QuestionsAct", "academyNumbers=" + prefs.getString("academyNumbers", ""));
@@ -133,7 +135,7 @@ public class QuestionsActivity extends AppCompatActivity {
         });
     }
 
-    private void fetchQuestions(int academyNumber) {
+    private void fetchQuestions(int academyNumber){
         pbLoading.setVisibility(View.VISIBLE);
         tvMessage.setVisibility(View.VISIBLE);
         rvQuestions.setVisibility(View.GONE);
@@ -151,13 +153,13 @@ public class QuestionsActivity extends AppCompatActivity {
                     tvMessage.setText("등록된 질문이 없습니다.");
                 }
             }
-            @Override public void onFailure(Call<List<Question>> call, Throwable t) {
+            @Override
+            public void onFailure(Call<List<Question>> call, Throwable t) {
                 pbLoading.setVisibility(View.GONE);
                 tvMessage.setText("질문 로드 실패");
             }
         });
     }
-
     @Override
     protected void onResume() {
         super.onResume();

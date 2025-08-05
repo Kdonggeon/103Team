@@ -24,10 +24,10 @@ import com.mobile.greenacademypartner.model.Notice;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
+import com.mobile.greenacademypartner.model.Notice;
 import org.json.JSONArray;
 import org.json.JSONException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -40,8 +40,8 @@ public class NoticeActivity extends AppCompatActivity {
     private RecyclerView rvNotices;
     private ProgressBar progressBar;
     private Button btnAdd;
-    private Spinner spinnerAcademy;
     private NoticeApi api;
+    private Spinner spinnerAcademy;
     private List<Integer> userAcademyNumbers = new ArrayList<>();
 
     @Override
@@ -57,9 +57,8 @@ public class NoticeActivity extends AppCompatActivity {
         btnAdd = findViewById(R.id.btn_add_notice);
         spinnerAcademy = findViewById(R.id.spinner_academy);
 
-
         // 2. 툴바 색상 및 설정
-        ThemeColorUtil.applyThemeColor(this, toolbar);
+        ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
 
         // 3. 드로어 설정
@@ -72,7 +71,6 @@ public class NoticeActivity extends AppCompatActivity {
         toggle.syncState();
         // 4. 사이드 메뉴 생성
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null,4);
-
 
         // 5. RecyclerView 설정
         rvNotices.setLayoutManager(new LinearLayoutManager(this));

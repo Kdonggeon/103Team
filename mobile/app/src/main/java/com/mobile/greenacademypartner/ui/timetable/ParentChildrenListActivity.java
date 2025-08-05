@@ -2,6 +2,7 @@ package com.mobile.greenacademypartner.ui.timetable;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.LinearLayout;
