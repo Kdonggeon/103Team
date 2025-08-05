@@ -4,31 +4,21 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.annotation.PostConstruct;
-import java.io.InputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
 
 @Configuration
 public class FirebaseConfig {
 
-    @Value("${firebase.config.path}")
-    private String firebaseConfigPath;
+    private static final String FIREBASE_CONFIG_RELATIVE_PATH = "src/main/resources/firebase/firebase-adminsdk.json";
 
     @PostConstruct
     public void initialize() {
-        try {
-            // 경로의 classpath 접두사 제거 후 실제 리소스 파일 열기
-            String resourcePath = firebaseConfigPath.replace("classpath:", "");
-            InputStream serviceAccount = getClass()
-                    .getClassLoader()
-                    .getResourceAsStream(resourcePath);
-
-            if (serviceAccount == null) {
-                throw new IllegalStateException("[Firebase] 서비스 계정 키 파일을 찾을 수 없습니다: " + resourcePath);
-            }
+        try (FileInputStream serviceAccount = new FileInputStream(FIREBASE_CONFIG_RELATIVE_PATH)) {
 
             FirebaseOptions options = new FirebaseOptions.Builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
@@ -41,7 +31,7 @@ public class FirebaseConfig {
                 System.out.println("[Firebase] 이미 초기화되어 있습니다.");
             }
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.err.println("[Firebase] 초기화 실패");
             e.printStackTrace();
         }
