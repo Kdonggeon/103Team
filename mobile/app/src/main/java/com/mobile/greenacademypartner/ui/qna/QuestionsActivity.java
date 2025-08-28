@@ -50,10 +50,11 @@ public class QuestionsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_questions);
 
         // 네비게이션 메뉴 설정
-        drawerLayout = findViewById(R.id.drawer_layout_questions);
-        toolbar = findViewById(R.id.toolbar_questions);
+        drawerLayout = findViewById(R.id.drawer_layout);
+        toolbar = findViewById(R.id.toolbar);
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
+
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
                 R.string.navigation_drawer_open,
@@ -61,7 +62,7 @@ public class QuestionsActivity extends AppCompatActivity {
         );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
-        
+
 
         // 뷰 바인딩
         spinnerAcademy = findViewById(R.id.spinner_academy);
@@ -163,6 +164,8 @@ public class QuestionsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        ToolbarColorUtil.applyToolbarColor(this, toolbar);
+        ThemeColorUtil.applyThemeColor(this, toolbar);
         if (!userAcademyNumbers.isEmpty()) {
             fetchQuestions(userAcademyNumbers.get(0));
         }

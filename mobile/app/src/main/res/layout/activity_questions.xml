@@ -2,7 +2,7 @@
 <androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/drawer_layout_questions"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -12,13 +12,13 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- 1) Toolbar (Notice와 동일하게 중앙 정렬 텍스트 적용) -->
         <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar_questions"
+            android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:gravity="center"
             android:title="QnA"
+            android:background="@color/green"
             android:titleTextColor="@android:color/white" />
 
         <Spinner
@@ -56,9 +56,11 @@
         <!-- 4) 질문 등록 버튼 -->
         <Button
             android:id="@+id/btn_add_question"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="질문 등록" />
+            android:text="질문 등록"
+            android:layout_marginStart="8dp"
+            android:layout_gravity="end"/>
 
     </LinearLayout>
 

@@ -104,7 +104,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
         // 6) 권한에 따라 버튼 숨기기
         if (!"TEACHER".equalsIgnoreCase(userRole)) {
-            btnAddAnswer.setVisibility(View.GONE);
             btnDeleteQuestion.setVisibility(View.GONE);
         }
     }

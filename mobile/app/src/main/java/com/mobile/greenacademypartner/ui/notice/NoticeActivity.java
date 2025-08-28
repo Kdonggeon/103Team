@@ -11,12 +11,14 @@ import android.widget.ProgressBar;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.NoticeApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
@@ -24,11 +26,13 @@ import com.mobile.greenacademypartner.model.Notice;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
-import com.mobile.greenacademypartner.model.Notice;
+
 import org.json.JSONArray;
 import org.json.JSONException;
+
 import java.util.ArrayList;
 import java.util.List;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -42,13 +46,14 @@ public class NoticeActivity extends AppCompatActivity {
     private Button btnAdd;
     private NoticeApi api;
     private Spinner spinnerAcademy;
-    private List<Integer> userAcademyNumbers = new ArrayList<>();
+    private final List<Integer> userAcademyNumbers = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice);
-        // 1. 뷰 초기화
+
+        // 1) 뷰 바인딩
         drawerLayout = findViewById(R.id.drawer_layout_notice);
         toolbar = findViewById(R.id.toolbar_notice);
         navContainer = findViewById(R.id.nav_container_notice);
@@ -57,11 +62,12 @@ public class NoticeActivity extends AppCompatActivity {
         btnAdd = findViewById(R.id.btn_add_notice);
         spinnerAcademy = findViewById(R.id.spinner_academy);
 
-        // 2. 툴바 색상 및 설정
+        // 2) 툴바 설정 + 테마 적용
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
+        ThemeColorUtil.applyThemeColor(this, toolbar);
 
-        // 3. 드로어 설정
+        // 3) 드로어 토글 & 사이드 메뉴
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
                 R.string.navigation_drawer_open,
@@ -69,34 +75,31 @@ public class NoticeActivity extends AppCompatActivity {
         );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
-        // 4. 사이드 메뉴 생성
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null,4);
+        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 4);
 
-        // 5. RecyclerView 설정
+        // 4) RecyclerView
         rvNotices.setLayoutManager(new LinearLayoutManager(this));
         api = RetrofitClient.getClient().create(NoticeApi.class);
 
-        // 6. 권한에 따라 공지 추가 버튼 제어
+        // 5) 권한에 따른 버튼 표시
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String role = prefs.getString("role", "");
         if (!"teacher".equals(role) && !"director".equals(role)) {
             btnAdd.setVisibility(View.GONE);
         }
 
+        // 6) 학원 번호 로드 → 스피너 구성
         String academyArray = prefs.getString("academyNumbers", "[]");
         try {
             JSONArray arr = new JSONArray(academyArray);
-            for (int i = 0; i < arr.length(); i++) {
-                userAcademyNumbers.add(arr.getInt(i));
-            }
+            for (int i = 0; i < arr.length(); i++) userAcademyNumbers.add(arr.getInt(i));
         } catch (JSONException e) {
             e.printStackTrace();
         }
 
         List<String> labels = new ArrayList<>();
-        for (Integer num : userAcademyNumbers) {
-            labels.add(String.valueOf(num));
-        }
+        for (Integer num : userAcademyNumbers) labels.add(String.valueOf(num));
+
         ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
                 this,
                 android.R.layout.simple_spinner_item,
@@ -104,17 +107,14 @@ public class NoticeActivity extends AppCompatActivity {
         );
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerAcademy.setAdapter(spinnerAdapter);
-
         spinnerAcademy.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 fetchNotices(userAcademyNumbers.get(position));
             }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
-        // 8. 추가 버튼 클릭 시 작성 화면으로 이동
+
+        // 7) 공지 등록 버튼
         btnAdd.setOnClickListener(v ->
                 startActivity(new Intent(this, CreateNoticeActivity.class))
         );
@@ -123,7 +123,11 @@ public class NoticeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (!userAcademyNumbers.isEmpty()) {
+        // 재진입 시 테마 재적용
+        ToolbarColorUtil.applyToolbarColor(this, toolbar);
+        ThemeColorUtil.applyThemeColor(this, toolbar);
+
+        if (!userAcademyNumbers.isEmpty() && spinnerAcademy.getSelectedItemPosition() >= 0) {
             fetchNotices(userAcademyNumbers.get(spinnerAcademy.getSelectedItemPosition()));
         }
     }
