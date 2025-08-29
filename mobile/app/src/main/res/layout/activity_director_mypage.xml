@@ -1,0 +1,88 @@
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 메인 화면 -->
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/green"
+            app:title="원장 마이페이지"
+            app:titleTextColor="@color/white" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <!-- 본문 헤더(선택사항) -->
+                <TextView
+                    android:id="@+id/main_content_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="마이페이지"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- 프로필 섹션 (필요 시 항목 더 추가) -->
+                <TextView
+                    android:id="@+id/tvDirectorName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="이름: "
+                    android:textSize="16sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvDirectorId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="아이디: "
+                    android:textSize="16sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvDirectorPhone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="전화번호: "
+                    android:textSize="16sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvAcademyNumber"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="학원 번호: "
+                    android:textSize="16sp"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- 저장/수정 등 액션 버튼 필요하면 여기에 배치 -->
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- 사이드바 메뉴 컨테이너 -->
+    <LinearLayout
+        android:id="@+id/nav_container"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="@color/gray" />
+</androidx.drawerlayout.widget.DrawerLayout>

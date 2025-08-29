@@ -111,32 +111,37 @@ public class LoginController {
             return ResponseEntity.ok(res);
         }
         
-        // 3. 원장 로그인
+     // 3. 원장 로그인 처리 (repository 시그니처 유지 버전)
         Director director = directorRepo.findByUsername(username);
-        
-        System.out.println("디버깅: 입력 ID = " + username);
-        System.out.println("디버깅: 찾은 원장 = " + (director != null ? director.getUsername() : "없음"));
-        System.out.println("디버깅: 저장된 해시 = " + (director != null ? director.getPassword() : "없음"));
-        System.out.println("디버깅: 비번 일치 = " + (director != null && passwordEncoder.matches(password, director.getPassword())));
+        if (director != null) {
+            boolean pwOk = false;
+            try {
+                pwOk = passwordEncoder.matches(password, director.getPassword());
+            } catch (Exception ignore) {
+                // 혹시 저장된 값이 비BCrypt이거나 null이면 예외 날 수 있으니 방어
+            }
 
-        if (director != null && passwordEncoder.matches(password, director.getPassword())) {
-            String token = jwtUtil.generateToken(username,"director");
+            if (pwOk) {
+                String token = jwtUtil.generateToken(director.getUsername(), "director");
 
-            LoginResponse response = new LoginResponse(
-                "success",
-                "director",
-                director.getUsername(),
-                director.getName(),
-                token,
-                director.getPhone(),
-                null, null, 0, null,  // 학생 전용 필드
-                director.getAcademyNumbers()
-            );
+                LoginResponse response = new LoginResponse(
+                    "success",
+                    "director",
+                    director.getUsername(),
+                    director.getName(),
+                    token,
+                    director.getPhone(),
+                    null, null, 0, null,
+                    director.getAcademyNumbers() // List<Integer>
+                );
 
-            session.setAttribute("username", director.getUsername());
-            session.setAttribute("role", "director");
-            return ResponseEntity.ok(response);
+                session.setAttribute("username", director.getUsername());
+                session.setAttribute("role", "director");
+                return ResponseEntity.ok(response);
+            }
         }
+        // (여기서 리턴이 안 되면 다음 분기(학부모)로 자연스럽게 넘어감)
+
 
 
      // 4. 학부모 로그인 처리

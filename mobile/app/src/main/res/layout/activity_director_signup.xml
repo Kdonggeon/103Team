@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    android:background="@color/white">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- 원장 이름 -->
+        <EditText
+            android:id="@+id/edit_director_name"
+            android:hint="이름"
+            android:inputType="textPersonName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 아이디 -->
+        <EditText
+            android:id="@+id/edit_director_id"
+            android:hint="아이디 (문자/숫자 가능)"
+            android:inputType="text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 비밀번호 -->
+        <EditText
+            android:id="@+id/edit_director_pw"
+            android:hint="비밀번호"
+            android:inputType="textPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 비밀번호 확인 -->
+        <EditText
+            android:id="@+id/edit_director_pw_confirm"
+            android:hint="비밀번호 확인"
+            android:inputType="textPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 전화번호 -->
+        <EditText
+            android:id="@+id/edit_director_phone"
+            android:hint="전화번호 (10~11자리 숫자)"
+            android:inputType="phone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 학원 번호들 -->
+        <EditText
+            android:id="@+id/edit_director_academies"
+            android:hint="학원 번호들 (예: 103,105)"
+            android:inputType="text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 회원가입 버튼 -->
+        <Button
+            android:id="@+id/btn_director_signup"
+            android:text="원장 회원가입"
+            android:backgroundTint="@color/green"
+            android:textColor="@color/white"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+</ScrollView>

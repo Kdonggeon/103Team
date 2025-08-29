@@ -16,8 +16,8 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/green"
-            android:titleTextColor="@android:color/white"
-            android:title="시간표" />
+            app:title="시간표"
+            app:titleTextColor="@color/white"  />
 
         <!-- 오늘 수업 목록 RecyclerView -->
         <androidx.recyclerview.widget.RecyclerView

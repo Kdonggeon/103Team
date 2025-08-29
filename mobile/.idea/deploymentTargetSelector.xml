@@ -4,7 +4,6 @@
     <selectionStates>
       <SelectionState runConfigName="ClassAttendanceActivity">
         <option name="selectionMode" value="DROPDOWN" />
-
         <DropdownSelection timestamp="2025-07-10T13:35:43.007151800Z">
           <Target type="DEFAULT_BOOT">
             <handle>
@@ -16,6 +15,14 @@
       </SelectionState>
       <SelectionState runConfigName="Unnamed">
         <option name="selectionMode" value="DROPDOWN" />
+        <DropdownSelection timestamp="2025-08-08T12:40:09.889920600Z">
+          <Target type="DEFAULT_BOOT">
+            <handle>
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\kisim\.android\avd\Medium_Phone.avd" />
+            </handle>
+          </Target>
+        </DropdownSelection>
+        <DialogSelection />
       </SelectionState>
     </selectionStates>
   </component>

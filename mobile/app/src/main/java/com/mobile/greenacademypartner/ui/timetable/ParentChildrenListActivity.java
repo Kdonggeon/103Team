@@ -20,6 +20,7 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
+import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
 import com.mobile.greenacademypartner.model.student.Student;
 import com.mobile.greenacademypartner.ui.adapter.ChildrenListAdapter;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
@@ -58,6 +59,7 @@ public class ParentChildrenListActivity extends AppCompatActivity {
                 this, drawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
+        ToolbarIconUtil.applyWhiteIcons(toolbar, toggle);
 
         // 사이드 메뉴 설정
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 2);
