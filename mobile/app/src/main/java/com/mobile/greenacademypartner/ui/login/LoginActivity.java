@@ -2,6 +2,11 @@ package com.mobile.greenacademypartner.ui.login;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.util.Log;
@@ -61,7 +66,7 @@ public class LoginActivity extends AppCompatActivity {
         autoLoginCheckBox = findViewById(R.id.login_check);
         btnTogglePassword = findViewById(R.id.btn_toggle_password);
 
-        // 자동로그인 체크박스 초기상태
+        // 자동로그인 체크박스 초기값
         autoLoginCheckBox.setChecked(prefs.getBoolean("auto_login", false));
 
         // 비밀번호 가시성 토글
@@ -91,6 +96,12 @@ public class LoginActivity extends AppCompatActivity {
                 return;
             }
 
+            // 🔒 네트워크 연결 체크: 없으면 즉시 종료
+            if (!isNetworkAvailable()) {
+                Toast.makeText(this, "네트워크 연결이 없습니다. 연결 후 다시 시도하세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             AuthApi authApi = RetrofitClient.getClient().create(AuthApi.class);
             authApi.login(new LoginRequest(inputId, inputPw))
                     .enqueue(new Callback<LoginResponse>() {
@@ -100,8 +111,7 @@ public class LoginActivity extends AppCompatActivity {
                                 LoginResponse res = response.body();
                                 Log.d(TAG, "로그인 성공: " + new Gson().toJson(res));
 
-                                // 필수값 정규화
-                                String role = safeLower(res.getRole());          // "student" | "teacher" | "parent" | "director"
+                                String role = safeLower(res.getRole());
                                 String username = safe(res.getUsername());
                                 String token = safe(res.getToken());
 
@@ -114,7 +124,7 @@ public class LoginActivity extends AppCompatActivity {
                                 editor.putBoolean("is_logged_in", true);
                                 editor.putBoolean("auto_login", autoLoginCheckBox.isChecked());
 
-                                // ★ 토큰 호환 저장 (MainActivity에서 token / accessToken 둘 다 읽을 수 있게)
+                                // 토큰은 호환 위해 두 키에 저장
                                 editor.putString("token", token);
                                 editor.putString("accessToken", token);
 
@@ -124,13 +134,13 @@ public class LoginActivity extends AppCompatActivity {
                                 // 선택 정보
                                 editor.putString("name", safe(res.getName()));
                                 editor.putString("phone", safe(res.getPhone()));
-                                editor.putString("userId", username); // 기존 호환
+                                editor.putString("userId", username); // 호환 키
 
-                                // 학생 전용 필드 (아니면 정리)
+                                // 학생 전용 필드
                                 if ("student".equals(role)) {
                                     editor.putString("address", safe(res.getAddress()));
                                     editor.putString("school", safe(res.getSchool()));
-                                    editor.putInt("grade", safeInt(res.getGrade())); // null → 0
+                                    editor.putInt("grade", safeInt(res.getGrade())); // null -> 0
                                     editor.putString("gender", safe(res.getGender()));
                                 } else {
                                     editor.remove("address");
@@ -139,14 +149,13 @@ public class LoginActivity extends AppCompatActivity {
                                     editor.remove("gender");
                                 }
 
-                                // 공통: academyNumbers(JSON 문자열로 저장)
+                                // 공통: academyNumbers(JSON)
                                 List<Integer> academyNumbers = res.getAcademyNumbers();
                                 editor.putString("academyNumbers",
                                         academyNumbers != null ? new JSONArray(academyNumbers).toString() : "[]");
 
                                 editor.apply();
 
-                                // 메인으로 이동
                                 startActivity(new Intent(LoginActivity.this, MainActivity.class));
                                 finish();
                             } else {
@@ -171,6 +180,27 @@ public class LoginActivity extends AppCompatActivity {
                         }
                     });
         });
+    }
+
+    // ===== Network Check =====
+    private boolean isNetworkAvailable() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Network network = cm.getActiveNetwork();
+            if (network == null) return false;
+            NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+            if (caps == null) return false;
+            // Wi-Fi / 셀룰러 / 이더넷 중 하나라도 연결되어 있으면 OK
+            return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                    || caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+                    || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET);
+        } else {
+            // Legacy
+            NetworkInfo active = cm.getActiveNetworkInfo();
+            return active != null && active.isConnected();
+        }
     }
 
     // ===== Helpers =====
