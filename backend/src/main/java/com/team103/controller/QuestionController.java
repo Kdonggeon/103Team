@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,8 +48,14 @@ public class QuestionController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인 후 이용해주세요.");
         }
 
+        //  학생/학부모만 방 생성 허용
+        if (!(role.equalsIgnoreCase("student") || role.equalsIgnoreCase("parent"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("학생 또는 학부모만 질문을 생성할 수 있습니다.");
+        }
+
         question.setAuthor(userId);
         question.setAuthorRole(role);
+        question.setCreatedAt(new Date()); // 생성 시각 보장
 
         Question saved = questionRepository.save(question);
         return ResponseEntity.ok(saved);

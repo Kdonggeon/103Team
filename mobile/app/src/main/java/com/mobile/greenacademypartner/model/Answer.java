@@ -8,6 +8,9 @@ public class Answer {
     private String content;
     private String createdAt;
 
+    // ✅ 이름 표시용(선택): 서버가 내려주면 사용, 없으면 null
+    private String authorName;
+
     public Answer() {
     }
 
@@ -49,5 +52,14 @@ public class Answer {
 
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
+    }
+
+    // ====== 추가: authorName ======
+    public String getAuthorName() {
+        return authorName;
+    }
+
+    public void setAuthorName(String authorName) {
+        this.authorName = authorName;
     }
 }

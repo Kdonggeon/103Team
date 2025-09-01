@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawer_layout_question_detail"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -19,61 +20,103 @@
             android:title="질문 상세"
             android:titleTextColor="@android:color/white" />
 
-        <!-- Scrollable Content -->
-        <ScrollView
+        <!-- 상단 컨텐츠 + 리스트 영역 (weight=1) -->
+        <LinearLayout
+            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:fillViewport="true">
+            android:padding="8dp">
 
-            <LinearLayout
-                android:orientation="vertical"
+            <!-- 질문 카드 -->
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="8dp">
+                android:layout_marginBottom="12dp"
+                app:cardUseCompatPadding="true"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
 
-                <TextView
-                    android:id="@+id/main_content_text_question_detail"
+                <LinearLayout
+                    android:orientation="vertical"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Loading..." />
+                    android:padding="12dp">
 
-                <TextView
-                    android:id="@+id/tv_question_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="8dp" />
+                    <TextView
+                        android:id="@+id/tv_question_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/black"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
 
-                <TextView
-                    android:id="@+id/tv_question_content"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp" />
+                    <TextView
+                        android:id="@+id/tv_question_content"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:textColor="@android:color/black" />
 
-                <TextView
-                    android:id="@+id/tv_question_author"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp" />
+                    <LinearLayout
+                        android:orientation="horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp">
 
-                <TextView
-                    android:id="@+id/tv_question_date"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp" />
+                        <TextView
+                            android:id="@+id/tv_question_author"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textColor="@android:color/black" />
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_answers"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp" />
+                        <TextView
+                            android:id="@+id/tv_question_date"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@android:color/black" />
+                    </LinearLayout>
 
-            </LinearLayout>
-        </ScrollView>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-        <!-- Bottom Buttons -->
+            <!-- ★ RecyclerView: ScrollView 밖, 0dp + weight=1 -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_answers"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingBottom="8dp"/>
+        </LinearLayout>
+
+        <!-- ★ 하단 입력 바: ScrollView 밖으로 이동 -->
+        <LinearLayout
+            android:id="@+id/bottom_input_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp">
+
+            <EditText
+                android:id="@+id/et_message"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="메시지를 입력하세요"
+                android:maxLines="4"/>
+
+            <Button
+                android:id="@+id/btn_send"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="전송"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <!-- 레거시 하단 버튼 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

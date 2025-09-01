@@ -52,7 +52,6 @@ public class QuestionsActivity extends AppCompatActivity {
         // 네비게이션 메뉴 설정
         drawerLayout = findViewById(R.id.drawer_layout);
         toolbar = findViewById(R.id.toolbar);
-        ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
 
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(

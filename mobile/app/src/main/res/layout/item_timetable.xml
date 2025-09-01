@@ -1,24 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginStart="12dp"
     android:layout_marginEnd="12dp"
-    android:layout_marginTop="1dp"
-    android:layout_marginBottom="1dp"
-    app:cardCornerRadius="10dp"
-    app:cardElevation="4dp"
-    app:cardUseCompatPadding="true">
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="6dp"
+    app:cardUseCompatPadding="true"
+    app:cardBackgroundColor="@android:color/white">
+
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:padding="14dp">
+
 
         <TextView
-            android:id="@+id/tv_item_question_title"
+            android:id="@+id/tv_item_timetable_subject"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="16sp"
@@ -27,8 +31,9 @@
             android:ellipsize="end"
             android:maxLines="1" />
 
+
         <TextView
-            android:id="@+id/tv_item_question_content"
+            android:id="@+id/tv_item_timetable_detail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="14sp"
@@ -36,6 +41,7 @@
             android:ellipsize="end"
             android:maxLines="2"
             android:layout_marginTop="4dp" />
+
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>

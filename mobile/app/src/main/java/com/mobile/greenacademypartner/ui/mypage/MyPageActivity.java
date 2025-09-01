@@ -104,9 +104,8 @@ public class MyPageActivity extends AppCompatActivity {
             editSchool.setText(pref.getString("school", ""));
             editGrade.setText(String.valueOf(pref.getInt("grade", 0)));
             editGender.setText(pref.getString("gender", ""));
-        } else if ("teacher".equals(role)) {
-            editAcademyNumber.setText(String.valueOf(pref.getInt("academyNumber", 0)));
         }
+
 
         // SharedPreferences 전체 로그
         Map<String, ?> allEntries = pref.getAll();
@@ -116,6 +115,13 @@ public class MyPageActivity extends AppCompatActivity {
     }
 
     private void setupUIByRole() {
+        // 모두 숨김으로 초기화
+        editAddress.setVisibility(View.GONE);
+        editSchool.setVisibility(View.GONE);
+        editGrade.setVisibility(View.GONE);
+        editGender.setVisibility(View.GONE);
+        editAcademyNumber.setVisibility(View.GONE);
+
         if ("student".equals(role)) {
             textRoleTitle.setText("학생 마이페이지");
             editAddress.setVisibility(View.VISIBLE);
@@ -127,6 +133,7 @@ public class MyPageActivity extends AppCompatActivity {
             editAcademyNumber.setVisibility(View.VISIBLE);
         } else if ("parent".equals(role)) {
             textRoleTitle.setText("학부모 마이페이지");
+            // 학생/교사 전용 필드는 숨김 유지
         } else {
             textRoleTitle.setText("역할을 불러올 수 없습니다");
         }
@@ -165,13 +172,6 @@ public class MyPageActivity extends AppCompatActivity {
                 ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
                 api.updateParent(id, parent).enqueue(getCallback("학부모"));
 
-            } else if ("teacher".equals(role)) {
-                int academyNumber = Integer.parseInt(editAcademyNumber.getText().toString());
-                TeacherUpdateRequest teacher = new TeacherUpdateRequest(id, name, phone, academyNumber);
-                TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
-                api.updateTeacher(id, teacher).enqueue(getCallback("교사"));
-
-                editor.putInt("academyNumber", academyNumber);
             }
 
             editor.apply(); // 저장

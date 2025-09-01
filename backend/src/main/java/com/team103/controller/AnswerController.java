@@ -3,12 +3,16 @@ package com.team103.controller;
 import com.team103.model.Answer;
 import com.team103.repository.AnswerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import com.team103.model.Question;  
 import com.team103.repository.QuestionRepository;
 import com.team103.service.FcmService;
+
+import jakarta.servlet.http.HttpSession;
+
 import com.team103.model.Student;
 import com.team103.model.Teacher;
 import com.team103.model.Parent;
@@ -47,72 +51,64 @@ public class AnswerController {
     // 답변 생성
     @PostMapping("/api/questions/{qId}/answers")
     public ResponseEntity<?> createAnswer(@PathVariable("qId") String questionId,
-                                          @RequestBody Answer answer) {
-    	System.out.println("[AnswerController] /answers POST 호출됨 → questionId=" + questionId);
-        // 1️⃣ 답변 저장
-        answer.setQuestionId(questionId);
-        answer.setCreatedAt(new Date());
-        Answer savedAnswer = answerRepository.save(answer);
-        System.out.println("[AnswerController] [DEBUG] Answer 저장 완료 → " + savedAnswer);
-        // 2️⃣ 질문 작성자 정보 조회
-        Optional<Question> optionalQuestion = questionRepository.findById(questionId);
-        System.out.println("[AnswerController] [DEBUG] questionRepository.findById() 결과 → " + optionalQuestion);
-        if (!optionalQuestion.isPresent()) {
-            System.out.println("[AnswerController] [WARN] 질문 문서를 찾을 수 없음 → questionId=" + questionId);
+                                          @RequestBody Answer answer,
+                                          HttpSession session) {
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
+
+        if (userId == null || role == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인 후 이용해주세요.");
+        }
+        if (!"teacher".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("선생만 답변을 작성할 수 있습니다.");
+        }
+
+        // 1) 질문 존재 확인 (저장 전에)
+        Optional<Question> optQ = questionRepository.findById(questionId);
+        if (!optQ.isPresent()) {
             return ResponseEntity.badRequest().body("질문이 존재하지 않습니다.");
         }
-        Question question = optionalQuestion.get();
-        System.out.println("[AnswerController] [DEBUG] Question 객체 획득 완료 → " + question);
-        String authorId = question.getAuthor();
-        String authorRole = question.getAuthorRole();
+        Question question = optQ.get();
 
-        System.out.println("[AnswerController] [DEBUG] authorId=" + authorId + ", authorRole=" + authorRole);
+        // 2) 필수 필드 세팅
+        answer.setQuestionId(questionId);
+        answer.setAuthor(userId);
+        answer.setDeleted(false);
+        answer.setCreatedAt(new Date());
 
-        if (authorId == null || authorRole == null) {
-            System.out.println("[AnswerController] [WARN] authorId 또는 authorRole이 null → FCM 발송 건너뜀");
-            return ResponseEntity.ok(savedAnswer);
-        }
+        // 3) 저장
+        Answer savedAnswer = answerRepository.save(answer);
 
-        // 3️⃣ 역할별 FCM 토큰 조회
-        String targetFcmToken = null;
-        if ("student".equalsIgnoreCase(authorRole)) {
-        	    Student student = studentRepository.findByStudentId(authorId);
-        	    if (student != null) {
-        	        targetFcmToken = student.getFcmToken();
-        	   };
+        // 4) FCM (실패해도 저장엔 영향 없음)
+        try {
+            String authorId = question.getAuthor();
+            String authorRole = question.getAuthorRole();
 
-        } else if ("teacher".equalsIgnoreCase(authorRole)) {
-        	    Teacher teacher = teacherRepository.findByTeacherId(authorId);
-        	    if (teacher != null) {
-        	        targetFcmToken = teacher.getFcmToken();
-        	    }
+            String targetFcmToken = null;
+            if (authorId != null && authorRole != null) {
+                if ("student".equalsIgnoreCase(authorRole)) {
+                    Student student = studentRepository.findByStudentId(authorId);
+                    if (student != null) targetFcmToken = student.getFcmToken();
+                } else if ("teacher".equalsIgnoreCase(authorRole)) {
+                    Teacher teacher = teacherRepository.findByTeacherId(authorId);
+                    if (teacher != null) targetFcmToken = teacher.getFcmToken();
+                } else if ("parent".equalsIgnoreCase(authorRole)) {
+                    Parent parent = parentRepository.findByParentsId(authorId);
+                    if (parent != null) targetFcmToken = parent.getFcmToken();
+                }
+            }
 
-        } else if ("parent".equalsIgnoreCase(authorRole)) {
-        	    Parent parent = parentRepository.findByParentsId(authorId);
-        	    if (parent != null) {
-        	        targetFcmToken = parent.getFcmToken();
-        	    }
-        }
-
-        if (targetFcmToken != null && !targetFcmToken.isEmpty()) {
-            System.out.println("[AnswerController] FCM 발송 시도 → targetFcmToken=" + targetFcmToken);
-
-            try {
+            if (targetFcmToken != null && !targetFcmToken.isEmpty()) {
                 fcmService.sendMessageTo(
                     targetFcmToken,
                     "새 답변 알림",
                     "회원님의 질문에 답변이 등록되었습니다."
                 );
-                System.out.println("[AnswerController] [INFO] FCM 알림 전송 완료");
-            } catch (Exception e) {
-                System.out.println("[AnswerController] [ERROR] FCM 알림 전송 실패 → " + e.getMessage());
-                e.printStackTrace();
             }
-
-        } else {
-            System.out.println("[AnswerController] FCM 발송 스킵 (토큰이 없음)");
+        } catch (Exception e) {
+            // 로깅만, 응답은 성공 유지
+            System.out.println("[AnswerController] [ERROR] FCM 전송 실패 → " + e.getMessage());
         }
-        
 
         return ResponseEntity.ok(savedAnswer);
     }
@@ -137,18 +133,21 @@ public class AnswerController {
 
     // 답변 삭제
     @DeleteMapping("/api/answers/{id}")
-    public ResponseEntity<Void> deleteAnswer(@PathVariable String id) {
+    public ResponseEntity<Void> deleteAnswer(@PathVariable String id,
+                                             HttpSession session) {
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
+        if (userId == null || role == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!"teacher".equalsIgnoreCase(role)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+
         Optional<Answer> opt = answerRepository.findById(id);
-        if (!opt.isPresent()) {
-            return ResponseEntity.noContent().build();
-        }
+        if (!opt.isPresent()) return ResponseEntity.noContent().build();
 
         Answer answer = opt.get();
         if (!answer.isDeleted()) {
             answer.setDeleted(true);
             answerRepository.save(answer);
         }
-
         return ResponseEntity.noContent().build();
     }
     

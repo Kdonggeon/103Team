@@ -45,6 +45,10 @@ public class ParentAttendanceActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);
         attendanceListView = findViewById(R.id.attendance_list_view);
+        int white = androidx.core.content.ContextCompat.getColor(this, android.R.color.white);
+        toolbar.setTitleTextColor(white);
+        if (toolbar.getNavigationIcon() != null) toolbar.getNavigationIcon().setTint(white);
+        if (toolbar.getOverflowIcon() != null) toolbar.getOverflowIcon().setTint(white);
 
         setupToolbarAndDrawer();
         ThemeColorUtil.applyThemeColor(this, toolbar);

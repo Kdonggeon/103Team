@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp"
+    android:gravity="end"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/tv_message_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="10dp"
+        android:text="내용"
+        android:background="@android:color/darker_gray" />
+
+    <TextView
+        android:id="@+id/tv_message_meta"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="선생 • 8월 31일"
+        android:textSize="12sp"
+        android:paddingTop="2dp" />
+</LinearLayout>

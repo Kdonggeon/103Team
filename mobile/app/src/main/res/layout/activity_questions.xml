@@ -16,17 +16,18 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:gravity="center"
-            android:title="QnA"
             android:background="@color/green"
-            android:titleTextColor="@android:color/white" />
+            app:title="QnA"
+            app:titleTextColor="@color/white" />
 
         <Spinner
             android:id="@+id/spinner_academy"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="48dp"
-            android:layout_margin="16dp"/>
+            android:layout_margin="16dp"
+            android:spinnerMode="dropdown"
+            android:background="@drawable/spinner_bg_with_arrow"/>
 
         <!-- 2) 로딩바 -->
         <ProgressBar
@@ -59,8 +60,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="질문 등록"
-            android:layout_marginStart="8dp"
-            android:layout_gravity="end"/>
+            android:layout_gravity="bottom|end"
+            android:layout_marginBottom="20dp"
+            android:layout_marginEnd="20dp"/>
 
     </LinearLayout>
 

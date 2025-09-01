@@ -45,6 +45,8 @@ public class StudentTimetableActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);
         toolbar = findViewById(R.id.toolbar);
+        toolbar.setTitle("시간표");
+        setSupportActionBar(toolbar);
         setSupportActionBar(toolbar);
         ThemeColorUtil.applyThemeColor(this, toolbar);
 

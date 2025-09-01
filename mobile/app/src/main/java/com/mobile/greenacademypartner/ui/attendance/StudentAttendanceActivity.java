@@ -46,16 +46,20 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);
         attendanceListView = findViewById(R.id.attendance_list_view);
-
+        int white = androidx.core.content.ContextCompat.getColor(this, android.R.color.white);
+        toolbar.setTitleTextColor(white);
+        if (toolbar.getNavigationIcon() != null) toolbar.getNavigationIcon().setTint(white);
+        if (toolbar.getOverflowIcon() != null) toolbar.getOverflowIcon().setTint(white);
         setupToolbarAndDrawer(); // 🛠️ 사이드바 및 툴바 설정
         fetchAttendanceFromServer(); // 📡 출석 데이터 로드
     }
 
     private void setupToolbarAndDrawer() {
-        setTitle("출석 관리");
-        ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
-
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle("출석 관리");
+        }
+        ToolbarColorUtil.applyToolbarColor(this, toolbar);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
                 R.string.navigation_drawer_open,

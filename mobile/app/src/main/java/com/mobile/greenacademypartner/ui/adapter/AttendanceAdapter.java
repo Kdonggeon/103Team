@@ -27,38 +27,49 @@ public class AttendanceAdapter extends RecyclerView.Adapter<AttendanceAdapter.Vi
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(R.layout.item_attendance, parent, false);
-        return new ViewHolder(view);
+        View v = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_timetable, parent, false); // per-item CardView 레이아웃
+        return new ViewHolder(v);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Attendance item = attendanceList.get(position);
-        holder.textClassName.setText(item.getClassName());
-        holder.textDate.setText(item.getDate());
 
+        String subject = item.getClassName();
+        String date = item.getDate();
+
+        // 상태 텍스트 (없으면 "출석 정보 없음")
+        String statusText;
         if (item.getAttendanceList() != null && !item.getAttendanceList().isEmpty()) {
-            String status = item.getAttendanceList().get(0).getStatus();  // ✅ 첫 번째 출석 상태
-            holder.textStatus.setText("1명 상태: " + status);
+            String status = item.getAttendanceList().get(0).getStatus();
+            statusText = (status != null && !status.trim().isEmpty()) ? status : "출석 정보 없음";
         } else {
-            holder.textStatus.setText("출석 정보 없음");
+            statusText = "출석 정보 없음";
         }
-    }
 
+        StringBuilder detail = new StringBuilder();
+        if (date != null && !date.trim().isEmpty()) {
+            detail.append(date).append(" · ");
+        }
+        detail.append(statusText);
+
+        holder.tvSubject.setText(subject != null ? subject : "");
+        holder.tvDetail.setText(detail.toString());
+    }
 
     @Override
     public int getItemCount() {
-        return attendanceList.size();
+        return attendanceList == null ? 0 : attendanceList.size();
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView textClassName, textDate, textStatus;
-
-        public ViewHolder(@NonNull View itemView) {
+        final TextView tvSubject;
+        final TextView tvDetail;
+        ViewHolder(@NonNull View itemView) {
             super(itemView);
-            textClassName = itemView.findViewById(R.id.text_class_name);
-            textDate = itemView.findViewById(R.id.text_date);
-            textStatus = itemView.findViewById(R.id.text_status);
+            tvSubject = itemView.findViewById(R.id.tv_item_timetable_subject);
+            tvDetail  = itemView.findViewById(R.id.tv_item_timetable_detail);
         }
     }
 }

@@ -9,6 +9,9 @@ public class Question {
     private String createdAt;
     private int academyNumber;
 
+    // ✅ 이름 표시용(선택): 서버가 내려주면 사용, 없으면 null
+    private String authorName;
+
     public Question() {
     }
 
@@ -58,5 +61,14 @@ public class Question {
 
     public void setAcademyNumber(int academyNumber) {
         this.academyNumber = academyNumber;
+    }
+
+    // ====== 추가: authorName ======
+    public String getAuthorName() {
+        return authorName;
+    }
+
+    public void setAuthorName(String authorName) {
+        this.authorName = authorName;
     }
 }
