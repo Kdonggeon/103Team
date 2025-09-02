@@ -23,7 +23,6 @@ public class ThreadItem {
         t.id = q.getId();
         t.content = q.getContent();
         t.author = q.getAuthor();
-        t.authorName = q.getAuthorName();  // 서버가 주면 사용, 아니면 null
         t.createdAt = q.getCreatedAt();
         return t;
     }
@@ -35,7 +34,6 @@ public class ThreadItem {
         t.id = a.getId();
         t.content = a.getContent();
         t.author = a.getAuthor();
-        t.authorName = a.getAuthorName();  // 서버가 주면 사용, 아니면 null
         t.createdAt = a.getCreatedAt();
         return t;
     }

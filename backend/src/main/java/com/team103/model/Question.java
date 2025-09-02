@@ -1,6 +1,7 @@
 package com.team103.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.Date;
 
@@ -14,6 +15,9 @@ public class Question {
     private Date createdAt;
     private String authorRole; 
     private int academyNumber;
+    private java.util.List<String> teacherNames; // 이 질문에 답변한 교사 이름들(중복 제거, 순서 유지)
+    private String academyName; 
+    
     
 
     public Question() {
@@ -34,5 +38,8 @@ public class Question {
     public String getAuthorRole() {return authorRole;}
     public void setAuthorRole(String authorRole) {this.authorRole = authorRole;}
     public int getAcademyNumber() {return academyNumber;}
-    public void setAcademyNumber(int academyNumber){this.academyNumber = academyNumber;}
+    public java.util.List<String> getTeacherNames() { return teacherNames; }
+    public void setTeacherNames(java.util.List<String> teacherNames) { this.teacherNames = teacherNames;}
+    public String getAcademyName() { return academyName; }
+    public void setAcademyName(String academyName) { this.academyName = academyName; }
 }

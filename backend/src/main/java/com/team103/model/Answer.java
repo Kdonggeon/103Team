@@ -4,24 +4,30 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.Date;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.data.annotation.Transient;   // ✅ 추가
 
 @Document(collection = "answers")
 public class Answer {
-	@Id
-	@JsonProperty("id")
-	private String id;
+    @Id
+    @JsonProperty("id")
+    private String id;
+
     private String questionId; // 연관된 Question의 id
     private String content;
     private String author;     // 교사 아이디
     private Date createdAt;
     private boolean deleted = false;
-    
-    
+
+    // ✅ 응답 전용 필드: DB에 저장하지 않고 JSON으로만 내려줌
+    @Transient
+    @JsonProperty("교사이름")
+    private String teacherName;
+
     public Answer() {
         this.createdAt = new Date();
     }
 
-    // getters & setters
+    // getters & setters (기존)
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getQuestionId() { return questionId; }
@@ -32,6 +38,10 @@ public class Answer {
     public void setAuthor(String author) { this.author = author; }
     public Date getCreatedAt() { return createdAt; }
     public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
-    public boolean isDeleted() {return deleted;}
-    public void setDeleted(boolean deleted) {this.deleted = deleted; }
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
+
+    // ✅ 교사이름 getter/setter
+    public String getTeacherName() { return teacherName; }
+    public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
 }

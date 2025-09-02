@@ -1,10 +1,18 @@
 package com.team103.controller;
 
 import com.team103.model.FollowUp;
+import com.team103.model.Student;
+import com.team103.model.Parent;
 import com.team103.repository.FollowUpRepository;
+import com.team103.repository.StudentRepository;
+import com.team103.repository.ParentRepository;
+
 import jakarta.servlet.http.HttpSession;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.*;
 
@@ -13,6 +21,12 @@ import java.util.*;
 public class FollowUpController {
 
     private final FollowUpRepository followUpRepository;
+
+    @Autowired
+    private StudentRepository studentRepository;
+
+    @Autowired
+    private ParentRepository parentRepository;
 
     public FollowUpController(FollowUpRepository followUpRepository) {
         this.followUpRepository = followUpRepository;
@@ -24,6 +38,21 @@ public class FollowUpController {
         List<FollowUp> list = followUpRepository.findByQuestionIdAndDeletedFalse(questionId);
         // createdAt 오름차순 정렬
         list.sort(Comparator.comparing(FollowUp::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+
+        // ✅ 역할별 이름 세팅
+        for (FollowUp f : list) {
+            String role = f.getAuthorRole();
+            if ("student".equalsIgnoreCase(role)) {
+                f.setStudentName(resolveStudentName(f.getAuthor()));
+            } else if ("parent".equalsIgnoreCase(role)) {
+                f.setParentName(resolveParentName(f.getAuthor()));
+            } else {
+                // 모호한 경우엔 식별자 fallback
+                String fallback = f.getAuthor() == null ? "" : f.getAuthor();
+                f.setStudentName(fallback);
+                f.setParentName(fallback);
+            }
+        }
         return list;
     }
 
@@ -48,6 +77,18 @@ public class FollowUpController {
         fu.setDeleted(false);
 
         FollowUp saved = followUpRepository.save(fu);
+
+        // ✅ 응답에도 역할별 이름 세팅
+        if ("student".equalsIgnoreCase(role)) {
+            saved.setStudentName(resolveStudentName(userId));
+        } else if ("parent".equalsIgnoreCase(role)) {
+            saved.setParentName(resolveParentName(userId));
+        } else {
+            String fallback = userId == null ? "" : userId;
+            saved.setStudentName(fallback);
+            saved.setParentName(fallback);
+        }
+
         return ResponseEntity.ok(saved);
     }
 
@@ -69,6 +110,19 @@ public class FollowUpController {
 
         fu.setContent(req.getContent());
         FollowUp saved = followUpRepository.save(fu);
+
+        // ✅ 응답에도 역할별 이름 세팅
+        String fuRole = saved.getAuthorRole();
+        if ("student".equalsIgnoreCase(fuRole)) {
+            saved.setStudentName(resolveStudentName(saved.getAuthor()));
+        } else if ("parent".equalsIgnoreCase(fuRole)) {
+            saved.setParentName(resolveParentName(saved.getAuthor()));
+        } else {
+            String fallback = saved.getAuthor() == null ? "" : saved.getAuthor();
+            saved.setStudentName(fallback);
+            saved.setParentName(fallback);
+        }
+
         return ResponseEntity.ok(saved);
     }
 
@@ -92,5 +146,21 @@ public class FollowUpController {
             followUpRepository.save(fu);
         }
         return ResponseEntity.noContent().build();
+    }
+
+    // ===== 이름 해석 헬퍼 =====
+    private String resolveStudentName(String studentId) {
+        if (studentId == null) return "";
+        Student s = studentRepository.findByStudentId(studentId);
+        return (s != null && s.getStudentName() != null && !s.getStudentName().isEmpty())
+                ? s.getStudentName()
+                : studentId; // fallback
+    }
+
+    private String resolveParentName(String parentId) {
+        if (parentId == null) return "";
+        Parent p = parentRepository.findByParentsId(parentId);
+        String name = (p != null) ? p.getParentsName() : null;  // ✅ 여기 변경
+        return (name != null && !name.isEmpty()) ? name : parentId;
     }
 }

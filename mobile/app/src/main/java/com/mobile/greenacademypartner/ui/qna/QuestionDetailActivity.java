@@ -2,14 +2,19 @@ package com.mobile.greenacademypartner.ui.qna;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -23,6 +28,7 @@ import com.mobile.greenacademypartner.model.Answer;
 import com.mobile.greenacademypartner.model.FollowUp;
 import com.mobile.greenacademypartner.model.Question;
 import com.mobile.greenacademypartner.ui.adapter.ThreadAdapter;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
@@ -39,9 +45,6 @@ import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import androidx.core.content.ContextCompat;
-import androidx.core.graphics.drawable.DrawableCompat;
-import android.graphics.drawable.Drawable;
 
 public class QuestionDetailActivity extends AppCompatActivity {
 
@@ -54,11 +57,8 @@ public class QuestionDetailActivity extends AppCompatActivity {
     private RecyclerView rvThread;
     private ThreadAdapter threadAdapter;
     // 즉시 반영용 로컬 리스트(낙관적 추가 보존)
-    private final List<ThreadAdapter.Item> threadItems = new java.util.ArrayList<>();
-    private final List<Question> questionList = new ArrayList<>();
-    private final List<Answer> answerList   = new ArrayList<>();
-    private boolean questionLoaded = false;
-    private boolean answersLoaded  = false;
+    private final List<ThreadAdapter.Item> threadItems = new ArrayList<>();
+
     // 하단 입력
     private EditText etMessage;
     private Button btnSend;
@@ -92,7 +92,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
         return null;
     }
 
-    private void toastHttpFail(String prefix, retrofit2.Response<?> res) {
+    private void toastHttpFail(String prefix, Response<?> res) {
         StringBuilder sb = new StringBuilder();
         sb.append(prefix).append(" (").append(res.code()).append(")");
         try {
@@ -142,9 +142,10 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
     private String safe(String s) { return s == null ? "" : s; }
 
-    // 서버/로컬 병합을 위한 비교/머지 유틸
     private String nz(String s) { return s == null ? "" : s; }
     private String nzTrim(String s) { return s == null ? "" : s.trim(); }
+
+    private boolean isNotEmpty(String s) { return s != null && !s.trim().isEmpty(); }
 
     private boolean sameItem(ThreadAdapter.Item a, ThreadAdapter.Item b) {
         if (a == null || b == null) return false;
@@ -155,7 +156,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
     }
 
     private List<ThreadAdapter.Item> mergeServerWithLocal(List<ThreadAdapter.Item> serverList) {
-        List<ThreadAdapter.Item> finalList = new java.util.ArrayList<>();
+        List<ThreadAdapter.Item> finalList = new ArrayList<>();
         if (serverList != null) finalList.addAll(serverList);
 
         for (ThreadAdapter.Item local : threadItems) {
@@ -169,6 +170,45 @@ public class QuestionDetailActivity extends AppCompatActivity {
         return finalList;
     }
 
+    // ───────────────── 병합/정렬 ─────────────────
+    private List<ThreadAdapter.Item> mergeAsThread(List<FollowUp> flist, List<Answer> alist) {
+        List<ThreadAdapter.Item> items = new ArrayList<>();
+
+        if (flist != null) {
+            for (FollowUp f : flist) {
+                // ✅ 학생이름 > 학부모이름 > author(ID)
+                String display = isNotEmpty(f.getStudentName()) ? f.getStudentName()
+                        : isNotEmpty(f.getParentName()) ? f.getParentName()
+                        : safe(f.getAuthor());
+
+                items.add(new ThreadAdapter.Item(
+                        ThreadAdapter.Item.Type.USER_FOLLOWUP,
+                        display,
+                        f.getContent(),
+                        f.getCreatedAt()
+                ));
+            }
+        }
+
+        if (alist != null) {
+            for (Answer a : alist) {
+                // ✅ 교사이름 > author(ID)
+                String display = isNotEmpty(a.getTeacherName()) ? a.getTeacherName()
+                        : safe(a.getAuthor());
+
+                items.add(new ThreadAdapter.Item(
+                        ThreadAdapter.Item.Type.TEACHER_ANSWER,
+                        display,
+                        a.getContent(),
+                        a.getCreatedAt()
+                ));
+            }
+        }
+
+        Collections.sort(items, Comparator.comparing(i -> safeParse(i.createdAt)));
+        return items;
+    } // ←←← 메서드 정확히 닫기!
+
     // ───────────────── 라이프사이클 ─────────────────
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -180,7 +220,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
         if (toolbar != null) {
             setSupportActionBar(toolbar);
 
-            // ✅ 다른 화면과 동일하게 둘 다 호출
+            // 다른 화면과 동일하게 두 유틸 모두 적용
             ToolbarColorUtil.applyToolbarColor(this, toolbar);
             ThemeColorUtil.applyThemeColor(this, toolbar);
 
@@ -190,9 +230,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
                 getSupportActionBar().setHomeButtonEnabled(true);
             }
             toolbar.setNavigationOnClickListener(v -> onBackPressed());
-
         }
-
 
         // 세션 정보
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
@@ -216,7 +254,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
         // 기존 버튼(호환)
         btnAddAnswer = findViewById(R.id.btn_add_answer);
-        if (btnAddAnswer != null) btnAddAnswer.setVisibility(android.view.View.GONE);
+        if (btnAddAnswer != null) btnAddAnswer.setVisibility(View.GONE);
         btnDeleteQuestion = findViewById(R.id.btn_delete_question);
         if (btnDeleteQuestion != null) {
             btnDeleteQuestion.setOnClickListener(v -> deleteQuestion());
@@ -243,19 +281,15 @@ public class QuestionDetailActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
         if (toolbar != null) {
-            // ✅ 설정에서 색 변경 후 돌아왔을 때 즉시 반영
             ToolbarColorUtil.applyToolbarColor(this, toolbar);
             ThemeColorUtil.applyThemeColor(this, toolbar);
 
             // 제목/아이콘 흰색 유지
-             toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
-             toolbar.setSubtitleTextColor(ContextCompat.getColor(this, android.R.color.white));
-             tintToolbarNavIconWhite(toolbar);
-
+            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
+            toolbar.setSubtitleTextColor(ContextCompat.getColor(this, android.R.color.white));
+            tintToolbarNavIconWhite(toolbar);
         }
-
         loadThread();
     }
 
@@ -267,7 +301,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
             tb.setNavigationIcon(nav);
         }
     }
-
 
     // ───────────────── 전송 처리 ─────────────────
     private void onClickSendMessage() {
@@ -294,14 +327,13 @@ public class QuestionDetailActivity extends AppCompatActivity {
                         Toast.makeText(QuestionDetailActivity.this, "답변 등록 성공", Toast.LENGTH_SHORT).show();
                         etMessage.setText("");
 
-                        // 즉시 UI 반영(낙관적 추가)
                         String createdAt = (res.body()!=null && res.body().getCreatedAt()!=null)
                                 ? res.body().getCreatedAt()
                                 : new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA).format(new Date());
 
-                        // 표시 이름: authorName(있으면) → author(ID)
-                        String displayName = (res.body()!=null && res.body().getAuthorName()!=null && !res.body().getAuthorName().isEmpty())
-                                ? res.body().getAuthorName()
+                        // ✅ 교사이름 우선, 없으면 로그인 아이디
+                        String displayName = (res.body()!=null && !TextUtils.isEmpty(res.body().getTeacherName()))
+                                ? res.body().getTeacherName()
                                 : (username == null ? "" : username);
 
                         threadItems.add(new ThreadAdapter.Item(
@@ -310,14 +342,14 @@ public class QuestionDetailActivity extends AppCompatActivity {
                                 content,
                                 createdAt
                         ));
-                        threadAdapter.submit(new java.util.ArrayList<>(threadItems));
+                        threadAdapter.submit(new ArrayList<>(threadItems));
                         rvThread.post(() -> {
                             if (threadAdapter.getItemCount() > 0) {
                                 rvThread.scrollToPosition(threadAdapter.getItemCount() - 1);
                             }
                         });
 
-                        // 서버 목록으로 재동기화(로컬과 병합하여 덮어쓰기 방지)
+                        // 서버 목록으로 재동기화
                         loadThread();
                     } else {
                         toastHttpFail("답변 등록 실패", res);
@@ -342,13 +374,14 @@ public class QuestionDetailActivity extends AppCompatActivity {
                         Toast.makeText(QuestionDetailActivity.this, "질문 등록 성공", Toast.LENGTH_SHORT).show();
                         etMessage.setText("");
 
-                        // 즉시 UI 반영(낙관적 추가)
                         String createdAt = (res.body()!=null && res.body().getCreatedAt()!=null)
                                 ? res.body().getCreatedAt()
                                 : new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA).format(new Date());
 
-                        // FollowUp 모델에 authorName이 없다면 사용자명(username) 또는 ID 표시
-                        String displayName = (username == null ? "" : username);
+                        // ✅ 학생이름 > 학부모이름 > 로그인 아이디
+                        String displayName = (res.body()!=null && !TextUtils.isEmpty(res.body().getStudentName())) ? res.body().getStudentName()
+                                : (res.body()!=null && !TextUtils.isEmpty(res.body().getParentName())) ? res.body().getParentName()
+                                : (username == null ? "" : username);
 
                         threadItems.add(new ThreadAdapter.Item(
                                 ThreadAdapter.Item.Type.USER_FOLLOWUP,
@@ -356,14 +389,14 @@ public class QuestionDetailActivity extends AppCompatActivity {
                                 content,
                                 createdAt
                         ));
-                        threadAdapter.submit(new java.util.ArrayList<>(threadItems));
+                        threadAdapter.submit(new ArrayList<>(threadItems));
                         rvThread.post(() -> {
                             if (threadAdapter.getItemCount() > 0) {
                                 rvThread.scrollToPosition(threadAdapter.getItemCount() - 1);
                             }
                         });
 
-                        // 서버 목록으로 재동기화(로컬과 병합하여 덮어쓰기 방지)
+                        // 서버 목록으로 재동기화
                         loadThread();
                     } else {
                         toastHttpFail("질문 등록 실패", res);
@@ -392,16 +425,29 @@ public class QuestionDetailActivity extends AppCompatActivity {
                     return;
                 }
                 Question q = response.body();
-                if (tvTitle != null) tvTitle.setText(safe(q.getTitle()));
 
-                // 표시 이름: authorName(있으면) → author(ID)
-                String qDisplay = (q.getAuthorName()!=null && !q.getAuthorName().isEmpty())
-                        ? q.getAuthorName()
-                        : safe(q.getAuthor());
+                // 제목: "선생1의 답변" / "선생1, 선생2의 답변" / 미답변
+                String teachersTitle;
+                if (q.getTeacherNames() != null && !q.getTeacherNames().isEmpty()) {
+                    List<String> names = q.getTeacherNames();
+                    String subject = (names.size() == 1)
+                            ? names.get(0)
+                            : TextUtils.join(", ", names);
+                    teachersTitle = subject + "의 답변";
+                } else {
+                    teachersTitle = "미답변";
+                }
 
-                if (tvAuthor != null) tvAuthor.setText(qDisplay);
-                if (tvDate != null) tvDate.setText(formatMd(q.getCreatedAt()));
-                if (tvContent != null) tvContent.setText(safe(q.getContent()));
+                // 부제: 학원명(없으면 학원번호)
+                String academyLabel = (!TextUtils.isEmpty(q.getAcademyName()))
+                        ? q.getAcademyName()
+                        : ("학원번호: " + q.getAcademyNumber());
+
+                if (tvTitle  != null) tvTitle.setText(teachersTitle);
+                if (tvAuthor != null) tvAuthor.setText(academyLabel);
+
+                if (tvDate    != null) tvDate.setVisibility(View.GONE);
+                if (tvContent != null) tvContent.setVisibility(View.GONE);
             }
 
             @Override
@@ -430,13 +476,12 @@ public class QuestionDetailActivity extends AppCompatActivity {
                         List<Answer> aList = aRes.isSuccessful() && aRes.body() != null
                                 ? aRes.body() : Collections.emptyList();
 
-                        // 서버 결과를 로컬(threadItems)과 병합하여 덮어쓰기 방지
                         List<ThreadAdapter.Item> merged = mergeAsThread(fuList, aList);
                         List<ThreadAdapter.Item> finalList = mergeServerWithLocal(merged);
 
                         threadItems.clear();
                         threadItems.addAll(finalList);
-                        threadAdapter.submit(new java.util.ArrayList<>(threadItems));
+                        threadAdapter.submit(new ArrayList<>(threadItems));
 
                         rvThread.post(() -> {
                             if (threadAdapter.getItemCount() > 0) {
@@ -454,7 +499,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
                         threadItems.clear();
                         threadItems.addAll(finalList);
-                        threadAdapter.submit(new java.util.ArrayList<>(threadItems));
+                        threadAdapter.submit(new ArrayList<>(threadItems));
 
                         if (onComplete != null) onComplete.run();
                     }
@@ -474,7 +519,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
                         threadItems.clear();
                         threadItems.addAll(finalList);
-                        threadAdapter.submit(new java.util.ArrayList<>(threadItems));
+                        threadAdapter.submit(new ArrayList<>(threadItems));
 
                         rvThread.post(() -> {
                             if (threadAdapter.getItemCount() > 0) {
@@ -488,50 +533,12 @@ public class QuestionDetailActivity extends AppCompatActivity {
                     @Override
                     public void onFailure(Call<List<Answer>> call, Throwable t) {
                         // 양쪽 실패 시 기존 화면 유지(로컬 보존)
-                        threadAdapter.submit(new java.util.ArrayList<>(threadItems));
+                        threadAdapter.submit(new ArrayList<>(threadItems));
                         if (onComplete != null) onComplete.run();
                     }
                 });
             }
         });
-    }
-
-    // ───────────────── 병합/정렬 ─────────────────
-    private List<ThreadAdapter.Item> mergeAsThread(List<FollowUp> flist, List<Answer> alist) {
-        List<ThreadAdapter.Item> items = new java.util.ArrayList<>();
-
-        if (flist != null) {
-            for (FollowUp f : flist) {
-
-                // FollowUp은 authorName 필드가 없을 수 있으므로 author 사용
-                String fuDisplay = safe(f.getAuthor());
-
-                items.add(new ThreadAdapter.Item(
-                        ThreadAdapter.Item.Type.USER_FOLLOWUP,
-                        fuDisplay,
-                        f.getContent(),
-                        f.getCreatedAt()
-                ));
-            }
-        }
-        if (alist != null) {
-            for (Answer a : alist) {
-                // 표시 이름: authorName(있으면) → author(ID)
-                String aDisplay = (a.getAuthorName()!=null && !a.getAuthorName().isEmpty())
-                        ? a.getAuthorName()
-                        : safe(a.getAuthor());
-
-                items.add(new ThreadAdapter.Item(
-                        ThreadAdapter.Item.Type.TEACHER_ANSWER,
-                        aDisplay,
-                        a.getContent(),
-                        a.getCreatedAt()
-                ));
-            }
-        }
-
-        Collections.sort(items, Comparator.comparing(i -> safeParse(i.createdAt)));
-        return items;
     }
 
     // ───────────────── 삭제 ─────────────────
@@ -561,6 +568,4 @@ public class QuestionDetailActivity extends AppCompatActivity {
         if (questionId != null && !questionId.equals(this.questionId)) this.questionId = questionId;
         loadThread(onComplete);
     }
-
-
 }

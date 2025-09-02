@@ -2,7 +2,9 @@ package com.team103.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;      // ✅ 추가
 import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.util.Date;
 
 @Document(collection = "followups")
@@ -18,6 +20,15 @@ public class FollowUp {
     private String authorRole;  // "student" or "parent"
     private Date createdAt;
     private boolean deleted;
+
+    // ✅ 응답 전용 필드 (DB 저장 안 함)
+    @JsonProperty("학생이름")
+    private String studentName;
+
+    @JsonProperty("학부모이름")
+    private String parentName;
+
+    public FollowUp() {}
 
     // getters / setters
     public String getId() { return id; }
@@ -40,4 +51,10 @@ public class FollowUp {
 
     public boolean isDeleted() { return deleted; }
     public void setDeleted(boolean deleted) { this.deleted = deleted; }
+
+    public String getStudentName() { return studentName; }
+    public void setStudentName(String studentName) { this.studentName = studentName; }
+
+    public String getParentName() { return parentName; }
+    public void setParentName(String parentName) { this.parentName = parentName; }
 }

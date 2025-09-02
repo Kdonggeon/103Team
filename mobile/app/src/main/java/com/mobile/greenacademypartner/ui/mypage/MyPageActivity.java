@@ -1,6 +1,5 @@
 package com.mobile.greenacademypartner.ui.mypage;
 
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,13 +18,11 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.StudentApi;
-import com.mobile.greenacademypartner.api.TeacherApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.model.parent.ParentUpdateRequest;
 import com.mobile.greenacademypartner.model.student.StudentUpdateRequest;
-import com.mobile.greenacademypartner.model.teacher.TeacherUpdateRequest;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.Map;
@@ -70,11 +67,17 @@ public class MyPageActivity extends AppCompatActivity {
 
         // 주요 구성요소 초기화
         initViews();
-        loadUserInfo();
-        setupUIByRole();
-        setupSaveButton();
-        ThemeColorUtil.applyThemeColor(this, toolbar);
 
+        // 사용자 정보 로드 및 제목 반영
+        loadUserInfoAndSetTitles();
+
+        // 역할별 UI 표시/숨김
+        setupUIByRole();
+
+        // 저장 버튼 클릭
+        setupSaveButton();
+
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 
     private void initViews() {
@@ -90,30 +93,52 @@ public class MyPageActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btn_save);
     }
 
-    private void loadUserInfo() {
+    /**
+     * SharedPreferences에서 사용자 정보를 읽고,
+     * 툴바/헤더에 "OOO의 마이페이지"로 제목을 반영합니다.
+     */
+    private void loadUserInfoAndSetTitles() {
         SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
 
         role = pref.getString("role", "unknown").trim().toLowerCase();
 
-        editName.setText(pref.getString("name", ""));
-        editId.setText(pref.getString("username", ""));
-        editPhone.setText(pref.getString("phone", ""));
+        String name = pref.getString("name", "");
+        String username = pref.getString("username", "");
+        String phone = pref.getString("phone", "");
+
+        editName.setText(name);
+        editId.setText(username);
+        editPhone.setText(phone);
 
         if ("student".equals(role)) {
             editAddress.setText(pref.getString("address", ""));
             editSchool.setText(pref.getString("school", ""));
-            editGrade.setText(String.valueOf(pref.getInt("grade", 0)));
+            int grade = pref.getInt("grade", 0);
+            editGrade.setText(grade == 0 ? "" : String.valueOf(grade));
             editGender.setText(pref.getString("gender", ""));
         }
 
+        // 제목 구성
+        String titleName = (name != null && !name.trim().isEmpty()) ? name.trim() : "사용자";
+        String fullTitle = titleName + "의 마이페이지";
 
-        // SharedPreferences 전체 로그
+        // 툴바/헤더 적용
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle(fullTitle);
+        }
+        textRoleTitle.setText(fullTitle);
+
+        // 전체 프리퍼런스 로그(디버그)
         Map<String, ?> allEntries = pref.getAll();
         for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
             Log.d("MyPage", entry.getKey() + ": " + entry.getValue());
         }
     }
 
+    /**
+     * 역할별로 보일 입력 필드만 표시/숨김합니다.
+     * 제목 텍스트는 이 메서드에서 변경하지 않습니다.
+     */
     private void setupUIByRole() {
         // 모두 숨김으로 초기화
         editAddress.setVisibility(View.GONE);
@@ -123,19 +148,16 @@ public class MyPageActivity extends AppCompatActivity {
         editAcademyNumber.setVisibility(View.GONE);
 
         if ("student".equals(role)) {
-            textRoleTitle.setText("학생 마이페이지");
             editAddress.setVisibility(View.VISIBLE);
             editSchool.setVisibility(View.VISIBLE);
             editGrade.setVisibility(View.VISIBLE);
             editGender.setVisibility(View.VISIBLE);
         } else if ("teacher".equals(role)) {
-            textRoleTitle.setText("교사 마이페이지");
             editAcademyNumber.setVisibility(View.VISIBLE);
         } else if ("parent".equals(role)) {
-            textRoleTitle.setText("학부모 마이페이지");
-            // 학생/교사 전용 필드는 숨김 유지
+            // 추가 표시 없음
         } else {
-            textRoleTitle.setText("역할을 불러올 수 없습니다");
+            // unknown
         }
     }
 
@@ -155,7 +177,8 @@ public class MyPageActivity extends AppCompatActivity {
             if ("student".equals(role)) {
                 String address = editAddress.getText().toString();
                 String school = editSchool.getText().toString();
-                int grade = Integer.parseInt(editGrade.getText().toString());
+                int grade = 0;
+                try { grade = Integer.parseInt(editGrade.getText().toString().trim()); } catch (Exception ignored) {}
                 String gender = editGender.getText().toString();
 
                 StudentUpdateRequest student = new StudentUpdateRequest(id, name, phone, address, school, grade, gender);
@@ -171,10 +194,13 @@ public class MyPageActivity extends AppCompatActivity {
                 ParentUpdateRequest parent = new ParentUpdateRequest(id, name, phone);
                 ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
                 api.updateParent(id, parent).enqueue(getCallback("학부모"));
-
             }
+            // 교사 저장 로직 필요 시 여기에 추가
 
-            editor.apply(); // 저장
+            editor.apply();
+
+            // 저장 후 제목 갱신(이름 바뀐 경우 반영)
+            loadUserInfoAndSetTitles();
         });
     }
 
@@ -184,7 +210,6 @@ public class MyPageActivity extends AppCompatActivity {
             public void onResponse(Call<Void> call, Response<Void> response) {
                 showToast(response.isSuccessful(), roleName);
             }
-
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
                 showToast(false, roleName);

@@ -82,9 +82,9 @@ public class ThreadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             tvMeta    = itemView.findViewById(R.id.tv_message_meta);
         }
         void bind(Item it) {
-            String authorText = (it.author == null) ? "" : it.author;
             tvContent.setText(it.content == null ? "" : it.content);
-            tvMeta.setText(authorText + " • " + formatMd(it.createdAt));
+            String who = (it.author == null ? "" : it.author);
+            tvMeta.setText(who + " • " + formatMd(it.createdAt));
         }
     }
 
@@ -98,9 +98,9 @@ public class ThreadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             tvMeta    = itemView.findViewById(R.id.tv_message_meta);
         }
         void bind(Item it) {
-            String authorText = (it.author == null) ? "" : it.author;
             tvContent.setText(it.content == null ? "" : it.content);
-            tvMeta.setText(authorText + " • " + formatMd(it.createdAt));
+            String who = (it.author == null ? "" : it.author);
+            tvMeta.setText(who + " • " + formatMd(it.createdAt));
         }
     }
 

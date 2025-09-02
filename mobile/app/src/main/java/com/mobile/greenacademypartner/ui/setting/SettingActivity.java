@@ -168,7 +168,7 @@ public class SettingActivity extends AppCompatActivity {
         int[] colorValues = {
                 getColor(R.color.green),
                 Color.rgb(168, 230, 207),
-                Color.rgb(199, 206, 234),
+                Color.rgb(246, 234, 194),
                 Color.rgb(231, 201, 215),
                 Color.rgb(255, 209, 193),
                 Color.rgb(195, 205, 230),

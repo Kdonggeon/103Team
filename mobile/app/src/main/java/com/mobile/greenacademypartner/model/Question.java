@@ -8,67 +8,34 @@ public class Question {
     private String author;
     private String createdAt;
     private int academyNumber;
+    private java.util.List<String> teacherNames; // 교사들 이름 리스트
 
-    // ✅ 이름 표시용(선택): 서버가 내려주면 사용, 없으면 null
-    private String authorName;
+    // ✅ 추가: 학원명(서버가 내려주면 사용, 없으면 null)
+    private String academyName;
 
-    public Question() {
-    }
+    public Question() { }
 
-    public String getId() {
-        return id;
-    }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
-    public String getTitle() {
-        return title;
-    }
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
 
-    public void setTitle(String title) {
-        this.title = title;
-    }
+    public String getAuthor() { return author; }
+    public void setAuthor(String author) { this.author = author; }
 
-    public String getContent() {
-        return content;
-    }
+    public String getCreatedAt() { return createdAt; }
+    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 
-    public void setContent(String content) {
-        this.content = content;
-    }
+    public int getAcademyNumber() { return academyNumber; }
+    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
 
-    public String getAuthor() {
-        return author;
-    }
 
-    public void setAuthor(String author) {
-        this.author = author;
-    }
-
-    public String getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(String createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public int getAcademyNumber() {
-        return academyNumber;
-    }
-
-    public void setAcademyNumber(int academyNumber) {
-        this.academyNumber = academyNumber;
-    }
-
-    // ====== 추가: authorName ======
-    public String getAuthorName() {
-        return authorName;
-    }
-
-    public void setAuthorName(String authorName) {
-        this.authorName = authorName;
-    }
+    public java.util.List<String> getTeacherNames() { return teacherNames; }
+    public void setTeacherNames(java.util.List<String> teacherNames) { this.teacherNames = teacherNames; }
+    public String getAcademyName() { return academyName; }
+    public void setAcademyName(String academyName) { this.academyName = academyName; }
 }

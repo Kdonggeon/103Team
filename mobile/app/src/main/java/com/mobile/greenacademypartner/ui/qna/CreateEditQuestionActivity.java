@@ -32,6 +32,9 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
     private String questionId;
     private boolean isEdit;
 
+    // 편집 시 기존 값 보존용
+    private Question originalQuestion;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -41,6 +44,9 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
         etContent = findViewById(R.id.et_question_content);
         spinnerAcademy = findViewById(R.id.spinner_academy);
         btnSave   = findViewById(R.id.btn_save_question);
+
+        // ✅ 내용 입력은 사용 안 함: 숨김 처리
+        if (etContent != null) etContent.setVisibility(View.GONE);
 
         // 질문 수정 여부
         questionId = getIntent().getStringExtra("questionId");
@@ -58,11 +64,13 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         // 문자열 리스트로 변환
         List<String> academyLabels = new ArrayList<>();
         for (Integer num : academyNums) {
             academyLabels.add(String.valueOf(num));
         }
+
         // 어댑터 설정
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 this,
@@ -71,50 +79,70 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
         );
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerAcademy.setAdapter(adapter);
+
         // 선택 이벤트
         spinnerAcademy.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedAcademyNumber = academyNums.get(position);
             }
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                // 기본값 유지
-            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { /* no-op */ }
         });
 
-        // 수정 모드면 기존 데이터 로드
+        // 수정 모드면 기존 데이터 로드 + 학원 변경 불가
         if (isEdit) {
             loadQuestion(questionId);
-            spinnerAcademy.setEnabled(false); // 수정 시 학원 변경 불가
+            spinnerAcademy.setEnabled(false);
+        } else {
+            // 신규: 기본 선택 보정
+            if (selectedAcademyNumber == -1 && !academyNums.isEmpty()) {
+                selectedAcademyNumber = academyNums.get(0);
+            }
         }
 
         btnSave.setOnClickListener(v -> {
-            Question q = new Question();
-            q.setTitle(etTitle.getText().toString());
-            q.setContent(etContent.getText().toString());
-            String authorId = prefs.getString("username", "");
-            q.setAuthor(authorId);
-
-            // 신규 작성 시 선택된 학원 번호 설정
-            if (!isEdit) {
-                q.setAcademyNumber(selectedAcademyNumber);
+            String title = etTitle.getText().toString().trim();
+            if (title.isEmpty()) {
+                etTitle.setError("제목을 입력하세요.");
+                etTitle.requestFocus();
+                return;
             }
 
             QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
-            Call<Question> call = isEdit
-                    ? api.updateQuestion(questionId, q)
-                    : api.createQuestion(q);
-            call.enqueue(new Callback<Question>() {
-                @Override
-                public void onResponse(Call<Question> call, Response<Question> response) {
-                    if (response.isSuccessful()) finish();
-                }
-                @Override
-                public void onFailure(Call<Question> call, Throwable t) {
-                    // TODO: 에러 처리
-                }
-            });
+
+            if (isEdit) {
+                // ✅ 편집은 기존 필드 보존 + 제목만 변경
+                if (originalQuestion == null) return; // 안전장치
+
+                Question q = new Question();
+                q.setId(originalQuestion.getId());
+                q.setTitle(title);
+                // content는 사용하지 않지만, 기존 값 보존
+                q.setContent(originalQuestion.getContent());
+                q.setAuthor(originalQuestion.getAuthor());
+                q.setCreatedAt(originalQuestion.getCreatedAt());
+                q.setAcademyNumber(originalQuestion.getAcademyNumber());
+
+                api.updateQuestion(questionId, q).enqueue(new Callback<Question>() {
+                    @Override public void onResponse(Call<Question> call, Response<Question> response) {
+                        if (response.isSuccessful()) finish();
+                    }
+                    @Override public void onFailure(Call<Question> call, Throwable t) { /* 에러 처리 필요시 추가 */ }
+                });
+
+            } else {
+                // ✅ 신규 생성: 제목만 필수, content는 빈문자열로
+                Question q = new Question();
+                q.setTitle(title);
+                q.setContent(""); // 서버에서 내용 미사용
+                q.setAcademyNumber(selectedAcademyNumber);
+
+                api.createQuestion(q).enqueue(new Callback<Question>() {
+                    @Override public void onResponse(Call<Question> call, Response<Question> response) {
+                        if (response.isSuccessful()) finish();
+                    }
+                    @Override public void onFailure(Call<Question> call, Throwable t) { /* 에러 처리 필요시 추가 */ }
+                });
+            }
         });
     }
 
@@ -124,14 +152,12 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Question> call, Response<Question> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    Question q = response.body();
-                    etTitle.setText(q.getTitle());
-                    etContent.setText(q.getContent());
+                    originalQuestion = response.body();
+                    etTitle.setText(originalQuestion.getTitle());
+                    // etContent는 숨김 상태이므로 세팅 필요 없음
                 }
             }
-            @Override public void onFailure(Call<Question> call, Throwable t) {
-                // TODO: 에러 처리
-            }
+            @Override public void onFailure(Call<Question> call, Throwable t) { /* 에러 처리 필요시 추가 */ }
         });
     }
 }
