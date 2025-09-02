@@ -18,6 +18,7 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.TeacherApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
+import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
 import com.mobile.greenacademypartner.model.classes.Course;
 import com.mobile.greenacademypartner.model.teacher.TeacherClass;
 import com.mobile.greenacademypartner.ui.adapter.TeacherClassAdapter;
@@ -65,6 +66,7 @@ public class TeacherTimetableActivity extends AppCompatActivity
                 this, drawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
+        ToolbarIconUtil.applyWhiteIcons(toolbar, toggle);
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 2);
 
         // RecyclerView 및 FAB 설정

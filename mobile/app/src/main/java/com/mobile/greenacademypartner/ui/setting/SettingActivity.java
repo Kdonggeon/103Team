@@ -18,6 +18,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
 
 public class SettingActivity extends AppCompatActivity {
@@ -56,6 +57,7 @@ public class SettingActivity extends AppCompatActivity {
         );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
+        ToolbarIconUtil.applyWhiteIcons(toolbar, toggle);
 
         // 4. 메뉴 생성
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText, defaultIndex);

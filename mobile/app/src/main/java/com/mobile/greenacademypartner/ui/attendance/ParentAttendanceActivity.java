@@ -18,6 +18,7 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
 import com.mobile.greenacademypartner.model.attendance.Attendance;
 import com.mobile.greenacademypartner.ui.adapter.ParentAttendanceAdapter;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
@@ -64,6 +65,7 @@ public class ParentAttendanceActivity extends AppCompatActivity {
         );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
+        ToolbarIconUtil.applyWhiteIcons(toolbar, toggle);
 
         NavigationMenuHelper.setupMenu(
                 this,

@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
 
     <application
@@ -56,6 +57,10 @@
         <activity android:name=".ui.timetable.TeacherTimetableActivity"/>
         <activity android:name=".ui.classes.CreateClassActivity"/>
         <activity android:name=".ui.timetable.AddChildActivity" />
+        <activity android:name=".ui.signup.DirectorSignupActivity" />
+        <activity
+            android:name=".ui.director.DirectorMyPageActivity"
+            android:exported="false" />
 
         <!-- sub 브랜치에서 새로 추가된 액티비티들 -->
         <activity android:name=".ui.notice.CreateNoticeActivity" />

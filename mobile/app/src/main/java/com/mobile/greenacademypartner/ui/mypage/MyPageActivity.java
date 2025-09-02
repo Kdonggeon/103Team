@@ -23,6 +23,7 @@ import com.mobile.greenacademypartner.api.TeacherApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
 import com.mobile.greenacademypartner.model.parent.ParentUpdateRequest;
 import com.mobile.greenacademypartner.model.student.StudentUpdateRequest;
 import com.mobile.greenacademypartner.model.teacher.TeacherUpdateRequest;
@@ -65,6 +66,7 @@ public class MyPageActivity extends AppCompatActivity {
         );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
+        ToolbarIconUtil.applyWhiteIcons(toolbar, toggle);
 
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, defaultIndex);
 

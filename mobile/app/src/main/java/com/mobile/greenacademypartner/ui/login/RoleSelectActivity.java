@@ -10,10 +10,11 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.ui.signup.ParentSignupActivity;
 import com.mobile.greenacademypartner.ui.signup.StudentSignupActivity;
 import com.mobile.greenacademypartner.ui.signup.TeacherSignupActivity;
+import com.mobile.greenacademypartner.ui.signup.DirectorSignupActivity; // ✅ 추가
 
 public class RoleSelectActivity extends AppCompatActivity {
 
-    private Button btnStudent, btnParent, btnTeacher;
+    private Button btnStudent, btnParent, btnTeacher, btnDirector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,6 +24,7 @@ public class RoleSelectActivity extends AppCompatActivity {
         btnStudent = findViewById(R.id.btn_student);
         btnParent = findViewById(R.id.btn_parent);
         btnTeacher = findViewById(R.id.btn_teacher);
+        btnDirector = findViewById(R.id.btn_director);
 
         btnStudent.setOnClickListener(v -> {
             startActivity(new Intent(this, StudentSignupActivity.class));
@@ -34,6 +36,10 @@ public class RoleSelectActivity extends AppCompatActivity {
 
         btnTeacher.setOnClickListener(v -> {
             startActivity(new Intent(this, TeacherSignupActivity.class));
+        });
+
+        btnDirector.setOnClickListener(v -> {
+            startActivity(new Intent(this, DirectorSignupActivity.class));
         });
     }
 }

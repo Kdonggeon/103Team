@@ -16,6 +16,7 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.TeacherApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
 import com.mobile.greenacademypartner.model.teacher.TeacherAttendance;
 import com.mobile.greenacademypartner.ui.adapter.TeacherAttendanceAdapter;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
@@ -56,6 +57,7 @@ public class ClassAttendanceActivity extends AppCompatActivity {
         );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState(); // ← 햄버거 버튼 표시하는 핵심
+        ToolbarIconUtil.applyWhiteIcons(toolbar, toggle);
 
         setTitle("출석 상세");
 

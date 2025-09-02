@@ -19,6 +19,7 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
+import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
 import com.mobile.greenacademypartner.model.attendance.Attendance;
 import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
@@ -54,6 +55,7 @@ public class StudentTimetableActivity extends AppCompatActivity {
                 R.string.navigation_drawer_close);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
+        ToolbarIconUtil.applyWhiteIcons(toolbar, toggle);
 
         NavigationMenuHelper.setupMenu(
                 this, navContainer, drawerLayout,
