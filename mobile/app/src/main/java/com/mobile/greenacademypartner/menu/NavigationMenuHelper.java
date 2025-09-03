@@ -14,7 +14,6 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.core.view.GravityCompat;
 
 import com.mobile.greenacademypartner.R;
-import com.mobile.greenacademypartner.ui.director.DirectorMyPageActivity;
 import com.mobile.greenacademypartner.ui.main.MainActivity;
 import com.mobile.greenacademypartner.ui.attendance.AttendanceActivity;
 import com.mobile.greenacademypartner.ui.mypage.MyPageActivity;
@@ -23,7 +22,7 @@ import com.mobile.greenacademypartner.ui.qna.QuestionsActivity;
 import com.mobile.greenacademypartner.ui.setting.SettingActivity;
 
 // ✅ 필요한 경우: 원장 전용 화면들 (임시로 클래명 예시)
-//import com.mobile.greenacademypartner.ui.director.DirectorMyPageActivity;
+import com.mobile.greenacademypartner.ui.director.DirectorMyPageActivity;
 //import com.mobile.greenacademypartner.ui.director.ManageTeachersActivity;
 //import com.mobile.greenacademypartner.ui.director.ManageStudentsActivity;
 //import com.mobile.greenacademypartner.ui.director.ManageParentsActivity;
@@ -103,6 +102,18 @@ public class NavigationMenuHelper {
     // ✅ 역할별 메뉴 사양 팩토리
     public static MenuSpec[] getMenuForRole(Role role) {
         switch (role) {
+//            case DIRECTOR:
+//                // ✨ 요구하신 원장 메뉴: 마이페이지, 교사관리, 학생관리, 학부모관리, Q&A, 공지사항, 설정
+//                return new MenuSpec[] {
+//                        new MenuSpec("마이페이지",  R.drawable.ic_person_light,   R.drawable.ic_person_dark,   DirectorMyPageActivity.class),
+//                        new MenuSpec("교사 관리",  R.drawable.ic_teacher_light,  R.drawable.ic_teacher_dark,  ManageTeachersActivity.class, true /*원장 관리 화면은 항상 새로 열고 싶으면 true*/),
+//                        new MenuSpec("학생 관리",  R.drawable.ic_student_light,  R.drawable.ic_student_dark,  ManageStudentsActivity.class, true),
+//                        new MenuSpec("학부모 관리",R.drawable.ic_parent_light,   R.drawable.ic_parent_dark,   ManageParentsActivity.class, true),
+//                        new MenuSpec("Q&A",       R.drawable.ic_qa_light,       R.drawable.ic_qa_dark,       QuestionsActivity.class),
+//                        new MenuSpec("공지사항",   R.drawable.ic_notice_light,   R.drawable.ic_notice_dark,   NoticeActivity.class),
+//                        new MenuSpec("설정",       R.drawable.ic_settings_light, R.drawable.ic_settings_dark, SettingActivity.class)
+//                };
+
             case TEACHER:
                 // 필요 시 교사용 메뉴 정의
                 return new MenuSpec[] {
