@@ -5,8 +5,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="true"
@@ -51,11 +50,11 @@
         <activity android:name=".ui.classes.TeacherClassesActivity" />
         <activity android:name=".ui.attendance.ClassAttendanceActivity" />
         <activity android:name=".ui.timetable.QRScannerActivity" />
-        <activity android:name=".ui.timetable.StudentTimetableActivity"/>
-        <activity android:name=".ui.attendance.ChildAttendanceActivity"/>
-        <activity android:name=".ui.timetable.ParentChildrenListActivity"/>
-        <activity android:name=".ui.timetable.TeacherTimetableActivity"/>
-        <activity android:name=".ui.classes.CreateClassActivity"/>
+        <activity android:name=".ui.timetable.StudentTimetableActivity" />
+        <activity android:name=".ui.attendance.ChildAttendanceActivity" />
+        <activity android:name=".ui.timetable.ParentChildrenListActivity" />
+        <activity android:name=".ui.timetable.TeacherTimetableActivity" />
+        <activity android:name=".ui.classes.CreateClassActivity" />
         <activity android:name=".ui.timetable.AddChildActivity" />
         <activity android:name=".ui.signup.DirectorSignupActivity" />
         <activity
@@ -71,11 +70,13 @@
         <activity android:name=".ui.qna.AnswerActivity" />
         <activity android:name=".ui.qna.EditAnswerActivity" />
 
+        <!-- FirebaseMessagingService: Android 12+에서 intent-filter 있으면 exported 필수
+             보안상 false 권장 -->
         <service
             android:name=".MyFirebaseMessagingService"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
 

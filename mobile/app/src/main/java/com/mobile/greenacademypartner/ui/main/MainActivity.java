@@ -1,13 +1,19 @@
 package com.mobile.greenacademypartner.ui.main;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,6 +26,11 @@ import com.mobile.greenacademypartner.ui.login.LoginActivity;
 import com.mobile.greenacademypartner.ui.timetable.ParentChildrenListActivity;
 import com.mobile.greenacademypartner.ui.timetable.StudentTimetableActivity;
 import com.mobile.greenacademypartner.ui.timetable.TeacherTimetableActivity;
+
+// ← 추가
+import com.mobile.greenacademypartner.api.AuthApi;
+
+import java.util.concurrent.TimeUnit;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -43,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
-        // 0) 알림 권한(안드13+)
+        // 알림 권한(안드13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
@@ -51,11 +62,10 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 1) 자동 로그인 최소 요건 점검 (4요소)
+        // 자동 로그인 최소 요건 점검
         boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
         String username = safe(prefs.getString("username", ""));
         String role = safe(prefs.getString("role", "")).toLowerCase();
-        // LoginActivity는 "token"에 저장, (호환 위해 accessToken도 체크)
         String token = safe(prefs.getString("token", ""));
         if (token.isEmpty()) token = safe(prefs.getString("accessToken", ""));
 
@@ -65,11 +75,81 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // 2) (선택) 토큰 검증 훅 — 실제 검증 API가 있으면 여기 붙이세요.
-        // 지금은 바로 라우팅 후 FCM 전송.
-        routeByRole(role);
-        fetchAndSendFcmToken(username, role);
+        // ★ 오프라인/백엔드 불가 시 강제로그아웃 플로우
+        verifyBackendAndRoute(username, role, token);
     }
+
+    // ───────── 오프라인/백엔드 확인 후 라우팅 ─────────
+    // ★ 토큰 검증 API 없이: 오프라인/서버 미기동이면 강제 로그아웃
+    private void verifyBackendAndRoute(String username, String role, String token) {
+        // 1) 오프라인 → 즉시 로그아웃
+        if (!isOnline()) {
+            Log.w(TAG, "Device offline → forceLogout()");
+            toast("인터넷 연결이 필요합니다. 다시 로그인해 주세요.");
+            forceLogout();
+            return;
+        }
+
+        // 2) 백엔드 도달 가능 여부만 확인 (HEAD / or 404도 '접속 성공'으로 간주)
+        pingBackend(new Runnable() {
+            @Override public void run() {
+                // 접속 성공 → 라우팅 + FCM 등록
+                routeByRole(role);
+                fetchAndSendFcmToken(username, role);
+            }
+        }, new Runnable() {
+            @Override public void run() {
+                // 접속 실패(서버 꺼짐/미기동/네트워크 오류) → 강제 로그아웃
+                Log.w(TAG, "Backend unreachable → forceLogout()");
+                toast("서버에 연결할 수 없습니다. 다시 로그인해 주세요.");
+                forceLogout();
+            }
+        });
+    }
+
+    /**
+     * 백엔드 “접속 가능”만 비동기로 체크한다.
+     * - Retrofit의 baseUrl()로 HEAD 요청을 보낸다.
+     * - HTTP 코드가 200~599이면 ‘접속 성공’(서버가 살아있음)으로 본다.
+     * - 네트워크 예외(IOException 등) 시 ‘접속 실패’.
+     */
+    private void pingBackend(Runnable onReachable, Runnable onUnreachable) {
+        try {
+            // Retrofit 인스턴스에서 baseUrl을 얻는다.
+            retrofit2.Retrofit retrofit = com.mobile.greenacademypartner.api.RetrofitClient.getClient();
+            okhttp3.HttpUrl url = retrofit.baseUrl();
+
+            // HEAD / (루트로 HEAD). 서버가 라우팅 없으면 404여도 ‘접속은 됨’으로 간주.
+            okhttp3.Request req = new okhttp3.Request.Builder()
+                    .url(url)
+                    .head()
+                    .build();
+
+            // 타임아웃 짧게
+            okhttp3.OkHttpClient client = new okhttp3.OkHttpClient.Builder()
+                    .callTimeout(3, TimeUnit.SECONDS)
+                    .connectTimeout(2, TimeUnit.SECONDS)
+                    .readTimeout(2, TimeUnit.SECONDS)
+                    .writeTimeout(2, TimeUnit.SECONDS)
+                    .build();
+
+            client.newCall(req).enqueue(new okhttp3.Callback() {
+                @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                    runOnUiThread(onUnreachable);
+                }
+
+                @Override public void onResponse(okhttp3.Call call, okhttp3.Response response) {
+                    response.close();
+                    // 어떤 HTTP 코드든 응답 받았으면 서버는 ‘켜져 있음’으로 판단
+                    runOnUiThread(onReachable);
+                }
+            });
+        } catch (Exception e) {
+            Log.w(TAG, "pingBackend exception: " + e.getMessage());
+            runOnUiThread(onUnreachable);
+        }
+    }
+
 
     // ───────── 역할 라우팅 ─────────
     private void routeByRole(String role) {
@@ -99,7 +179,19 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
 
-    // ───────── FCM 토큰 획득 & 서버 전송 (로그인 확인 후에만) ─────────
+    private void forceLogout() {
+        // 로그인 관련 키만 정리 (필요시 prefs.edit().clear()로 전체삭제)
+        prefs.edit()
+                .putBoolean("is_logged_in", false)
+                .remove("token")
+                .remove("accessToken")
+                .remove("username")
+                .remove("role")
+                .apply();
+        goLogin();
+    }
+
+    // ───────── FCM 토큰 획득 & 서버 전송 (검증 통과 후) ─────────
     private void fetchAndSendFcmToken(String username, String role) {
         if (username.isEmpty() || role.isEmpty()) return;
 
@@ -128,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
                     maybeRetryFcm(userId, role, fcmToken);
                 }
             });
-        } else { // teacher / director / parent (교사 API로 처리하는 기존 흐름 유지)
+        } else { // teacher / director / parent (기존 흐름 유지)
             TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
             api.updateFcmToken(userId, fcmToken).enqueue(new Callback<Void>() {
                 @Override public void onResponse(Call<Void> call, Response<Void> res) {
@@ -153,21 +245,32 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ───────── Util ─────────
+    // ───────── 네트워크 유틸 ─────────
+    private boolean isOnline() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Network network = cm.getActiveNetwork();
+            if (network == null) return false;
+            NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+            return caps != null && (
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+            );
+        } else {
+            @SuppressWarnings("deprecation")
+            NetworkInfo ni = cm.getActiveNetworkInfo();
+            return ni != null && ni.isConnected();
+        }
+    }
+
+    // ───────── 기타 ─────────
     private static String safe(String s) { return s == null ? "" : s.trim(); }
 
-    // 디버깅 시 사용
-    @SuppressWarnings("unused")
-    private void debugDumpPrefs() {
-        SharedPreferences p = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        Log.d(TAG,
-                "is_logged_in=" + p.getBoolean("is_logged_in", false) + "\n" +
-                        "auto_login=" + p.getBoolean("auto_login", false) + "\n" +
-                        "username=" + p.getString("username", "") + "\n" +
-                        "role=" + p.getString("role", "") + "\n" +
-                        "token.len=" + safe(p.getString("token", "")).length() + "\n" +
-                        "accessToken.len=" + safe(p.getString("accessToken", "")).length()
-        );
+    private void toast(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 
     @Override
