@@ -5,12 +5,15 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.os.Build;
 
+import com.mobile.greenacademypartner.api.RetrofitClient;
+
 public class MyApplication extends Application {
 
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        RetrofitClient.init(this);
     }
 
     private void createNotificationChannel() {
