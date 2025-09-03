@@ -25,13 +25,15 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+// SessionUtil: safe, PREFS_NAME, isNetworkAvailable, clearLoginAndGoLogin
+import static com.mobile.greenacademypartner.util.SessionUtil.*;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
-    private static final String PREFS_NAME = "login_prefs";
     private static final int REQ_POST_NOTI = 1001;
 
-    // 재시도(FCM/검증 공용)
+    // 재시도(FCM 전송 전용)
     private static final int MAX_RETRY = 1;
     private static final long RETRY_DELAY_MS = 1500L;
     private int retryCount = 0;
@@ -55,18 +57,21 @@ public class MainActivity extends AppCompatActivity {
         boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
         String username = safe(prefs.getString("username", ""));
         String role = safe(prefs.getString("role", "")).toLowerCase();
-        // LoginActivity는 "token"에 저장, (호환 위해 accessToken도 체크)
         String token = safe(prefs.getString("token", ""));
         if (token.isEmpty()) token = safe(prefs.getString("accessToken", ""));
 
         if (!isLoggedIn || username.isEmpty() || role.isEmpty() || token.isEmpty()) {
-            Log.d(TAG, "Auto login failed (missing fields) → goLogin()");
-            goLogin();
+            clearLoginAndGoLogin(this, "Missing fields");
             return;
         }
 
-        // 2) (선택) 토큰 검증 훅 — 실제 검증 API가 있으면 여기 붙이세요.
-        // 지금은 바로 라우팅 후 FCM 전송.
+        // 2) 네트워크 체크 (권한: ACCESS_NETWORK_STATE 필요)
+        if (!isNetworkAvailable(this)) {
+            clearLoginAndGoLogin(this, "No network");
+            return;
+        }
+
+        // 3) 헬스체크 없이 바로 라우팅 & FCM 등록
         routeByRole(role);
         fetchAndSendFcmToken(username, role);
     }
@@ -86,8 +91,7 @@ public class MainActivity extends AppCompatActivity {
                 intent = new Intent(this, ParentChildrenListActivity.class);
                 break;
             default:
-                Log.w(TAG, "Unknown role: " + role + " → goLogin()");
-                goLogin();
+                clearLoginAndGoLogin(this, "Unknown role");
                 return;
         }
         startActivity(intent);
@@ -99,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
 
-    // ───────── FCM 토큰 획득 & 서버 전송 (로그인 확인 후에만) ─────────
+    // ───────── FCM 토큰 획득 & 서버 전송 ─────────
     private void fetchAndSendFcmToken(String username, String role) {
         if (username.isEmpty() || role.isEmpty()) return;
 
@@ -153,10 +157,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ───────── Util ─────────
-    private static String safe(String s) { return s == null ? "" : s.trim(); }
-
-    // 디버깅 시 사용
+    // ───────── Util (디버깅용) ─────────
     @SuppressWarnings("unused")
     private void debugDumpPrefs() {
         SharedPreferences p = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);

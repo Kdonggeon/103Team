@@ -33,6 +33,10 @@ dependencies {
     implementation(libs.activity)
     implementation(libs.constraintlayout)
 
+    //백엔드 핑관련 의존성
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
     // Retrofit + GSON
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
