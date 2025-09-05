@@ -1,41 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/card_question"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="12dp"
-    android:layout_marginEnd="12dp"
-    android:layout_marginTop="1dp"
-    android:layout_marginBottom="1dp"
-    app:cardCornerRadius="10dp"
-    app:cardElevation="4dp"
-    app:cardUseCompatPadding="true">
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp"
+    app:cardUseCompatPadding="true"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="12dp">
+        android:padding="16dp"
+        android:orientation="vertical">
 
+        <!-- 학원이름 (기존 제목 자리에 매핑: ID 유지) -->
         <TextView
             android:id="@+id/tv_item_question_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
+            android:text="학원이름"
             android:textStyle="bold"
+            android:textSize="18sp"
             android:textColor="@android:color/black"
-            android:ellipsize="end"
-            android:maxLines="1" />
+            android:maxLines="1"
+            android:ellipsize="end" />
 
+        <!-- 누가 답변했는지 -->
         <TextView
-            android:id="@+id/tv_item_question_content"
+            android:id="@+id/tv_item_question_responder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="답변: -"
             android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:layout_marginTop="4dp" />
+            android:textColor="@android:color/darker_gray"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>

@@ -2,6 +2,7 @@ package com.mobile.greenacademypartner.ui.qna;
 
 import android.text.TextUtils;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
@@ -19,7 +20,7 @@ import java.util.Objects;
 public class QuestionsAdapter extends ListAdapter<Question, QuestionsAdapter.ViewHolder> {
 
     public interface OnItemClickListener {
-        void onItemClick(Question question);
+        void onItemClick(Question item);
     }
 
     private final OnItemClickListener listener;
@@ -33,12 +34,16 @@ public class QuestionsAdapter extends ListAdapter<Question, QuestionsAdapter.Vie
             new DiffUtil.ItemCallback<Question>() {
                 @Override
                 public boolean areItemsTheSame(@NonNull Question oldItem, @NonNull Question newItem) {
+                    // 동일 항목 식별 기준 (프로젝트의 실제 식별자에 맞추어 사용)
                     return Objects.equals(oldItem.getId(), newItem.getId());
                 }
+
                 @Override
                 public boolean areContentsTheSame(@NonNull Question oldItem, @NonNull Question newItem) {
-                    // ✅ 카드에 보이는 값: 제목 + 교사목록
-                    return Objects.equals(oldItem.getTitle(), newItem.getTitle())
+                    // 제목(학원명), 미확인 수, 최근 답변자, 교사 목록이 바뀌면 갱신
+                    return Objects.equals(oldItem.getAcademyName(), newItem.getAcademyName())
+                            && oldItem.getUnreadCount() == newItem.getUnreadCount()
+                            && Objects.equals(oldItem.getRecentResponderNames(), newItem.getRecentResponderNames())
                             && Objects.equals(oldItem.getTeacherNames(), newItem.getTeacherNames());
                 }
             };
@@ -46,10 +51,9 @@ public class QuestionsAdapter extends ListAdapter<Question, QuestionsAdapter.Vie
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        return new ViewHolder(
-                LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.item_question, parent, false)
-        );
+        View v = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_question, parent, false);
+        return new ViewHolder(v);
     }
 
     @Override
@@ -58,49 +62,43 @@ public class QuestionsAdapter extends ListAdapter<Question, QuestionsAdapter.Vie
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        private final TextView tvTitle;
-        private final TextView tvContent;
+        final TextView tvTitle;
+        final TextView tvResponder;
 
-        ViewHolder(@NonNull android.view.View itemView) {
+        ViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvTitle   = itemView.findViewById(R.id.tv_item_question_title);
-            tvContent = itemView.findViewById(R.id.tv_item_question_content);
+            tvTitle = itemView.findViewById(R.id.tv_item_question_title);
+            tvResponder = itemView.findViewById(R.id.tv_item_question_responder);
         }
 
-        void bind(Question q, OnItemClickListener listener) {
-            // ✅ 제목은 카드의 큰 글씨
-            tvTitle.setText(q.getTitle() == null ? "" : q.getTitle());
+        void bind(@NonNull Question q, OnItemClickListener listener) {
+            // 제목: 학원명 + 미읽음이면 문구만
+            String baseTitle = (q.getAcademyName()!=null && !q.getAcademyName().trim().isEmpty())
+                    ? q.getAcademyName().trim()
+                    : (q.getAcademyNumber() > 0 ? "학원 " + q.getAcademyNumber() : "학원");
 
-            // ✅ 서브라인: 교사들 문구
-            String sub;
-            List<String> names = q.getTeacherNames();
-            if (names != null && !names.isEmpty()) {
-                if (names.size() == 1) {
-                    String name = names.get(0);
-                    sub = name + josaIGa(name) + " 답변";
-                } else {
-                    String joined = TextUtils.join(", ", names);
-                    String last   = names.get(names.size() - 1);
-                    sub = joined + josaIGa(last) + " 답변";
-                }
+            if (q.getUnreadCount() > 0) {
+                tvTitle.setText(baseTitle + " · 새로운 답변이 달렸습니다"); // ← 이름 붙이지 않음
             } else {
-                sub = "미답변";
+                tvTitle.setText(baseTitle);
             }
-            tvContent.setText(sub);
 
-            itemView.setOnClickListener(v -> listener.onItemClick(q));
-        }
-
-        // 한국어 조사(이/가)
-        private static String josaIGa(String word) {
-            if (word == null || word.isEmpty()) return "이";
-            char ch = word.charAt(word.length() - 1);
-            if (ch >= 0xAC00 && ch <= 0xD7A3) {
-                int base = ch - 0xAC00;
-                boolean hasFinal = (base % 28) != 0;
-                return hasFinal ? "이" : "가";
+            // 제목 아래(회색): 미읽음일 때만 이름 노출
+            java.util.List<String> names = null;
+            if (q.getUnreadCount() > 0) {
+                names = (q.getTeacherNames()!=null && !q.getTeacherNames().isEmpty())
+                        ? q.getTeacherNames()
+                        : q.getRecentResponderNames(); // 비어오면 recent로 대체
             }
-            return "이";
+            tvResponder.setText(
+                    (names != null && !names.isEmpty())
+                            ? "답변자: " + android.text.TextUtils.join(", ", names)
+                            : "답변자: -"
+            );
+
+            itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onItemClick(q);
+            });
         }
     }
 }

@@ -1,5 +1,9 @@
 package com.mobile.greenacademypartner.model;
 
+import com.google.gson.annotations.SerializedName;
+
+import java.util.List;
+
 public class Question {
 
     private String id;
@@ -8,10 +12,14 @@ public class Question {
     private String author;
     private String createdAt;
     private int academyNumber;
-    private java.util.List<String> teacherNames; // 교사들 이름 리스트
+    @SerializedName("teacherNames")
+    private List<String> teacherNames;
 
     // ✅ 추가: 학원명(서버가 내려주면 사용, 없으면 null)
     private String academyName;
+
+    private List<String> recentResponderNames;
+    private int unreadCount;
 
     public Question() { }
 
@@ -34,8 +42,13 @@ public class Question {
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
 
 
-    public java.util.List<String> getTeacherNames() { return teacherNames; }
-    public void setTeacherNames(java.util.List<String> teacherNames) { this.teacherNames = teacherNames; }
+    public List<String> getTeacherNames() { return teacherNames; }
+    public void setTeacherNames(List<String> v) { this.teacherNames = v; }
     public String getAcademyName() { return academyName; }
     public void setAcademyName(String academyName) { this.academyName = academyName; }
+
+    public List<String> getRecentResponderNames(){ return recentResponderNames; }
+    public void setRecentResponderNames(List<String> v){ this.recentResponderNames = v; }
+    public int getUnreadCount(){ return unreadCount; }
+    public void setUnreadCount(int v){ this.unreadCount = v; }
 }
