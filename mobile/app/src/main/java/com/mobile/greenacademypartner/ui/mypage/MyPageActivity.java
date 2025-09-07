@@ -19,14 +19,14 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.StudentApi;
-import com.mobile.greenacademypartner.api.TeacherApi;
+// import com.mobile.greenacademypartner.api.TeacherApi;              // 🔕 [DISABLED] teacher API 제거
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
 import com.mobile.greenacademypartner.model.parent.ParentUpdateRequest;
 import com.mobile.greenacademypartner.model.student.StudentUpdateRequest;
-import com.mobile.greenacademypartner.model.teacher.TeacherUpdateRequest;
+// import com.mobile.greenacademypartner.model.teacher.TeacherUpdateRequest; // 🔕 [DISABLED] teacher 모델 제거
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.Map;
@@ -76,7 +76,6 @@ public class MyPageActivity extends AppCompatActivity {
         setupUIByRole();
         setupSaveButton();
         ThemeColorUtil.applyThemeColor(this, toolbar);
-
     }
 
     private void initViews() {
@@ -88,7 +87,7 @@ public class MyPageActivity extends AppCompatActivity {
         editSchool = findViewById(R.id.edit_school);
         editGrade = findViewById(R.id.edit_grade);
         editGender = findViewById(R.id.edit_gender);
-        editAcademyNumber = findViewById(R.id.edit_academy_number);
+        editAcademyNumber = findViewById(R.id.edit_academy_number); // teacher용 (숨김 처리)
         btnSave = findViewById(R.id.btn_save);
     }
 
@@ -106,11 +105,13 @@ public class MyPageActivity extends AppCompatActivity {
             editSchool.setText(pref.getString("school", ""));
             editGrade.setText(String.valueOf(pref.getInt("grade", 0)));
             editGender.setText(pref.getString("gender", ""));
-        } else if ("teacher".equals(role)) {
-            editAcademyNumber.setText(String.valueOf(pref.getInt("academyNumber", 0)));
         }
+        // 🔕 [DISABLED] teacher 전용 필드 로드
+        // else if ("teacher".equals(role)) {
+        //     editAcademyNumber.setText(String.valueOf(pref.getInt("academyNumber", 0)));
+        // }
 
-        // SharedPreferences 전체 로그
+        // SharedPreferences 전체 로그 (디버깅)
         Map<String, ?> allEntries = pref.getAll();
         for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
             Log.d("MyPage", entry.getKey() + ": " + entry.getValue());
@@ -118,15 +119,25 @@ public class MyPageActivity extends AppCompatActivity {
     }
 
     private void setupUIByRole() {
+        // 기본은 전부 숨김
+        editAddress.setVisibility(View.GONE);
+        editSchool.setVisibility(View.GONE);
+        editGrade.setVisibility(View.GONE);
+        editGender.setVisibility(View.GONE);
+        editAcademyNumber.setVisibility(View.GONE); // 🔕 teacher용 숨김
+
         if ("student".equals(role)) {
             textRoleTitle.setText("학생 마이페이지");
             editAddress.setVisibility(View.VISIBLE);
             editSchool.setVisibility(View.VISIBLE);
             editGrade.setVisibility(View.VISIBLE);
             editGender.setVisibility(View.VISIBLE);
-        } else if ("teacher".equals(role)) {
-            textRoleTitle.setText("교사 마이페이지");
-            editAcademyNumber.setVisibility(View.VISIBLE);
+
+            // 🔕 [DISABLED] teacher 화면
+            // } else if ("teacher".equals(role)) {
+            //     textRoleTitle.setText("교사 마이페이지");
+            //     editAcademyNumber.setVisibility(View.VISIBLE);
+
         } else if ("parent".equals(role)) {
             textRoleTitle.setText("학부모 마이페이지");
         } else {
@@ -136,9 +147,9 @@ public class MyPageActivity extends AppCompatActivity {
 
     private void setupSaveButton() {
         btnSave.setOnClickListener(v -> {
-            String id = editId.getText().toString();
-            String name = editName.getText().toString();
-            String phone = editPhone.getText().toString();
+            String id = editId.getText().toString().trim();
+            String name = editName.getText().toString().trim();
+            String phone = editPhone.getText().toString().trim();
 
             SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
             SharedPreferences.Editor editor = pref.edit();
@@ -148,10 +159,18 @@ public class MyPageActivity extends AppCompatActivity {
             editor.putString("phone", phone);
 
             if ("student".equals(role)) {
-                String address = editAddress.getText().toString();
-                String school = editSchool.getText().toString();
-                int grade = Integer.parseInt(editGrade.getText().toString());
-                String gender = editGender.getText().toString();
+                String address = editAddress.getText().toString().trim();
+                String school = editSchool.getText().toString().trim();
+                String gradeStr = editGrade.getText().toString().trim();
+                String gender = editGender.getText().toString().trim();
+
+                int grade = 0;
+                try {
+                    if (!gradeStr.isEmpty()) grade = Integer.parseInt(gradeStr);
+                } catch (NumberFormatException e) {
+                    Toast.makeText(this, "학년은 숫자로 입력하세요.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
 
                 StudentUpdateRequest student = new StudentUpdateRequest(id, name, phone, address, school, grade, gender);
                 StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
@@ -167,13 +186,24 @@ public class MyPageActivity extends AppCompatActivity {
                 ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
                 api.updateParent(id, parent).enqueue(getCallback("학부모"));
 
-            } else if ("teacher".equals(role)) {
-                int academyNumber = Integer.parseInt(editAcademyNumber.getText().toString());
-                TeacherUpdateRequest teacher = new TeacherUpdateRequest(id, name, phone, academyNumber);
-                TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
-                api.updateTeacher(id, teacher).enqueue(getCallback("교사"));
+                // 🔕 [DISABLED] teacher 저장 로직
+                // } else if ("teacher".equals(role)) {
+                //     String academyStr = editAcademyNumber.getText().toString().trim();
+                //     int academyNumber = 0;
+                //     try {
+                //         if (!academyStr.isEmpty()) academyNumber = Integer.parseInt(academyStr);
+                //     } catch (NumberFormatException e) {
+                //         Toast.makeText(this, "학원 번호는 숫자로 입력하세요.", Toast.LENGTH_SHORT).show();
+                //         return;
+                //     }
+                //     TeacherUpdateRequest teacher = new TeacherUpdateRequest(id, name, phone, academyNumber);
+                //     TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
+                //     api.updateTeacher(id, teacher).enqueue(getCallback("교사"));
+                //     editor.putInt("academyNumber", academyNumber);
 
-                editor.putInt("academyNumber", academyNumber);
+            } else {
+                Toast.makeText(this, "지원하지 않는 역할입니다.", Toast.LENGTH_SHORT).show();
+                return;
             }
 
             editor.apply(); // 저장
