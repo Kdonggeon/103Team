@@ -27,23 +27,23 @@
         android:layout_marginBottom="16dp"
         android:padding="12dp" />
 
-    <Button
-        android:id="@+id/btn_teacher"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="교사 회원가입"
-        android:textColor="@color/white"
-        android:backgroundTint="@color/green"
-        android:layout_marginBottom="16dp"
-        android:padding="12dp" />
+<!--    <Button-->
+<!--        android:id="@+id/btn_teacher"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="교사 회원가입"-->
+<!--        android:textColor="@color/white"-->
+<!--        android:backgroundTint="@color/green"-->
+<!--        android:layout_marginBottom="16dp"-->
+<!--        android:padding="12dp" />-->
 
-    <!-- 새로 추가된 원장 회원가입 버튼 -->
-    <Button
-        android:id="@+id/btn_director"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="원장 회원가입"
-        android:textColor="@color/white"
-        android:backgroundTint="@color/green"
-        android:padding="12dp" />
+<!--    &lt;!&ndash; 새로 추가된 원장 회원가입 버튼 &ndash;&gt;-->
+<!--    <Button-->
+<!--        android:id="@+id/btn_director"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="원장 회원가입"-->
+<!--        android:textColor="@color/white"-->
+<!--        android:backgroundTint="@color/green"-->
+<!--        android:padding="12dp" />-->
 </LinearLayout>
