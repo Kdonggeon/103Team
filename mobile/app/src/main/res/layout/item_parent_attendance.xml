@@ -5,25 +5,45 @@
     android:layout_height="wrap_content"
     android:padding="12dp">
 
+    <!-- 수업명 -->
     <TextView
         android:id="@+id/text_class_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="수업명"
         android:textSize="16sp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
 
+    <!-- 학원명 -->
+    <TextView
+        android:id="@+id/text_academy_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="학원명"
+        android:textStyle="bold"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="4dp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <!-- 날짜 -->
     <TextView
         android:id="@+id/text_date"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="날짜"
-        android:textSize="14sp" />
+        android:textSize="14sp"
+        android:layout_marginTop="4dp" />
 
+    <!-- 출석 상태 -->
     <TextView
         android:id="@+id/text_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="출석 여부"
-        android:textSize="14sp" />
+        android:textSize="14sp"
+        android:layout_marginTop="2dp" />
+
 </LinearLayout>

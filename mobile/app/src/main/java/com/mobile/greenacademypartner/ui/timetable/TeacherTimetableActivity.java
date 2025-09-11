@@ -27,7 +27,11 @@ import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -102,8 +106,10 @@ public class TeacherTimetableActivity extends AppCompatActivity
                                 c.getClassName(),
                                 c.getTeacherId(),
                                 c.getSchedule()
+
                         ));
                     }
+                    Collections.sort(teacherClasses, Comparator.comparingInt(tc -> extractStartMinutes(tc.getSchedule())));
 
                     adapter = new TeacherClassAdapter(teacherClasses, TeacherTimetableActivity.this);
                     recyclerView.setAdapter(adapter);
@@ -117,6 +123,16 @@ public class TeacherTimetableActivity extends AppCompatActivity
                 Toast.makeText(TeacherTimetableActivity.this, "네트워크 오류", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private static int extractStartMinutes(String range) {
+        if (range == null) return Integer.MAX_VALUE;
+        // 맨 처음 나오는 "시[:분]" 패턴을 찾습니다. (분 생략 가능)
+        Matcher m = Pattern.compile("(\\d{1,2})(?::(\\d{1,2}))?").matcher(range);
+        if (!m.find()) return Integer.MAX_VALUE;
+        int h = Integer.parseInt(m.group(1));
+        int min = (m.group(2) != null) ? Integer.parseInt(m.group(2)) : 0;
+        return h * 60 + min;
     }
 
 

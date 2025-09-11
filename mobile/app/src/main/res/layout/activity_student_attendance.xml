@@ -21,6 +21,36 @@
             android:titleTextColor="@android:color/white"
            />
 
+        <LinearLayout
+            android:id="@+id/summary_box"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/tv_present_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="출석 0"/>
+
+            <TextView
+                android:id="@+id/tv_late_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="지각 0"/>
+
+            <TextView
+                android:id="@+id/tv_absent_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="결석 0"/>
+        </LinearLayout>
+
         <!-- 출석 리스트 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/attendance_list_view"

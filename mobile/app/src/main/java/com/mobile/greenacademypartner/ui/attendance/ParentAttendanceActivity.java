@@ -18,10 +18,12 @@ import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
-import com.mobile.greenacademypartner.model.attendance.Attendance;
-import com.mobile.greenacademypartner.ui.adapter.ParentAttendanceAdapter;
+import com.mobile.greenacademypartner.model.attendance.AttendanceResponse;
+import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import retrofit2.Call;
@@ -45,6 +47,7 @@ public class ParentAttendanceActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);
         attendanceListView = findViewById(R.id.attendance_list_view);
+
         int white = androidx.core.content.ContextCompat.getColor(this, android.R.color.white);
         toolbar.setTitleTextColor(white);
         if (toolbar.getNavigationIcon() != null) toolbar.getNavigationIcon().setTint(white);
@@ -88,18 +91,30 @@ public class ParentAttendanceActivity extends AppCompatActivity {
             return;
         }
 
+        // 부모 화면도 학생 API를 이용해 자녀(studentId) 출석을 조회
         StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-        api.getAttendanceForStudent(childId).enqueue(new Callback<List<Attendance>>() {
+        api.getAttendanceForStudent(childId).enqueue(new Callback<List<AttendanceResponse>>() {
             @Override
-            public void onResponse(Call<List<Attendance>> call, Response<List<Attendance>> response) {
+            public void onResponse(Call<List<AttendanceResponse>> call, Response<List<AttendanceResponse>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    List<Attendance> list = response.body();
-                    Log.d("ParentAttendance", "자녀 출석 수: " + list.size());
+                    List<AttendanceResponse> list = response.body();
 
-                    // ✅ RecyclerView 설정
+                    // 🔢 날짜 오름차순(과거 → 최근) 정렬
+                    Collections.sort(list, Comparator.comparing(AttendanceResponse::getDate, String::compareTo));
+
+                    // ✅ RecyclerView 설정 (학원명/수업/날짜/상태 카드)
                     attendanceListView.setLayoutManager(new LinearLayoutManager(ParentAttendanceActivity.this));
-                    ParentAttendanceAdapter adapter = new ParentAttendanceAdapter(ParentAttendanceActivity.this, list);
+                    AttendanceAdapter adapter = new AttendanceAdapter(ParentAttendanceActivity.this, list);
                     attendanceListView.setAdapter(adapter);
+
+                    // 로그
+                    for (AttendanceResponse att : list) {
+                        Log.d("ParentAttendance",
+                                "학원명=" + att.getAcademyName()
+                                        + ", 수업명=" + att.getClassName()
+                                        + ", 날짜=" + att.getDate()
+                                        + ", 상태=" + att.getStatus());
+                    }
                 } else {
                     Toast.makeText(ParentAttendanceActivity.this, "출석 조회 실패", Toast.LENGTH_SHORT).show();
                     Log.e("ParentAttendance", "응답 실패: " + response.code());
@@ -107,11 +122,10 @@ public class ParentAttendanceActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onFailure(Call<List<Attendance>> call, Throwable t) {
-                Toast.makeText(ParentAttendanceActivity.this, "서버 오류 발생", Toast.LENGTH_SHORT).show();
+            public void onFailure(Call<List<AttendanceResponse>> call, Throwable t) {
+                Toast.makeText(ParentAttendanceActivity.this, "서버 오류 발생: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 Log.e("ParentAttendance", "API 호출 실패", t);
             }
         });
-
     }
 }

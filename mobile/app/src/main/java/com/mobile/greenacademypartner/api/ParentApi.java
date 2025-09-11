@@ -30,7 +30,8 @@ public interface ParentApi {
     Call<List<Attendance>> getAttendanceForParent(@Path("parentsNumber") String parentsNumber);
 
     @GET("/api/parents/{studentId}/attendance")
-    Call<List<Attendance>> getAttendanceForChild(@Path("studentId") String studentId);
+    Call<List<com.mobile.greenacademypartner.model.attendance.AttendanceResponse>>
+    getAttendanceForChild(@Path("studentId") String childStudentId);
 
     @GET("/api/parents/{parentId}/children")
     Call<List<Student>> getChildrenByParentId(@Path("parentId") String parentId);
@@ -45,5 +46,6 @@ public interface ParentApi {
     @PUT("/api/parents/{id}/fcm-token")
     Call<Void> updateFcmToken(@Path("id") String parentId,
                               @Body String fcmToken);
+
 
 }

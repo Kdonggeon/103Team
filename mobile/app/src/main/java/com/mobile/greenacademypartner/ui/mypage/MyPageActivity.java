@@ -1,6 +1,7 @@
 package com.mobile.greenacademypartner.ui.mypage;
 
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -71,7 +72,7 @@ public class MyPageActivity extends AppCompatActivity {
         // 사용자 정보 로드 및 제목 반영
         loadUserInfoAndSetTitles();
 
-        // 역할별 UI 표시/숨김
+        // 역할별 UI 표시/숨김 (+ 학생은 전부 읽기전용 처리)
         setupUIByRole();
 
         // 저장 버튼 클릭
@@ -137,7 +138,7 @@ public class MyPageActivity extends AppCompatActivity {
 
     /**
      * 역할별로 보일 입력 필드만 표시/숨김합니다.
-     * 제목 텍스트는 이 메서드에서 변경하지 않습니다.
+     * 학생은 모든 필드를 "ID처럼" 편집 불가로 만들고 저장 버튼도 비활성화/숨김합니다.
      */
     private void setupUIByRole() {
         // 모두 숨김으로 초기화
@@ -148,10 +149,14 @@ public class MyPageActivity extends AppCompatActivity {
         editAcademyNumber.setVisibility(View.GONE);
 
         if ("student".equals(role)) {
+            // 표시만 하고, 아래에서 전부 읽기전용으로 잠금
             editAddress.setVisibility(View.VISIBLE);
             editSchool.setVisibility(View.VISIBLE);
             editGrade.setVisibility(View.VISIBLE);
             editGender.setVisibility(View.VISIBLE);
+
+            lockStudentFields(); // ★ 학생은 모든 필드를 ID처럼 편집 불가로
+
         } else if ("teacher".equals(role)) {
             editAcademyNumber.setVisibility(View.VISIBLE);
         } else if ("parent".equals(role)) {
@@ -162,6 +167,16 @@ public class MyPageActivity extends AppCompatActivity {
     }
 
     private void setupSaveButton() {
+        // 학생은 저장 자체를 막음(방어 로직)
+        if ("student".equals(role)) {
+            if (btnSave != null) {
+                btnSave.setOnClickListener(v ->
+                        Toast.makeText(this, "학생 정보는 수정할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                );
+            }
+            return;
+        }
+
         btnSave.setOnClickListener(v -> {
             String id = editId.getText().toString();
             String name = editName.getText().toString();
@@ -175,21 +190,9 @@ public class MyPageActivity extends AppCompatActivity {
             editor.putString("phone", phone);
 
             if ("student".equals(role)) {
-                String address = editAddress.getText().toString();
-                String school = editSchool.getText().toString();
-                int grade = 0;
-                try { grade = Integer.parseInt(editGrade.getText().toString().trim()); } catch (Exception ignored) {}
-                String gender = editGender.getText().toString();
-
-                StudentUpdateRequest student = new StudentUpdateRequest(id, name, phone, address, school, grade, gender);
-                StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-                api.updateStudent(id, student).enqueue(getCallback("학생"));
-
-                editor.putString("address", address);
-                editor.putString("school", school);
-                editor.putInt("grade", grade);
-                editor.putString("gender", gender);
-
+                // 학생은 여기 오지 않지만, 혹시 몰라 이중 방어
+                Toast.makeText(this, "학생 정보는 수정할 수 없습니다.", Toast.LENGTH_SHORT).show();
+                return;
             } else if ("parent".equals(role)) {
                 ParentUpdateRequest parent = new ParentUpdateRequest(id, name, phone);
                 ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
@@ -221,4 +224,47 @@ public class MyPageActivity extends AppCompatActivity {
         String msg = roleName + (success ? " 정보가 성공적으로 수정되었습니다." : " 정보 수정에 실패했습니다.");
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
+
+    /** 학생: 모든 필드를 "ID처럼" 읽기전용으로 만들고 저장 버튼 비활성화/숨김 */
+    private void lockStudentFields() {
+        makeReadOnly(editId);       // 혹시 모를 활성화 대비
+        makeReadOnly(editName);
+        makeReadOnly(editPhone);
+        makeReadOnly(editAddress);
+        makeReadOnly(editSchool);
+        makeReadOnly(editGrade);
+        makeReadOnly(editGender);
+
+                tintGray(editId);
+                tintGray(editName);
+                tintGray(editPhone);
+               tintGray(editAddress);
+                tintGray(editSchool);
+                tintGray(editGrade);
+                tintGray(editGender);
+
+        if (btnSave != null) {
+            btnSave.setEnabled(false);
+            btnSave.setVisibility(View.GONE);
+        }
+    }
+
+    /** 외형은 유지하면서 입력만 차단(복사 허용) */
+    private void makeReadOnly(EditText et) {
+        if (et == null) return;
+        et.setFocusable(false);
+        et.setFocusableInTouchMode(false);
+        et.setClickable(false);
+        et.setLongClickable(false);
+        et.setCursorVisible(false);
+        et.setTextIsSelectable(true); // 복사 허용
+        et.setKeyListener(null);      // 핵심: 키 입력 차단
+    }
+        /** 텍스트만 회색으로 */
+                private void tintGray(EditText et) {
+                if (et == null) return;
+                et.setTextColor(Color.parseColor("#6B7280"));  // 적당한 중간 회색
+                et.setHintTextColor(Color.parseColor("#9AA0A6")); // 힌트는 더 옅게
+            }
 }
+

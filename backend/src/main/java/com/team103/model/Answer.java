@@ -17,6 +17,7 @@ public class Answer {
     private String author;     // 교사 아이디
     private Date createdAt;
     private boolean deleted = false;
+    
 
     // ✅ 응답 전용 필드: DB에 저장하지 않고 JSON으로만 내려줌
     @Transient

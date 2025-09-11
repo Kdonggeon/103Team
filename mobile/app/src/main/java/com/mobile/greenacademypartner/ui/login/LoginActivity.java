@@ -110,13 +110,42 @@ public class LoginActivity extends AppCompatActivity {
                                 editor.putString("username", res.getUsername());
                                 editor.putString("name", res.getName());
                                 editor.putString("phone", res.getPhone());
+                                // 공통 userId(기존 호환)
                                 editor.putString("userId", res.getUsername());
 
-                                if ("student".equalsIgnoreCase(res.getRole())) {
+                                // 역할별 ID를 명시적으로 저장(다른 역할 키는 정리)
+                                String role = res.getRole() == null ? "" : res.getRole().toLowerCase();
+                                if ("teacher".equals(role) || "director".equals(role)) {
+                                    // 서버 응답에 별도 teacherId가 없으면 username을 교사 ID로 사용
+                                    editor.putString("teacherId", res.getUsername());
+                                    editor.remove("studentId");
+                                    editor.remove("parentId");
+                                } else if ("student".equals(role)) {
+                                    editor.putString("studentId", res.getUsername());
+                                    editor.remove("teacherId");
+                                    editor.remove("parentId");
+                                } else if ("parent".equals(role)) {
+                                    editor.putString("parentId", res.getUsername());
+                                    editor.remove("teacherId");
+                                    editor.remove("studentId");
+                                } else {
+                                    // 알 수 없는 역할 방어
+                                    editor.remove("teacherId");
+                                    editor.remove("studentId");
+                                    editor.remove("parentId");
+                                }
+
+                                // 학생 역할 부가 정보
+                                if ("student".equals(role)) {
                                     editor.putString("address", res.getAddress());
                                     editor.putString("school", res.getSchool());
                                     editor.putInt("grade", res.getGrade());
                                     editor.putString("gender", res.getGender());
+                                } else {
+                                    editor.remove("address");
+                                    editor.remove("school");
+                                    editor.remove("grade");
+                                    editor.remove("gender");
                                 }
 
                                 // academyNumbers 공통 처리 (student/teacher/parent)
@@ -130,7 +159,10 @@ public class LoginActivity extends AppCompatActivity {
 
                                 editor.apply();
 
-                                startActivity(new Intent(LoginActivity.this, MainActivity.class));
+                                // 역할 전환 시 상태 꼬임 방지: 태스크 초기화 후 진입
+                                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                startActivity(intent);
                                 finish();
                             } else {
                                 Log.e("Login", "응답 실패: code = " + response.code());

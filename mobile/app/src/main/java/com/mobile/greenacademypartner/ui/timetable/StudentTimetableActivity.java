@@ -19,10 +19,12 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
-import com.mobile.greenacademypartner.model.attendance.Attendance;
-import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
+import com.mobile.greenacademypartner.model.attendance.AttendanceResponse; // ★ 변경: Response DTO
+import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;        // ★ AttendanceResponse용 어댑터
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import retrofit2.Call;
@@ -47,7 +49,6 @@ public class StudentTimetableActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         toolbar.setTitle("시간표");
         setSupportActionBar(toolbar);
-        setSupportActionBar(toolbar);
         ThemeColorUtil.applyThemeColor(this, toolbar);
 
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -57,9 +58,7 @@ public class StudentTimetableActivity extends AppCompatActivity {
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
-        NavigationMenuHelper.setupMenu(
-                this, navContainer, drawerLayout,
-                null, 2);
+        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 2);
 
         Button btnScanQr = findViewById(R.id.btn_scan_qr);
         btnScanQr.setOnClickListener(v -> {
@@ -70,11 +69,10 @@ public class StudentTimetableActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.recycler_today_attendance);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        loadTodayAttendance();
-
+        loadAttendance(); // ★ 메서드명만 의미상 변경
     }
 
-    private void loadTodayAttendance() {
+    private void loadAttendance() {
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String studentId = prefs.getString("username", null);
         if (studentId == null) {
@@ -83,21 +81,31 @@ public class StudentTimetableActivity extends AppCompatActivity {
         }
 
         StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-        Call<List<Attendance>> call = api.getAttendanceRecords(studentId);
-        call.enqueue(new Callback<List<Attendance>>() {
+
+        // ★ 변경: Attendance → AttendanceResponse
+        Call<List<AttendanceResponse>> call = api.getAttendanceForStudent(studentId);
+        call.enqueue(new Callback<List<AttendanceResponse>>() {
             @Override
-            public void onResponse(Call<List<Attendance>> call, Response<List<Attendance>> response) {
+            public void onResponse(Call<List<AttendanceResponse>> call, Response<List<AttendanceResponse>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    adapter = new AttendanceAdapter(StudentTimetableActivity.this, response.body());
+                    List<AttendanceResponse> list = response.body();
+
+                    // 🔢 날짜 오름차순(과거 → 최근) 정렬
+                    Collections.sort(list, Comparator.comparing(AttendanceResponse::getDate, String::compareTo));
+
+                    // ✅ 어댑터 연결 (item_attendance.xml 사용)
+                    adapter = new AttendanceAdapter(StudentTimetableActivity.this, list);
                     recyclerView.setAdapter(adapter);
+
                 } else {
                     Toast.makeText(StudentTimetableActivity.this, "출석 데이터를 불러올 수 없습니다", Toast.LENGTH_SHORT).show();
+                    Log.e("StudentTimetable", "응답 실패 code=" + response.code());
                 }
             }
 
             @Override
-            public void onFailure(Call<List<Attendance>> call, Throwable t) {
-                Log.e("출석 불러오기 실패", t.getMessage());
+            public void onFailure(Call<List<AttendanceResponse>> call, Throwable t) {
+                Log.e("StudentTimetable", "API 실패", t);
                 Toast.makeText(StudentTimetableActivity.this, "서버 오류", Toast.LENGTH_SHORT).show();
             }
         });

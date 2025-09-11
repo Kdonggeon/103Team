@@ -43,7 +43,8 @@ public interface StudentApi {
 
 
     @GET("/api/students/{studentId}/attendance")
-    Call<List<Attendance>> getAttendanceForStudent(@Path("studentId") String studentId);
+    Call<List<com.mobile.greenacademypartner.model.attendance.AttendanceResponse>>
+    getAttendanceForStudent(@Path("studentId") String studentId);
 
     @GET("/api/students/{studentId}/attendance")
     Call<List<Attendance>> getAttendanceByStudentIdAndDate(
@@ -55,6 +56,8 @@ public interface StudentApi {
             @Path("studentId") String studentId,
             @Query("token") String token
     );
+
+
 
 
 

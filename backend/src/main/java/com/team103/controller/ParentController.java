@@ -47,6 +47,16 @@ public class ParentController {
     public List<Parent> getAllParents() {
         return parentRepo.findAll();
     }
+    
+    @PutMapping("/{id}/fcm-token")
+    public ResponseEntity<Void> updateFcmToken(@PathVariable("id") String parentsId,
+                                               @RequestParam("token") String token) {
+        Parent p = parentRepo.findByParentsId(parentsId);
+        if (p == null) return ResponseEntity.notFound().build();
+        p.setFcmToken((token == null || token.isBlank()) ? null : token);
+        parentRepo.save(p);
+        return ResponseEntity.ok().build();
+    }
 
     @PostMapping
     public ResponseEntity<?> registerParent(@RequestBody ParentSignupRequest request) {

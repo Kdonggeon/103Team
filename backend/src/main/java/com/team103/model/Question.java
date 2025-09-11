@@ -25,7 +25,7 @@ public class Question {
     private java.util.List<String> recentResponderNames;
     @Transient
     private int unreadCount;                           
-
+    private String roomStudentId;   // 학생별 1:1 방 키
     public Question() {
         this.createdAt = new Date();
     }
@@ -63,6 +63,10 @@ public class Question {
     
     public java.util.List<String> getRecentResponderNames(){ return recentResponderNames; }
     public void setRecentResponderNames(java.util.List<String> v){ this.recentResponderNames = v; }
+    
     public int getUnreadCount(){ return unreadCount; }
     public void setUnreadCount(int v){ this.unreadCount = v; }
+    
+    public String getRoomStudentId() { return roomStudentId; }
+    public void setRoomStudentId(String roomStudentId) { this.roomStudentId = roomStudentId; }
 }

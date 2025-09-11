@@ -10,15 +10,16 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
-import com.mobile.greenacademypartner.api.ParentApi;
-import com.mobile.greenacademypartner.api.RetrofitClient;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
-import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.api.ParentApi;
+import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.api.TeacherApi;
 
 import retrofit2.Call;
+import retrofit2.Callback;
 import retrofit2.Response;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
@@ -26,6 +27,15 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         super.onMessageReceived(remoteMessage);
+
+        SharedPreferences login = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String uid = login.getString("username", "");
+        SharedPreferences settings = getSharedPreferences("settings", MODE_PRIVATE);
+        boolean enabled = settings.getBoolean("notifications_enabled_" + uid, true);
+        if (!enabled) {
+            // 인앱 알림 OFF → 표시하지 않음
+            return;
+        }
         Log.d("FCM", "onMessageReceived() 진입: " + remoteMessage.getData());
 
         String title = remoteMessage.getData().get("title");
@@ -69,6 +79,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         int notificationId = (int) System.currentTimeMillis();
         notificationManager.notify(notificationId, notificationBuilder.build());
     }
+
     @Override
     public void onNewToken(@NonNull String token) {
         super.onNewToken(token);
@@ -77,58 +88,57 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String role = prefs.getString("role", null);
 
-
         if (role == null) {
             Log.d("FCM", "역할 정보 없음 → 서버 갱신 스킵");
             return;
         }
 
-        if (role.equals("student")) {
-            String studentId = prefs.getString("studentId", null);
-            if (studentId != null) {
+        // 공통 폴백
+        String username = firstNonEmpty(prefs.getString("userId", null),
+                prefs.getString("username", null));
+
+        if ("student".equalsIgnoreCase(role)) {
+            String id = firstNonEmpty(prefs.getString("studentId", null), username);
+            if (id != null) {
                 StudentApi studentApi = RetrofitClient.getClient().create(StudentApi.class);
-                studentApi.updateFcmToken(studentId, token).enqueue(new retrofit2.Callback<Void>() {
-                    @Override
-                    public void onResponse(Call<Void> call, Response<Void> response) {
+                studentApi.updateFcmToken(id, token).enqueue(new Callback<Void>() {
+                    @Override public void onResponse(Call<Void> call, Response<Void> response) {
                         Log.d("FCM", "onNewToken() → 학생 토큰 서버 업데이트 성공");
                     }
-                    @Override
-                    public void onFailure(Call<Void> call, Throwable t) {
+                    @Override public void onFailure(Call<Void> call, Throwable t) {
                         Log.e("FCM", "onNewToken() → 학생 토큰 서버 업데이트 실패", t);
                     }
                 });
             }
-        } else if (role.equals("teacher")) {
-            String teacherId = prefs.getString("teacherId", null);
-            if (teacherId != null) {
+
+        } else if ("teacher".equalsIgnoreCase(role) || "director".equalsIgnoreCase(role)) {
+            String tId = prefs.getString("teacherId", null);
+            if (tId != null && !tId.trim().isEmpty()) {
                 TeacherApi teacherApi = RetrofitClient.getClient().create(TeacherApi.class);
-                teacherApi.updateFcmToken(teacherId, token).enqueue(new retrofit2.Callback<Void>() {
-                    @Override
-                    public void onResponse(Call<Void> call, Response<Void> response) {
-                        Log.d("FCM", "onNewToken() → 교사 토큰 서버 업데이트 성공");
+                teacherApi.updateFcmToken(tId.trim(), token).enqueue(new Callback<Void>() {
+                    @Override public void onResponse(Call<Void> call, Response<Void> response) {
+                        Log.d("FCM", "onNewToken() → 교사/원장 토큰 서버 업데이트 성공");
                     }
-                    @Override
-                    public void onFailure(Call<Void> call, Throwable t) {
-                        Log.e("FCM", "onNewToken() → 교사 토큰 서버 업데이트 실패", t);
+                    @Override public void onFailure(Call<Void> call, Throwable t) {
+                        Log.e("FCM", "onNewToken() → 교사/원장 토큰 서버 업데이트 실패", t);
                     }
                 });
+            } else {
+                Log.e("FCM","onNewToken() → 교사/원장 토큰 업데이트 중단: teacherId 없음(폴백 금지)");
             }
-        } else if (role.equals("parent")) {
-            String parentId = prefs.getString("parentId", null);
-            if (parentId != null) {
-                ParentApi parentApi = RetrofitClient
-                        .getClient()
-                        .create(ParentApi.class);
-                parentApi.updateFcmToken(parentId, token)
-                        .enqueue(new retrofit2.Callback<Void>() {
-                            @Override
-                            public void onResponse(Call<Void> call, Response<Void> response) {
-                                                    Log.d("FCM", "onNewToken() → 부모 토큰 서버 업데이트 성공");}
-                            @Override
-                            public void onFailure(Call<Void> call, Throwable t) {
-                                                    Log.e("FCM", "onNewToken() → 부모 토큰 서버 업데이트 실패", t);
-                                                }
-                    });
+
+        } else if ("parent".equalsIgnoreCase(role)) {
+            String id = firstNonEmpty(prefs.getString("parentId", null), username);
+            if (id != null) {
+                ParentApi parentApi = RetrofitClient.getClient().create(ParentApi.class);
+                parentApi.updateFcmToken(id, token).enqueue(new Callback<Void>() {
+                    @Override public void onResponse(Call<Void> call, Response<Void> response) {
+                        Log.d("FCM", "onNewToken() → 부모 토큰 서버 업데이트 성공");
+                    }
+                    @Override public void onFailure(Call<Void> call, Throwable t) {
+                        Log.e("FCM", "onNewToken() → 부모 토큰 서버 업데이트 실패", t);
+                    }
+                });
             }
 
         } else {
@@ -136,4 +146,11 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         }
     }
 
+    private String firstNonEmpty(String... vals) {
+        if (vals == null) return null;
+        for (String v : vals) {
+            if (v != null && !v.trim().isEmpty()) return v;
+        }
+        return null;
+    }
 }

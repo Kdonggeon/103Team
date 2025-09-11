@@ -40,7 +40,11 @@ public interface QuestionApi {
 
 
     @GET("/api/questions/room")
-    Call<Question> getOrCreateRoom(@Query("academyNumber") int academyNumber);
+    Call<Question> getOrCreateRoom(
+            @Header("Authorization") String auth,
+            @Query("academyNumber") int academyNumber,
+            @Query("studentId") String studentId   // ← 추가
+    );
 
     @PUT("/api/questions/{id}/read")
     Call<Void> markRead(@Path("id") String questionId);

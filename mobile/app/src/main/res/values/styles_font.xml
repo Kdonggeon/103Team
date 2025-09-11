@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ===== 폰트 오버레이 ===== -->
+    <style name="ThemeOverlay.GreenAcademy" />
+    <style name="ThemeOverlay.GreenAcademy.Font" parent="ThemeOverlay.GreenAcademy">
+        <item name="fontFamily">@font/noto_sans_kr</item>
+        <item name="android:fontFamily">@font/noto_sans_kr</item>
+    </style>
+    <style name="ThemeOverlay.GreenAcademy.Font.NotoSansKR" parent="ThemeOverlay.GreenAcademy.Font" />
+    <!-- 혹시 @style/ThemeOverlay 만 참조된 곳 대비 -->
+    <style name="ThemeOverlay" />
+
+    <!-- ===== 여러 줄 기본(느슨) ===== -->
+    <style name="TextAppearance.Green.Body" parent="@style/TextAppearance.Material3.BodyMedium">
+        <item name="android:lineSpacingExtra">6sp</item>
+    </style>
+    <style name="TextAppearance.Green.Title" parent="@style/TextAppearance.Material3.TitleMedium">
+        <item name="android:lineSpacingExtra">6sp</item>
+    </style>
+
+    <!-- ===== 여러 줄 콤팩트(촘촘) ===== -->
+    <style name="TextAppearance.Green.Body.Compact" parent="@style/TextAppearance.Green.Body">
+        <item name="android:lineSpacingExtra">2sp</item>
+    </style>
+    <style name="TextAppearance.Green.Title.Compact" parent="@style/TextAppearance.Green.Title">
+        <item name="android:lineSpacingExtra">2sp</item>
+    </style>
+
+    <!-- ===== 한 줄 전용(TextAppearance) ===== -->
+    <style name="TextAppearance.Green.Title.OneLine" parent="@style/TextAppearance.Material3.TitleMedium">
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+    <style name="TextAppearance.Green.Label.OneLine" parent="@style/TextAppearance.Material3.LabelLarge">
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <!-- ===== 한 줄 위젯(일반 TextView/MTV) ===== -->
+    <style name="Widget.Green.TextView.OneLine" parent="@style/Widget.AppCompat.TextView">
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:lineSpacingExtra">0sp</item>
+        <item name="android:paddingTop">0dp</item>
+        <item name="android:paddingBottom">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="minHeight">0dp</item>
+    </style>
+
+    <!-- ===== 툴바 ===== -->
+    <style name="Widget.Green.Toolbar" parent="@style/Widget.Material3.Toolbar">
+        <item name="titleTextAppearance">@style/TextAppearance.Green.Title.OneLine</item>
+        <item name="subtitleTextAppearance">@style/TextAppearance.Green.Label.OneLine</item>
+        <item name="titleMarginTop">0dp</item>
+        <item name="titleMarginBottom">0dp</item>
+    </style>
+
+    <!-- 툴바 콤팩트(높이도 축소) -->
+    <style name="Widget.Green.Toolbar.Compact" parent="@style/Widget.Material3.Toolbar">
+        <item name="android:layout_height">48dp</item>
+        <item name="titleTextAppearance">@style/TextAppearance.Green.Title.OneLine</item>
+        <item name="subtitleTextAppearance">@style/TextAppearance.Green.Label.OneLine</item>
+        <item name="titleMarginTop">0dp</item>
+        <item name="titleMarginBottom">0dp</item>
+    </style>
+
+</resources>

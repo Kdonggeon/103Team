@@ -10,25 +10,38 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.ViewCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.api.ParentApi;
+import com.mobile.greenacademypartner.api.RetrofitClient;
+import com.mobile.greenacademypartner.api.StudentApi;
+import com.mobile.greenacademypartner.api.TeacherApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class SettingActivity extends AppCompatActivity {
 
@@ -38,6 +51,12 @@ public class SettingActivity extends AppCompatActivity {
     private TextView mainContentText;
     private GridLayout colorGrid;
     private Button btnLogout;
+
+    private LinearLayout boxNotifications;
+    private SwitchCompat swInApp;
+
+    // 폰트 설정 섹션(동적)
+    private LinearLayout boxFonts;
 
     int defaultIndex = 5;
 
@@ -55,13 +74,15 @@ public class SettingActivity extends AppCompatActivity {
         mainContentText = findViewById(R.id.main_content_text);
         btnLogout = findViewById(R.id.btn_logout);
 
+        boxNotifications = findViewById(R.id.box_notifications);
+        swInApp = findViewById(R.id.switch_inapp_notifications);
+
         // 2) 배경 흰색
-        // (루트/콘텐츠를 흰색으로 – XML 수정 없이 적용)
         drawerLayout.setBackgroundColor(Color.WHITE);
         View content = findViewById(android.R.id.content);
         if (content != null) content.setBackgroundColor(Color.WHITE);
 
-        // 3) 툴바 색/설정 및 항상 최상단으로 (박스가 덮는 현상 방지)
+        // 3) 툴바 색/설정 및 항상 최상단
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
         toolbar.bringToFront();
@@ -85,10 +106,62 @@ public class SettingActivity extends AppCompatActivity {
         // 7) 색상 박스(그룹) 데코/패딩
         decorateColorGrid();
 
+        // 7-1) 인앱 알림 카드도 동일 스타일 적용(파일 추가 없이 자바에서 처리)
+        decorateNotificationCard();
+
+        // ✅ 7-2) 폰트 설정 섹션을 "알림 카드 바로 아래"에 안전 배치 (기본↔Noto 토글)
+        insertFontSectionBelowNotifications();
+
         // 8) 색상 칩 채우기
         setupColorSelection();
 
-        // 9) 로그아웃
+        // 9) 인앱 알림 스위치 상태/색상(테마 영향 제거)
+        SharedPreferences settings = getSharedPreferences("settings", MODE_PRIVATE);
+        SharedPreferences login = getSharedPreferences("login_prefs", MODE_PRIVATE); // 사용자별 키 유틸
+        String currentUserId = login.getString("username", "");
+        String notifKey = "notifications_enabled_" + currentUserId;
+        boolean enabled = settings.getBoolean(notifKey, true);
+        swInApp.setChecked(enabled);
+
+        // 테마 무시하고 중립 회색 고정(thumb/track tint 명시)
+        ColorStateList thumb = ColorStateList.valueOf(Color.parseColor("#FAFAFA"));
+        int[][] states = new int[][]{
+                new int[]{android.R.attr.state_checked},
+                new int[]{-android.R.attr.state_checked},
+        };
+        int[] colors = new int[]{
+                Color.parseColor("#C9CDD2"),
+                Color.parseColor("#DDE1E6")
+        };
+        ColorStateList track = new ColorStateList(states, colors);
+        swInApp.setThumbTintList(thumb);
+        swInApp.setTrackTintList(track);
+
+        swInApp.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            settings.edit().putBoolean(notifKey, isChecked).apply();
+            Log.d("Settings", "notifications_enabled(" + currentUserId + ") = " + isChecked);
+
+            String role = login.getString("role", null);
+
+            if (!isChecked) {
+                // OFF: FCM 토큰 삭제 + 서버에 빈 토큰 반영
+                FirebaseMessaging.getInstance().deleteToken()
+                        .addOnCompleteListener(task -> updateServerToken(role, "", login));
+            } else {
+                // ON: 새 토큰 발급 + 서버 갱신
+                FirebaseMessaging.getInstance().getToken()
+                        .addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                String token = task.getResult();
+                                updateServerToken(role, token, login);
+                            } else {
+                                Log.w("Settings", "토큰 재발급 실패", task.getException());
+                            }
+                        });
+            }
+        });
+
+        // 10) 로그아웃
         btnLogout.setOnClickListener(v -> {
             SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
             prefs.edit().clear().apply();
@@ -98,10 +171,10 @@ public class SettingActivity extends AppCompatActivity {
             finish();
         });
 
-        // 10) 설정 메뉴 선택 표시 및 테마 적용
+        // 11) 설정 메뉴 선택 표시 및 테마 적용
         View settingView = navContainer.getChildAt(defaultIndex);
         if (settingView != null) settingView.performClick();
-        ThemeColorUtil.applyThemeColor(this, toolbar);
+        com.mobile.greenacademypartner.ui.setting.ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 
     /** colorGrid 위에 “테마 색상 변경” 제목을 추가(새 ID 없이 런타임 배치) */
@@ -138,7 +211,6 @@ public class SettingActivity extends AppCompatActivity {
                 colorGrid.setLayoutParams(glp);
             }
         } else if (parent instanceof LinearLayout) {
-            // LinearLayout이면 그리드 앞에 제목을 끼워 넣기
             LinearLayout pr = (LinearLayout) parent;
             int idx = pr.indexOfChild(colorGrid);
 
@@ -152,7 +224,7 @@ public class SettingActivity extends AppCompatActivity {
                     LinearLayout.LayoutParams.WRAP_CONTENT
             );
             tlp.setMargins(dp(16), dp(16), dp(16), 0);
-            pr.addView(title, idx); // colorGrid 바로 위에 삽입
+            pr.addView(title, idx);
 
             // 그리드 여백
             ViewGroup.LayoutParams lp0 = colorGrid.getLayoutParams();
@@ -160,6 +232,91 @@ public class SettingActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams glp = (LinearLayout.LayoutParams) lp0;
                 glp.setMargins(dp(16), dp(8), dp(16), dp(16));
                 colorGrid.setLayoutParams(glp);
+            }
+        }
+    }
+
+    /** 알림 카드 바로 아래에 “폰트 설정” 카드(동적) 추가: 기본↔Noto 토글 */
+    private void insertFontSectionBelowNotifications() {
+        if (boxNotifications == null) return;
+
+        // 컨테이너
+        boxFonts = new LinearLayout(this);
+        boxFonts.setOrientation(LinearLayout.VERTICAL);
+        decorateCardLike(boxFonts);
+
+        // 제목
+        TextView title = new TextView(this);
+        title.setText("폰트 설정");
+        title.setTextSize(16f);
+        title.setTypeface(title.getTypeface(), Typeface.BOLD);
+        title.setTextColor(Color.BLACK);
+        title.setPadding(0, 0, 0, dp(8));
+        if (boxFonts instanceof ViewGroup) ((ViewGroup) boxFonts).addView(title);
+
+        // 라디오 그룹: System ↔ NotoSansKR
+        RadioGroup group = new RadioGroup(this);
+        group.setOrientation(RadioGroup.VERTICAL);
+        RadioButton rbSystem = new RadioButton(this);
+        rbSystem.setText("기본 폰트(시스템)");
+        RadioButton rbNoto = new RadioButton(this);
+        rbNoto.setText("Noto Sans KR");
+        group.addView(rbSystem);
+        group.addView(rbNoto);
+        boxFonts.addView(group);
+
+        // 적용 버튼
+        Button apply = new Button(this);
+        apply.setText("적용");
+        apply.setAllCaps(false);
+        boxFonts.addView(apply);
+
+        // 현재 저장값 반영 (기본값: System)
+        SharedPreferences sp = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        String cur = sp.getString("app_font", "System");
+        if ("NotoSansKR".equals(cur)) rbNoto.setChecked(true); else rbSystem.setChecked(true);
+
+        // 저장 + 현재 화면 반영
+        apply.setOnClickListener(v -> {
+            String sel = rbNoto.isChecked() ? "NotoSansKR" : "System";
+            sp.edit().putString("app_font", sel).apply();
+            recreate();
+        });
+
+        // 안전한 위치에 삽입(덮임 방지)
+        ViewParent parent = boxNotifications.getParent();
+        if (parent instanceof RelativeLayout) {
+            RelativeLayout pr = (RelativeLayout) parent;
+            int fontId = View.generateViewId();
+            boxFonts.setId(fontId);
+            RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.MATCH_PARENT,
+                    RelativeLayout.LayoutParams.WRAP_CONTENT
+            );
+            lp.addRule(RelativeLayout.BELOW, boxNotifications.getId());
+            lp.setMargins(dp(16), dp(12), dp(16), dp(16));
+            pr.addView(boxFonts, lp);
+        } else if (parent instanceof LinearLayout) {
+            LinearLayout pr = (LinearLayout) parent;
+            int idx = pr.indexOfChild(boxNotifications);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            lp.setMargins(dp(16), dp(12), dp(16), dp(16));
+            pr.addView(boxFonts, idx + 1);
+            boxFonts.setLayoutParams(lp);
+        } else {
+            // 예외: 부모가 특이하면 content root 제일 아래에 추가
+            ViewGroup root = findViewById(android.R.id.content);
+            if (root instanceof ViewGroup && ((ViewGroup) root).getChildCount() > 0) {
+                ViewGroup content = (ViewGroup) ((ViewGroup) root).getChildAt(0);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                lp.setMargins(dp(16), dp(12), dp(16), dp(16));
+                content.addView(boxFonts, lp);
             }
         }
     }
@@ -176,13 +333,10 @@ public class SettingActivity extends AppCompatActivity {
                 Color.rgb(174, 238, 238)
         };
 
-
         colorGrid.setColumnCount(4);
         colorGrid.setUseDefaultMargins(true);
 
-        for (int i = 0; i < colorValues.length; i++) {
-            final int color = colorValues[i];
-
+        for (int color : colorValues) {
             // 제목+칩 컨테이너(수직)
             LinearLayout container = new LinearLayout(this);
             container.setOrientation(LinearLayout.VERTICAL);
@@ -197,7 +351,7 @@ public class SettingActivity extends AppCompatActivity {
             TextView titleView = new TextView(this);
             titleView.setTextSize(14f);
             titleView.setTextColor(Color.BLACK);
-            titleView.setPadding(0, 0, 0, dp(6));
+            titleView.setPadding(0, 0, dp(0), dp(6));
 
             // 색상 칩(둥근 버튼)
             View chip = new View(this);
@@ -212,7 +366,7 @@ public class SettingActivity extends AppCompatActivity {
                         .edit()
                         .putInt("theme_color", color)
                         .apply();
-                ThemeColorUtil.applyThemeColor(SettingActivity.this, toolbar);
+                com.mobile.greenacademypartner.ui.setting.ThemeColorUtil.applyThemeColor(SettingActivity.this, toolbar);
             });
 
             container.addView(titleView);
@@ -232,6 +386,31 @@ public class SettingActivity extends AppCompatActivity {
         colorGrid.setBackground(bg);
     }
 
+    /** 인앱 알림 카드 - 그리드와 동일 스타일 적용 */
+    private void decorateNotificationCard() {
+        if (boxNotifications == null) return;
+        decorateCardLike(boxNotifications);
+    }
+
+    /** 공통 카드 스타일 */
+    private void decorateCardLike(View target) {
+        if (target == null) return;
+        if (target instanceof ViewGroup) {
+            ((ViewGroup) target).setPadding(dp(16), dp(16), dp(16), dp(16));
+        }
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#F6F8FA"));
+        bg.setCornerRadius(dp(18));
+        bg.setStroke(dp(1), 0x1A000000);
+        if (Build.VERSION.SDK_INT >= 21) {
+            // 약한 리플 효과
+            ColorStateList ripple = ColorStateList.valueOf(0x11000000);
+            target.setBackground(new RippleDrawable(ripple, bg, null));
+        } else {
+            target.setBackground(bg);
+        }
+    }
+
     /** 개별 색상 칩 배경: 내부색 + 둥근 모서리 + 얇은 테두리 + 리플 */
     private android.graphics.drawable.Drawable makeChipBackground(int fillColor) {
         GradientDrawable shape = new GradientDrawable();
@@ -248,5 +427,71 @@ public class SettingActivity extends AppCompatActivity {
 
     private int dp(int v) {
         return (int) (v * getResources().getDisplayMetrics().density);
+    }
+
+    // ===== FCM 토큰 서버 반영 (ID 폴백 포함) =====
+    private void updateServerToken(String role, String token, SharedPreferences login) {
+        if (role == null) return;
+
+        String idStudent = login.getString("studentId", null);
+        String idTeacher = login.getString("teacherId", null);
+        String idParent = login.getString("parentId", null);
+        String username = firstNonEmpty(login.getString("userId", null),
+                login.getString("username", null));
+
+        if ("student".equalsIgnoreCase(role)) {
+            String id = firstNonEmpty(idStudent, username);
+            if (id == null) return;
+            StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
+            api.updateFcmToken(id, token == null ? "" : token).enqueue(new Callback<Void>() {
+                public void onResponse(Call<Void> c, Response<Void> r) {
+                    Log.d("Settings", "학생 토큰 업데이트");
+                }
+
+                public void onFailure(Call<Void> c, Throwable t) {
+                    Log.e("Settings", "학생 토큰 실패", t);
+                }
+            });
+
+        } else if ("parent".equalsIgnoreCase(role)) {
+            String id = firstNonEmpty(idParent, username);
+            if (id == null) return;
+            ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
+            api.updateFcmToken(id, token == null ? "" : token).enqueue(new Callback<Void>() {
+                public void onResponse(Call<Void> c, Response<Void> r) {
+                    Log.d("Settings", "부모 토큰 업데이트");
+                }
+
+                public void onFailure(Call<Void> c, Throwable t) {
+                    Log.e("Settings", "부모 토큰 실패", t);
+                }
+            });
+
+        } else { // teacher/director
+            // ⚠️ 폴백 금지: teacherId가 없으면 업데이트 중단
+            String id = (idTeacher != null && !idTeacher.trim().isEmpty()) ? idTeacher.trim() : null;
+            if (id == null) {
+                Log.e("Settings", "교사/원장 토큰 업데이트 중단: teacherId 없음(폴백 금지)");
+                return;
+            }
+            TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
+            api.updateFcmToken(id, token == null ? "" : token).enqueue(new Callback<Void>() {
+                public void onResponse(Call<Void> c, Response<Void> r) {
+                    Log.d("Settings", "교사/원장 토큰 업데이트");
+                }
+
+                public void onFailure(Call<Void> c, Throwable t) {
+                    Log.e("Settings", "교사/원장 토큰 실패", t);
+                }
+            });
+        }
+    }
+
+    private String firstNonEmpty(String... vals) {
+        if (vals == null) return null;
+        for (String v : vals) {
+            if (v != null && !v.trim().isEmpty()) return v;
+        }
+        return null;
     }
 }
