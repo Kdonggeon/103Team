@@ -13,12 +13,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.RetrofitClient;
-import com.mobile.greenacademypartner.api.TeacherApi;
+//import com.mobile.greenacademypartner.api.TeacherApi;
 import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
 import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
-import com.mobile.greenacademypartner.model.teacher.TeacherAttendance;
-import com.mobile.greenacademypartner.ui.adapter.TeacherAttendanceAdapter;
+//import com.mobile.greenacademypartner.model.teacher.TeacherAttendance;
+//import com.mobile.greenacademypartner.ui.adapter.TeacherAttendanceAdapter;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import java.util.List;
@@ -64,31 +64,31 @@ public class ClassAttendanceActivity extends AppCompatActivity {
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         NavigationMenuHelper.setupMenu(this, findViewById(R.id.nav_container), drawerLayout, null, 1);
 
-        fetchAttendanceData();
+//        fetchAttendanceData();
         ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 
-    private void fetchAttendanceData() {
-        TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
-        api.getAttendanceForClass(classId, date).enqueue(new Callback<List<TeacherAttendance>>() {
-            @Override
-            public void onResponse(Call<List<TeacherAttendance>> call, Response<List<TeacherAttendance>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    List<TeacherAttendance> list = response.body();
-                    recyclerView.setLayoutManager(new LinearLayoutManager(ClassAttendanceActivity.this));
-                    recyclerView.setAdapter(new TeacherAttendanceAdapter(list)); // ✅ 이거 하나만!
-                } else {
-                    Toast.makeText(ClassAttendanceActivity.this, "출석 데이터 없음", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<TeacherAttendance>> call, Throwable t) {
-                Toast.makeText(ClassAttendanceActivity.this, "서버 오류", Toast.LENGTH_SHORT).show();
-                Log.e("ClassAttendance", "출석 조회 실패", t);
-            }
-        });
-    }
+//    private void fetchAttendanceData() {
+//        TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
+//        api.getAttendanceForClass(classId, date).enqueue(new Callback<List<TeacherAttendance>>() {
+//            @Override
+//            public void onResponse(Call<List<TeacherAttendance>> call, Response<List<TeacherAttendance>> response) {
+//                if (response.isSuccessful() && response.body() != null) {
+//                    List<TeacherAttendance> list = response.body();
+//                    recyclerView.setLayoutManager(new LinearLayoutManager(ClassAttendanceActivity.this));
+//                    recyclerView.setAdapter(new TeacherAttendanceAdapter(list)); // ✅ 이거 하나만!
+//                } else {
+//                    Toast.makeText(ClassAttendanceActivity.this, "출석 데이터 없음", Toast.LENGTH_SHORT).show();
+//                }
+//            }
+//
+//            @Override
+//            public void onFailure(Call<List<TeacherAttendance>> call, Throwable t) {
+//                Toast.makeText(ClassAttendanceActivity.this, "서버 오류", Toast.LENGTH_SHORT).show();
+//                Log.e("ClassAttendance", "출석 조회 실패", t);
+//            }
+//        });
+//    }
 
 
 

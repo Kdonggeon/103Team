@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 import com.mobile.greenacademypartner.R;
-import com.mobile.greenacademypartner.ui.classes.TeacherClassesActivity;
+//import com.mobile.greenacademypartner.ui.classes.TeacherClassesActivity;
 
 public class AttendanceActivity extends AppCompatActivity {
     @Override
@@ -21,8 +21,8 @@ public class AttendanceActivity extends AppCompatActivity {
 
         if ("student".equals(role)) {
             startActivity(new Intent(this, StudentAttendanceActivity.class));
-        } else if ("teacher".equals(role)) {
-            startActivity(new Intent(this, TeacherClassesActivity.class));
+//        } else if ("teacher".equals(role)) {
+//            startActivity(new Intent(this, TeacherClassesActivity.class));
         } else if ("parent".equals(role)) {
             startActivity(new Intent(this, ParentAttendanceActivity.class));
         }

@@ -16,7 +16,7 @@ import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.StudentApi;
-import com.mobile.greenacademypartner.api.TeacherApi;
+//import com.mobile.greenacademypartner.api.TeacherApi;
 
 import retrofit2.Call;
 import retrofit2.Response;
@@ -98,21 +98,21 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                     }
                 });
             }
-        } else if (role.equals("teacher")) {
-            String teacherId = prefs.getString("teacherId", null);
-            if (teacherId != null) {
-                TeacherApi teacherApi = RetrofitClient.getClient().create(TeacherApi.class);
-                teacherApi.updateFcmToken(teacherId, token).enqueue(new retrofit2.Callback<Void>() {
-                    @Override
-                    public void onResponse(Call<Void> call, Response<Void> response) {
-                        Log.d("FCM", "onNewToken() → 교사 토큰 서버 업데이트 성공");
-                    }
-                    @Override
-                    public void onFailure(Call<Void> call, Throwable t) {
-                        Log.e("FCM", "onNewToken() → 교사 토큰 서버 업데이트 실패", t);
-                    }
-                });
-            }
+//        } else if (role.equals("teacher")) {
+//            String teacherId = prefs.getString("teacherId", null);
+//            if (teacherId != null) {
+//                TeacherApi teacherApi = RetrofitClient.getClient().create(TeacherApi.class);
+//                teacherApi.updateFcmToken(teacherId, token).enqueue(new retrofit2.Callback<Void>() {
+//                    @Override
+//                    public void onResponse(Call<Void> call, Response<Void> response) {
+//                        Log.d("FCM", "onNewToken() → 교사 토큰 서버 업데이트 성공");
+//                    }
+//                    @Override
+//                    public void onFailure(Call<Void> call, Throwable t) {
+//                        Log.e("FCM", "onNewToken() → 교사 토큰 서버 업데이트 실패", t);
+//                    }
+//                });
+//            }
         } else if (role.equals("parent")) {
             String parentId = prefs.getString("parentId", null);
             if (parentId != null) {

@@ -21,24 +21,17 @@ import com.mobile.greenacademypartner.ui.notice.NoticeActivity;
 import com.mobile.greenacademypartner.ui.qna.QuestionsActivity;
 import com.mobile.greenacademypartner.ui.setting.SettingActivity;
 
-// ✅ 필요한 경우: 원장 전용 화면들 (임시로 클래명 예시)
-import com.mobile.greenacademypartner.ui.director.DirectorMyPageActivity;
-//import com.mobile.greenacademypartner.ui.director.ManageTeachersActivity;
-//import com.mobile.greenacademypartner.ui.director.ManageStudentsActivity;
-//import com.mobile.greenacademypartner.ui.director.ManageParentsActivity;
-
 public class NavigationMenuHelper {
 
-    // ✅ 역할 구분
-    public enum Role { STUDENT, TEACHER, PARENT, DIRECTOR }
+    // ✅ 역할 구분 (TEACHER/DIRECTOR 남겨서 컴파일 안전, 내부에서는 폴백 처리)
+    public enum Role { STUDENT, PARENT, TEACHER, DIRECTOR }
 
-    // ✅ 메뉴 스펙(한 항목)
     public static class MenuSpec {
         public final String label;
         public final int iconLight;
         public final int iconDark;
         public final Class<?> targetActivity;
-        public final boolean alwaysLaunchNew; // 출석처럼 항상 새로 열고 싶을 때 true
+        public final boolean alwaysLaunchNew;
 
         public MenuSpec(String label, int iconLight, int iconDark, Class<?> targetActivity) {
             this(label, iconLight, iconDark, targetActivity, false);
@@ -54,8 +47,7 @@ public class NavigationMenuHelper {
 
     private static LinearLayout selectedItem = null;
 
-    // ✅ 기존 API와 호환(역할 미지정 시 기존 배열 유지) -------------------------
-    //    기존 호출부를 깨지 않기 위해 남겨둠.
+    // ✅ 기존 API와의 호환을 위한 기본 배열 (학생/학부모 공용 메뉴)
     public static final String[] labels = {
             "My Page", "출석 관리", "시간표", "Q&A", "공지사항", "설정"
     };
@@ -87,9 +79,8 @@ public class NavigationMenuHelper {
             SettingActivity.class
     };
 
-    // 기존 호출 유지용 (학생/기본 메뉴)
+    // 기존 호출 유지용 (역할 구분 없이 기본 메뉴 세팅)
     public static void setupMenu(Activity activity, LinearLayout navContainer, DrawerLayout drawerLayout, TextView mainContentText, int initialSelectedIndex) {
-        // 기존 배열을 MenuSpec으로 변환해서 공통 메서드로 넘김
         MenuSpec[] specs = new MenuSpec[labels.length];
         for (int i = 0; i < labels.length; i++) {
             boolean alwaysNew = (targetActivities[i] == AttendanceActivity.class);
@@ -97,48 +88,19 @@ public class NavigationMenuHelper {
         }
         setupMenu(activity, navContainer, drawerLayout, mainContentText, initialSelectedIndex, specs);
     }
-    // --------------------------------------------------------------------
 
-    // ✅ 역할별 메뉴 사양 팩토리
+    // ✅ 역할별 메뉴: TEACHER/DIRECTOR도 기본 메뉴로 폴백 (기능 제거)
     public static MenuSpec[] getMenuForRole(Role role) {
-        switch (role) {
-//            case DIRECTOR:
-//                // ✨ 요구하신 원장 메뉴: 마이페이지, 교사관리, 학생관리, 학부모관리, Q&A, 공지사항, 설정
-//                return new MenuSpec[] {
-//                        new MenuSpec("마이페이지",  R.drawable.ic_person_light,   R.drawable.ic_person_dark,   DirectorMyPageActivity.class),
-//                        new MenuSpec("교사 관리",  R.drawable.ic_teacher_light,  R.drawable.ic_teacher_dark,  ManageTeachersActivity.class, true /*원장 관리 화면은 항상 새로 열고 싶으면 true*/),
-//                        new MenuSpec("학생 관리",  R.drawable.ic_student_light,  R.drawable.ic_student_dark,  ManageStudentsActivity.class, true),
-//                        new MenuSpec("학부모 관리",R.drawable.ic_parent_light,   R.drawable.ic_parent_dark,   ManageParentsActivity.class, true),
-//                        new MenuSpec("Q&A",       R.drawable.ic_qa_light,       R.drawable.ic_qa_dark,       QuestionsActivity.class),
-//                        new MenuSpec("공지사항",   R.drawable.ic_notice_light,   R.drawable.ic_notice_dark,   NoticeActivity.class),
-//                        new MenuSpec("설정",       R.drawable.ic_settings_light, R.drawable.ic_settings_dark, SettingActivity.class)
-//                };
-
-            case TEACHER:
-                // 필요 시 교사용 메뉴 정의
-                return new MenuSpec[] {
-                        new MenuSpec("My Page",    R.drawable.ic_person_light,     R.drawable.ic_person_dark,     MyPageActivity.class),
-                        new MenuSpec("출석 관리",   R.drawable.ic_attendance_light, R.drawable.ic_attendance_dark, AttendanceActivity.class, true),
-                        new MenuSpec("시간표",      R.drawable.ic_timetable_light,  R.drawable.ic_timetable_dark,  MainActivity.class),
-                        new MenuSpec("Q&A",        R.drawable.ic_qa_light,         R.drawable.ic_qa_dark,         QuestionsActivity.class),
-                        new MenuSpec("공지사항",    R.drawable.ic_notice_light,     R.drawable.ic_notice_dark,      NoticeActivity.class),
-                        new MenuSpec("설정",        R.drawable.ic_settings_light,   R.drawable.ic_settings_dark,    SettingActivity.class)
-                };
-
-            case PARENT:
-            case STUDENT:
-            default:
-                // 기본(현재 구현된 배열과 동일)
-                MenuSpec[] defaultSpecs = new MenuSpec[labels.length];
-                for (int i = 0; i < labels.length; i++) {
-                    boolean alwaysNew = (targetActivities[i] == AttendanceActivity.class);
-                    defaultSpecs[i] = new MenuSpec(labels[i], icons[i], icons_dark[i], targetActivities[i], alwaysNew);
-                }
-                return defaultSpecs;
+        // STUDENT/PARENT 동일 구성 사용
+        MenuSpec[] defaultSpecs = new MenuSpec[labels.length];
+        for (int i = 0; i < labels.length; i++) {
+            boolean alwaysNew = (targetActivities[i] == AttendanceActivity.class);
+            defaultSpecs[i] = new MenuSpec(labels[i], icons[i], icons_dark[i], targetActivities[i], alwaysNew);
         }
+        return defaultSpecs;
     }
 
-    // ✅ 공통 렌더러 (역할/스펙 기반)
+    // 역할 지정 버전
     public static void setupMenu(Activity activity,
                                  LinearLayout navContainer,
                                  DrawerLayout drawerLayout,
@@ -148,7 +110,7 @@ public class NavigationMenuHelper {
         setupMenu(activity, navContainer, drawerLayout, mainContentText, initialSelectedIndex, getMenuForRole(role));
     }
 
-    // 실제 구현(모든 케이스 공통)
+    // 공통 렌더러
     public static void setupMenu(Activity activity,
                                  LinearLayout navContainer,
                                  DrawerLayout drawerLayout,
@@ -157,7 +119,7 @@ public class NavigationMenuHelper {
                                  MenuSpec[] specs) {
 
         LayoutInflater inflater = LayoutInflater.from(activity);
-        navContainer.removeAllViews(); // 중복 추가 방지
+        navContainer.removeAllViews();
 
         for (int i = 0; i < specs.length; i++) {
             MenuSpec spec = specs[i];
@@ -170,9 +132,7 @@ public class NavigationMenuHelper {
             icon.setImageResource(spec.iconLight);
             text.setText(spec.label);
 
-            int index = i;
-
-            // ✅ 초기 강조
+            // 초기 강조
             if (i == initialSelectedIndex) {
                 icon.setImageResource(spec.iconDark);
                 text.setTextColor(ContextCompat.getColor(activity, R.color.white));
@@ -182,13 +142,16 @@ public class NavigationMenuHelper {
 
             layout.setOnClickListener(v -> {
                 // 이전 선택 해제
-                if (selectedItem != null) {
-                    int prevIndex = ((ViewGroup) selectedItem.getParent()).indexOfChild(selectedItem);
-                    ImageView prevIcon = selectedItem.findViewById(R.id.nav_icon);
-                    TextView prevText = selectedItem.findViewById(R.id.nav_text);
-                    prevIcon.setImageResource(specs[prevIndex].iconLight);
-                    prevText.setTextColor(ContextCompat.getColor(activity, R.color.black));
-                    selectedItem.setBackgroundColor(ContextCompat.getColor(activity, R.color.gray));
+                if (selectedItem != null && selectedItem.getParent() instanceof ViewGroup) {
+                    ViewGroup parent = (ViewGroup) selectedItem.getParent();
+                    int prevIndex = parent.indexOfChild(selectedItem);
+                    if (prevIndex >= 0 && prevIndex < specs.length) {
+                        ImageView prevIcon = selectedItem.findViewById(R.id.nav_icon);
+                        TextView prevText = selectedItem.findViewById(R.id.nav_text);
+                        prevIcon.setImageResource(specs[prevIndex].iconLight);
+                        prevText.setTextColor(ContextCompat.getColor(activity, R.color.black));
+                        selectedItem.setBackgroundColor(ContextCompat.getColor(activity, R.color.gray));
+                    }
                 }
 
                 // 현재 강조
@@ -201,10 +164,8 @@ public class NavigationMenuHelper {
                 boolean isSameActivity = (spec.targetActivity != null) && activity.getClass().equals(spec.targetActivity);
                 if (spec.targetActivity != null && (spec.alwaysLaunchNew || !isSameActivity)) {
                     activity.startActivity(new Intent(activity, spec.targetActivity));
-                } else {
-                    if (mainContentText != null) {
-                        mainContentText.setText(spec.label + " 화면입니다");
-                    }
+                } else if (mainContentText != null) {
+                    mainContentText.setText(spec.label + " 화면입니다");
                 }
 
                 drawerLayout.closeDrawer(GravityCompat.START);

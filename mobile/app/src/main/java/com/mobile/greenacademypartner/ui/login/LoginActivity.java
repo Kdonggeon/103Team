@@ -204,7 +204,15 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     // ===== Helpers =====
-    private String safe(String s) { return s == null ? "" : s.trim(); }
-    private String safeLower(String s) { return safe(s).toLowerCase(); }
-    private int safeInt(Integer v) { return v == null ? 0 : v; }
+    private String safe(String s) {
+        return s == null ? "" : s.trim();
+    }
+
+    private String safeLower(String s) {
+        return safe(s).toLowerCase();
+    }
+
+    private int safeInt(Integer v) {
+        return v == null ? 0 : v;
+    }
 }

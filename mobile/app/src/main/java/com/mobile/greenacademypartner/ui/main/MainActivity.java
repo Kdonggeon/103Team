@@ -15,11 +15,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
-import com.mobile.greenacademypartner.api.TeacherApi;
+import com.mobile.greenacademypartner.api.ParentApi; // ✅ 학부모 FCM 전송용
+
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
 import com.mobile.greenacademypartner.ui.timetable.ParentChildrenListActivity;
 import com.mobile.greenacademypartner.ui.timetable.StudentTimetableActivity;
-import com.mobile.greenacademypartner.ui.timetable.TeacherTimetableActivity;
+// import com.mobile.greenacademypartner.api.TeacherApi;                 // 🔕 [REMOVED] teacher 기능 제거
+// import com.mobile.greenacademypartner.ui.timetable.TeacherTimetableActivity; // 🔕 [REMOVED] teacher 화면 제거
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -83,15 +85,20 @@ public class MainActivity extends AppCompatActivity {
             case "student":
                 intent = new Intent(this, StudentTimetableActivity.class);
                 break;
-            case "teacher":
-            case "director": // 원장도 교사용 시간표로
-                intent = new Intent(this, TeacherTimetableActivity.class);
-                break;
+
+            // 🔕 [DISABLED] teacher/director 라우팅
+            // case "teacher":
+            // case "director": // 원장도 교사용 시간표로
+            //     intent = new Intent(this, TeacherTimetableActivity.class);
+            //     break;
+
             case "parent":
                 intent = new Intent(this, ParentChildrenListActivity.class);
                 break;
+
             default:
-                clearLoginAndGoLogin(this, "Unknown role");
+                // 🔒 허용되지 않는 역할(teacher/director 포함) → 즉시 로그아웃
+                clearLoginAndGoLogin(this, "ROLE_REMOVED");
                 return;
         }
         startActivity(intent);
@@ -132,17 +139,26 @@ public class MainActivity extends AppCompatActivity {
                     maybeRetryFcm(userId, role, fcmToken);
                 }
             });
-        } else { // teacher / director / parent (교사 API로 처리하는 기존 흐름 유지)
-            TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
+
+        } else if ("parent".equalsIgnoreCase(role)) {
+            // ✅ 학부모는 ParentApi로 전송
+            ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
             api.updateFcmToken(userId, fcmToken).enqueue(new Callback<Void>() {
                 @Override public void onResponse(Call<Void> call, Response<Void> res) {
-                    Log.d(TAG, "FCM 토큰 전송 성공(교사/원장/부모)");
+                    Log.d(TAG, "FCM 토큰 전송 성공(학부모)");
                 }
                 @Override public void onFailure(Call<Void> call, Throwable t) {
-                    Log.w(TAG, "FCM 토큰 전송 실패(교사/원장/부모): " + t.getMessage());
+                    Log.w(TAG, "FCM 토큰 전송 실패(학부모): " + t.getMessage());
                     maybeRetryFcm(userId, role, fcmToken);
                 }
             });
+
+        } else {
+            // 🔕 [DISABLED] teacher/director/기타 역할 FCM 전송 경로
+            // TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
+            // api.updateFcmToken(userId, fcmToken).enqueue(new Callback<Void>() { ... });
+
+            Log.w(TAG, "ROLE_REMOVED: FCM 전송 스킵 (" + role + ")");
         }
     }
 

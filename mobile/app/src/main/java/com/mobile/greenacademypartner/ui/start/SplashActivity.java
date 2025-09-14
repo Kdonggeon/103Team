@@ -15,7 +15,7 @@ import androidx.core.app.ActivityCompat;
 
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.mobile.greenacademypartner.api.StudentApi;
-import com.mobile.greenacademypartner.api.TeacherApi;
+//import com.mobile.greenacademypartner.api.TeacherApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
 import com.mobile.greenacademypartner.ui.main.MainActivity;
@@ -89,20 +89,20 @@ public class SplashActivity extends AppCompatActivity {
                             Log.w("SplashActivity", "FCM 토큰 전송 실패(학생)", t);
                         }
                     });
-        } else {
-            TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
-            api.updateFcmToken(userId, token)
-                    .enqueue(new Callback<Void>() {
-                        @Override
-                        public void onResponse(Call<Void> call, Response<Void> response) {
-                            Log.d("SplashActivity", "FCM 토큰 전송 성공(교사)");
-                        }
-
-                        @Override
-                        public void onFailure(Call<Void> call, Throwable t) {
-                            Log.w("SplashActivity", "FCM 토큰 전송 실패(교사)", t);
-                        }
-                    });
+//        } else {
+//            TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
+//            api.updateFcmToken(userId, token)
+//                    .enqueue(new Callback<Void>() {
+//                        @Override
+//                        public void onResponse(Call<Void> call, Response<Void> response) {
+//                            Log.d("SplashActivity", "FCM 토큰 전송 성공(교사)");
+//                        }
+//
+//                        @Override
+//                        public void onFailure(Call<Void> call, Throwable t) {
+//                            Log.w("SplashActivity", "FCM 토큰 전송 실패(교사)", t);
+//                        }
+//                    });
         }
     }
 }

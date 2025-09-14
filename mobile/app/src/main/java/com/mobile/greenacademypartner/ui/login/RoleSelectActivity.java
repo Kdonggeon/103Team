@@ -9,8 +9,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.ui.signup.ParentSignupActivity;
 import com.mobile.greenacademypartner.ui.signup.StudentSignupActivity;
-import com.mobile.greenacademypartner.ui.signup.TeacherSignupActivity;
-import com.mobile.greenacademypartner.ui.signup.DirectorSignupActivity; // ✅ 추가
+//import com.mobile.greenacademypartner.ui.signup.TeacherSignupActivity;
+//import com.mobile.greenacademypartner.ui.signup.DirectorSignupActivity; // ✅ 추가
 
 public class RoleSelectActivity extends AppCompatActivity {
 
@@ -34,12 +34,12 @@ public class RoleSelectActivity extends AppCompatActivity {
             startActivity(new Intent(this, ParentSignupActivity.class));
         });
 
-        btnTeacher.setOnClickListener(v -> {
-            startActivity(new Intent(this, TeacherSignupActivity.class));
-        });
-
-        btnDirector.setOnClickListener(v -> {
-            startActivity(new Intent(this, DirectorSignupActivity.class));
-        });
+//        btnTeacher.setOnClickListener(v -> {
+//            startActivity(new Intent(this, TeacherSignupActivity.class));
+//        });
+//
+//        btnDirector.setOnClickListener(v -> {
+//            startActivity(new Intent(this, DirectorSignupActivity.class));
+//        });
     }
 }

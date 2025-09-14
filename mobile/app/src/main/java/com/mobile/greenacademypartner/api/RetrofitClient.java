@@ -2,13 +2,13 @@ package com.mobile.greenacademypartner.api;
 
 import android.content.Context;
 
-import com.mobile.greenacademypartner.ui.qna.SimpleCookieJar;
 import com.mobile.greenacademypartner.net.BackendGuardInterceptor;
-//import com.mobile.greenacademypartner.net.AuthHeaderInterceptor;
+import com.mobile.greenacademypartner.ui.qna.SimpleCookieJar;
 
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
+import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -18,7 +18,7 @@ public class RetrofitClient {
     private static volatile Retrofit retrofit;
 
     private static final SimpleCookieJar cookieJar = new SimpleCookieJar();
-    private static volatile Context appContext; // 인터셉터에 쓸 앱 컨텍스트
+    private static volatile Context appContext; // 인터셉터에서 사용
 
     private RetrofitClient() {}
 
@@ -35,17 +35,14 @@ public class RetrofitClient {
                         throw new IllegalStateException("RetrofitClient not initialized. Call RetrofitClient.init(context) first.");
                     }
 
-                    OkHttpClient okHttpClient = new OkHttpClient.Builder()
-                            // 쿠키 유지 (세션 기반이면 필수)
+                    HttpLoggingInterceptor log = new HttpLoggingInterceptor();
+                    log.setLevel(HttpLoggingInterceptor.Level.BASIC);
+
+                    OkHttpClient ok = new OkHttpClient.Builder()
                             .cookieJar(cookieJar)
-
-                            // 전역 가드: 오프라인/서버미기동/401/503 등에서 강제 로그아웃
                             .addInterceptor(new BackendGuardInterceptor(appContext))
-
-//                            // 선택: 토큰 기반일 때만 사용 (쿠키만 쓰면 필요없으면 빼도 OK)
-//                            .addInterceptor(new AuthHeaderInterceptor(appContext))
-
-                            // 짧은 타임아웃 (개발 중 권장)
+                            // .addInterceptor(new AuthHeaderInterceptor(appContext)) // 토큰 사용할 때만
+                            .addInterceptor(log) // 개발 중 로그
                             .callTimeout(3, TimeUnit.SECONDS)
                             .connectTimeout(2, TimeUnit.SECONDS)
                             .readTimeout(2, TimeUnit.SECONDS)
@@ -54,7 +51,7 @@ public class RetrofitClient {
 
                     retrofit = new Retrofit.Builder()
                             .baseUrl(BASE_URL)
-                            .client(okHttpClient)
+                            .client(ok)
                             .addConverterFactory(GsonConverterFactory.create())
                             .build();
                 }
