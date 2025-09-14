@@ -23,8 +23,8 @@ public class RoleSelectActivity extends AppCompatActivity {
 
         btnStudent = findViewById(R.id.btn_student);
         btnParent = findViewById(R.id.btn_parent);
-        btnTeacher = findViewById(R.id.btn_teacher);
-        btnDirector = findViewById(R.id.btn_director);
+//        btnTeacher = findViewById(R.id.btn_teacher);
+//        btnDirector = findViewById(R.id.btn_director);
 
         btnStudent.setOnClickListener(v -> {
             startActivity(new Intent(this, StudentSignupActivity.class));
