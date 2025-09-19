@@ -3,6 +3,7 @@ package com.mobile.greenacademypartner.api;
 
 import com.mobile.greenacademypartner.model.attendance.Attendance;
 
+import com.mobile.greenacademypartner.model.classes.Course;
 import com.mobile.greenacademypartner.model.login.LoginRequest;
 import com.mobile.greenacademypartner.model.login.LoginResponse;
 import com.mobile.greenacademypartner.model.student.StudentSignupRequest;
@@ -56,7 +57,8 @@ public interface StudentApi {
             @Path("studentId") String studentId,
             @Query("token") String token
     );
-
+    @GET("/api/students/{studentId}/classes")
+    Call<List<Course>> getMyClasses(@Path("studentId") String studentId);
 
 
 

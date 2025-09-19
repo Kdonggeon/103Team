@@ -255,7 +255,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
         // 기존 버튼(호환)
         btnAddAnswer = findViewById(R.id.btn_add_answer);
         if (btnAddAnswer != null) btnAddAnswer.setVisibility(View.GONE);
-        btnDeleteQuestion = findViewById(R.id.btn_delete_question);
         if (btnDeleteQuestion != null) {
             btnDeleteQuestion.setOnClickListener(v -> deleteQuestion());
         }

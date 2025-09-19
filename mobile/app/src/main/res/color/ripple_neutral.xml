@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#22000000">  <!-- 옅은 회색(투명 블랙) -->
+    <!-- 필요 시 마스크 지정 가능
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <solid android:color="#33000000"/>
+        </shape>
+    </item>
+    -->
+</ripple>

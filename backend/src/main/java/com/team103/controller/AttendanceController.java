@@ -64,6 +64,15 @@ public class AttendanceController {
             dto.setDate(att.getDate());     // "yyyy-MM-dd"
             dto.setStatus(status);
 
+            // ⬇️ 추가: 수업 시간 포함
+            if (course != null) {
+                dto.setStartTime(formatTime(course.getStartTime())); // "HH:mm"
+                dto.setEndTime(formatTime(course.getEndTime()));     // "HH:mm"
+            } else {
+                dto.setStartTime(null);
+                dto.setEndTime(null);
+            }
+
             out.add(dto);
         }
 
@@ -100,5 +109,18 @@ public class AttendanceController {
         Integer no = t.getAcademyNumbers().get(0);
         Academy a = academyRepository.findByAcademyNumber(no);
         return (a != null && a.getName() != null) ? a.getName() : "";
+    }
+
+    /** "H:mm", "HH:mm", "9:0" 등 → "HH:mm" 포맷 정규화 */
+    private String formatTime(String t) {
+        if (t == null || t.trim().isEmpty()) return null;
+        try {
+            String[] p = t.split(":");
+            int hh = Integer.parseInt(p[0].trim());
+            int mm = (p.length > 1) ? Integer.parseInt(p[1].trim()) : 0;
+            return String.format(java.util.Locale.KOREA, "%02d:%02d", hh, mm);
+        } catch (Exception e) {
+            return t; // 형식이 예상과 달라도 원문 유지
+        }
     }
 }

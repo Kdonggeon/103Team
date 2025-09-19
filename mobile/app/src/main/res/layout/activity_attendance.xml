@@ -6,6 +6,7 @@
     android:layout_height="match_parent">
 
     <!-- 메인 컨텐츠 -->
+
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="match_parent"

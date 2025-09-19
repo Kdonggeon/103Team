@@ -12,7 +12,16 @@ public class Course {
 
 	@Id
     private String id;
+	
+	@Field("Days_Of_Week")   // 1=월 … 7=일 주간 반복 필드
+	private List<Integer> daysOfWeek;
+	
+	@Field("Start_Time")     // "HH:mm"
+	private String startTime;
 
+	@Field("End_Time")       // "HH:mm"
+	private String endTime;
+	
     @Field("Class_ID")
     private String classId;
 
@@ -75,6 +84,28 @@ public class Course {
 	public void setSchedule(String schedule) {
 		this.schedule = schedule;
 	}
+	
+	public List<Integer> getDaysOfWeek() {
+	    return daysOfWeek;
+	}
+	public void setDaysOfWeek(List<Integer> daysOfWeek) {
+	    this.daysOfWeek = daysOfWeek;
+	}
+
+	public String getStartTime() {
+	    return startTime;
+	}
+	public void setStartTime(String startTime) {
+	    this.startTime = startTime;
+	}
+
+	public String getEndTime() {
+	    return endTime;
+	}
+	public void setEndTime(String endTime) {
+	    this.endTime = endTime;
+	}
+
 	
 	
 }

@@ -5,6 +5,8 @@ public class AttendanceResponse {
     private String academyName; // 학원명
     private String date;        // yyyy-MM-dd
     private String status;      // 출석/지각/결석
+    private String startTime; // "HH:mm"
+    private String endTime;   // "HH:mm"
 
     // ★ 기본 생성자 (무인자)
     public AttendanceResponse() {}
@@ -34,4 +36,12 @@ public class AttendanceResponse {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    
+    public String getStartTime() {return startTime;}
+
+    public void setStartTime(String startTime) {this.startTime = startTime;}
+
+    public String getEndTime() {return endTime;}
+
+    public void setEndTime(String endTime) {this.endTime = endTime;}
 }

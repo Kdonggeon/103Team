@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 체크 상태 트랙 -->
+    <item android:state_checked="true">
+        <shape android:shape="rectangle">
+            <size android:height="24dp"/>
+            <corners android:radius="999dp"/>
+            <solid android:color="#C9CDD2"/>
+        </shape>
+    </item>
+
+    <!-- 미체크 상태 트랙 -->
+    <item>
+        <shape android:shape="rectangle">
+            <size android:height="24dp"/>
+            <corners android:radius="999dp"/>
+            <solid android:color="#DDE1E6"/>
+        </shape>
+    </item>
+</selector>
