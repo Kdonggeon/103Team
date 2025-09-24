@@ -11,6 +11,7 @@ import com.team103.repository.QuestionRepository;
 import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
 import com.team103.service.FcmService;
+
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.HashSet;
+import java.util.Set;
 
 @RestController
 public class AnswerController {
@@ -54,41 +57,59 @@ public class AnswerController {
         // 저장
         Answer a = new Answer();
         a.setQuestionId(questionId);
-        a.setContent(payload.getContent());
+        a.setContent(payload.getContent() == null ? "" : payload.getContent());
         a.setCreatedAt(new Date());
 
         // 세션에서 작성자
-        String role = (String) session.getAttribute("role");        // "teacher" | "student" | "parent"
+        String role = (String) session.getAttribute("role");        // "teacher" | "director" | "student" | "parent"
         String userId = (String) session.getAttribute("username");  // 로그인 시 저장한 키와 통일
         a.setAuthor(userId);
 
+        // (선택) authorRole 필드가 있는 프로젝트라면 반영
+        try { a.getClass().getMethod("setAuthorRole", String.class).invoke(a, role); } catch (Exception ignore) {}
+
         Answer saved = answerRepository.save(a);
 
-        // ---- FCM 알림 (항상 fcmToken만 사용) ----
+        // ---- FCM 알림 ----
         try {
-            if ("teacher".equalsIgnoreCase(role)) {
-                // 교사가 보냄 → 해당 학생(+학부모)에게
-                String studentId = q.getRoomStudentId(); // 질문이 속한 학생 ID
-                if (studentId != null && !studentId.isEmpty()) {
-                    // 학생
-                    Student s = studentRepository.findByStudentId(studentId);
-                    if (s != null && s.getFcmToken() != null && !s.getFcmToken().isEmpty()) {
+            if ("teacher".equalsIgnoreCase(role) || "director".equalsIgnoreCase(role)) {
+                // 교사/원장 → 학부모(우선), 학생(있다면)
+                Set<String> sentTokens = new HashSet<>();
+
+                // 1) parent 전용 방이면 roomParentId 기준으로 해당 학부모에게
+                String parentIdInRoom = q.getRoomParentId();
+                if (parentIdInRoom != null && !parentIdInRoom.isEmpty()) {
+                    Parent p = parentRepository.findByParentsId(parentIdInRoom);
+                    if (p != null && p.getFcmToken() != null && !p.getFcmToken().isEmpty() && sentTokens.add(p.getFcmToken())) {
                         fcmService.sendMessageTo(
-                                studentId,
+                                p.getParentsId(),
+                                p.getFcmToken(),
+                                "새 답변 알림",
+                                "선생님의 답변이 도착했습니다."
+                        );
+                    }
+                }
+
+                // 2) student 전용 방이면 학생 + 그 학생의 학부모 전원에게
+                String studentIdInRoom = q.getRoomStudentId();
+                if (studentIdInRoom != null && !studentIdInRoom.isEmpty()) {
+                    // 학생
+                    Student s = studentRepository.findByStudentId(studentIdInRoom);
+                    if (s != null && s.getFcmToken() != null && !s.getFcmToken().isEmpty() && sentTokens.add(s.getFcmToken())) {
+                        fcmService.sendMessageTo(
+                                studentIdInRoom,
                                 s.getFcmToken(),
                                 "새 답변 알림",
                                 "선생님의 답변이 도착했습니다."
                         );
                     }
-                    // 학부모(선택) : 해당 학생을 포함하는 학부모 전원
-                    List<Parent> parents = parentRepositoryFindByStudentId(studentId);
+                    // 학부모들
+                    List<Parent> parents = parentRepository.findByStudentId(studentIdInRoom);
                     if (parents != null) {
                         for (Parent p : parents) {
-                            if (p.getFcmToken() != null && !p.getFcmToken().isEmpty()) {
-                                // 부모 userId는 도메인 키(예: parentsId) 사용
-                                String parentsId = p.getParentsId();
+                            if (p.getFcmToken() != null && !p.getFcmToken().isEmpty() && sentTokens.add(p.getFcmToken())) {
                                 fcmService.sendMessageTo(
-                                        parentsId,
+                                        p.getParentsId(),
                                         p.getFcmToken(),
                                         "새 답변 알림",
                                         "자녀 질문에 답변이 도착했습니다."
@@ -97,13 +118,16 @@ public class AnswerController {
                         }
                     }
                 }
+
             } else {
-                // 학생/학부모가 보냄 → 같은 학원 교사들에게
+                // 학생/학부모 → 같은 학원 교사들
                 int academyNumber = q.getAcademyNumber();
-                List<Teacher> teachers = teacherRepositoryFindByAcademyNumber(academyNumber);
+                List<Teacher> teachers = teacherRepository.findByAcademyNumber(academyNumber);
+
+                Set<String> sentTokens = new HashSet<>();
                 if (teachers != null) {
                     for (Teacher t : teachers) {
-                        if (t.getFcmToken() != null && !t.getFcmToken().isEmpty()) {
+                        if (t.getFcmToken() != null && !t.getFcmToken().isEmpty() && sentTokens.add(t.getFcmToken())) {
                             fcmService.sendMessageTo(
                                     t.getTeacherId(),
                                     t.getFcmToken(),
@@ -118,17 +142,9 @@ public class AnswerController {
             // 알림 실패는 저장과 분리
         }
 
+        // 응답 직전 표시용 이름 세팅(클라이언트 즉시 렌더링 대비)
+        saved.setTeacherName(resolveTeacherName(saved.getAuthor()));
         return new ResponseEntity<>(saved, HttpStatus.CREATED);
-    }
-
-    private List<Parent> parentRepositoryFindByStudentId(String studentId) {
-
-        return parentRepository.findByStudentId(studentId);
-    }
-
-    private List<Teacher> teacherRepositoryFindByAcademyNumber(int academyNumber) {
-
-        return teacherRepository.findByAcademyNumber(academyNumber);
     }
 
     // 답변 수정
@@ -136,7 +152,7 @@ public class AnswerController {
     public ResponseEntity<Answer> updateAnswer(@PathVariable String id,
                                                @RequestBody Answer answer) {
         Optional<Answer> opt = answerRepository.findById(id);
-        if (!opt.isPresent()) return ResponseEntity.notFound().build();
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
 
         Answer existing = opt.get();
         existing.setContent(answer.getContent());
@@ -156,7 +172,7 @@ public class AnswerController {
         if (!"teacher".equalsIgnoreCase(role)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 
         Optional<Answer> opt = answerRepository.findById(id);
-        if (!opt.isPresent()) return ResponseEntity.noContent().build();
+        if (opt.isEmpty()) return ResponseEntity.noContent().build();
 
         Answer answer = opt.get();
         if (!answer.isDeleted()) {
@@ -170,7 +186,7 @@ public class AnswerController {
     @GetMapping("/api/answers/{id}")
     public ResponseEntity<Answer> getAnswer(@PathVariable String id) {
         Optional<Answer> opt = answerRepository.findById(id);
-        if (!opt.isPresent()) return ResponseEntity.notFound().build();
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
 
         Answer a = opt.get();
         a.setTeacherName(resolveTeacherName(a.getAuthor()));

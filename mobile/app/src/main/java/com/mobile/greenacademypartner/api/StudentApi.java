@@ -60,6 +60,12 @@ public interface StudentApi {
     @GET("/api/students/{studentId}/classes")
     Call<List<Course>> getMyClasses(@Path("studentId") String studentId);
 
+    @GET("/api/parents/{parentId}/students")
+    Call<List<Student>> getStudentsByParentId(@Path("parentId") String parentId);
+
+    @GET("/api/students/{studentId}")
+    Call<Student> getStudentById(@Path("studentId") String studentId);
+
 
 
 

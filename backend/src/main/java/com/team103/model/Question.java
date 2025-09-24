@@ -24,7 +24,8 @@ public class Question {
     @Transient
     private java.util.List<String> recentResponderNames;
     @Transient
-    private int unreadCount;                           
+    private int unreadCount;     
+    private String roomParentId;
     private String roomStudentId;   // 학생별 1:1 방 키
     public Question() {
         this.createdAt = new Date();
@@ -69,4 +70,12 @@ public class Question {
     
     public String getRoomStudentId() { return roomStudentId; }
     public void setRoomStudentId(String roomStudentId) { this.roomStudentId = roomStudentId; }
+    
+    public String getRoomParentId() {
+        return roomParentId;
+    }
+
+    public void setRoomParentId(String roomParentId) {
+        this.roomParentId = roomParentId;
+    }
 }

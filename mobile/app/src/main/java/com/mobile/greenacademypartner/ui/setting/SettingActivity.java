@@ -1,6 +1,7 @@
 package com.mobile.greenacademypartner.ui.setting;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Intent;
 import androidx.core.widget.CompoundButtonCompat;
 import android.content.SharedPreferences;
@@ -23,6 +24,7 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
@@ -59,8 +61,8 @@ public class SettingActivity extends AppCompatActivity {
     private LinearLayout boxNotifications;
     private SwitchCompat swInApp;
 
-    // 폰트 설정 섹션(동적)
-    private LinearLayout boxFonts;
+    // 폰트 설정 섹션 (XML 바인딩 우선, 없으면 동적 생성)
+    private LinearLayout boxFonts; // 동적 대체용(유지)
     private RadioButton rbSystem, rbNoto;
 
     // 중립(고정) 틴트 팔레트
@@ -135,8 +137,15 @@ public class SettingActivity extends AppCompatActivity {
         // 7-1) 인앱 알림 카드 동일 스타일
         decorateNotificationCard();
 
-        // 7-2) 폰트 설정 섹션 삽입
-        insertFontSectionBelowNotifications();
+        // 7-2) 폰트 설정: XML 우선 바인딩, 없으면 기존 동적 생성 유지 (모두에게 보임)
+        if (findViewById(R.id.card_font_settings) != null) {
+            bindFontControlsFromXml();
+        } else {
+            insertFontSectionBelowNotifications();
+        }
+
+        // 7-3) 자녀 추가 카드(XML): 학부모 전용 가시성/동작 + 카드 디자인 동일화
+        setupAddChildCardFromXml();
 
         // 8) 색상 칩 채우기
         setupColorSelection();
@@ -188,7 +197,7 @@ public class SettingActivity extends AppCompatActivity {
         btnLogout.setOnClickListener(v -> {
             SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
             prefs.edit().clear().apply();
-            Intent intent = new Intent(SettingActivity.this, LoginActivity.class); // 수정됨
+            Intent intent = new Intent(SettingActivity.this, LoginActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
             finish();
@@ -274,9 +283,33 @@ public class SettingActivity extends AppCompatActivity {
         }
     }
 
-    /** 알림 카드 바로 아래에 “폰트 설정” 카드(동적) 추가: 기본↔Noto 토글 */
+    /** XML에 정의된 폰트설정 카드 바인딩(기능/디자인 동일 유지, 모두에게 노출) */
+    private void bindFontControlsFromXml() {
+        RadioGroup group = findViewById(R.id.rg_font_choice);
+        rbSystem = findViewById(R.id.rb_font_system);
+        rbNoto   = findViewById(R.id.rb_font_noto);
+        View btnApply = findViewById(R.id.btn_font_apply);
+
+        if (group == null || rbSystem == null || rbNoto == null || btnApply == null) return;
+
+        rbSystem.setText("기본 폰트(시스템)");
+        rbNoto.setText("Noto Sans KR");
+
+        SharedPreferences sp = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        String cur = sp.getString("app_font", "System");
+        if ("NotoSansKR".equals(cur)) rbNoto.setChecked(true); else rbSystem.setChecked(true);
+
+        btnApply.setOnClickListener(v -> {
+            String sel = rbNoto.isChecked() ? "NotoSansKR" : "System";
+            sp.edit().putString("app_font", sel).apply();
+            recreate();
+        });
+    }
+
+    /** 알림 카드 바로 아래에 “폰트 설정” 카드(동적) 추가: XML이 없을 때만 사용 */
     private void insertFontSectionBelowNotifications() {
         if (boxNotifications == null) return;
+        if (findViewById(R.id.card_font_settings) != null) return; // XML 있으면 스킵
 
         boxFonts = new LinearLayout(this);
         boxFonts.setOrientation(LinearLayout.VERTICAL);
@@ -352,6 +385,62 @@ public class SettingActivity extends AppCompatActivity {
                 contentRoot.addView(boxFonts, lp);
             }
         }
+    }
+
+    /** XML의 자녀 추가 카드: 학부모에게만 노출 + 동일 카드 디자인 + 곧장 '자녀 추가' 화면 진입 */
+    private void setupAddChildCardFromXml() {
+        View addCard = findViewById(R.id.card_add_child_settings);
+        View addBtn  = findViewById(R.id.btn_add_child_settings);
+        if (addCard == null || addBtn == null) return;
+
+        // 카드 디자인을 인앱 알림/테마 카드와 동일하게 통일
+        decorateCardLike(addCard);
+
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String role = prefs.getString("role", "");
+
+        // 학부모만 노출
+        if (!"parent".equalsIgnoreCase(role)) {
+            addCard.setVisibility(View.GONE);
+            return;
+        }
+        addCard.setVisibility(View.VISIBLE);
+
+        // 곧장 '자녀 추가' 화면으로 이동 (시간표/목록 경유 X)
+        addBtn.setOnClickListener(v -> launchAddChildActivityDirect());
+    }
+
+    /** '자녀 추가' 액티비티를 리플렉션으로 찾아 바로 실행 (패키지 경로 차이 안전 처리) */
+    @SuppressWarnings("unchecked")
+    private void launchAddChildActivityDirect() {
+        String[] candidates = new String[] {
+                // 프로젝트에서 실제 사용하는 경로를 최상단에 두세요.
+                "com.mobile.greenacademypartner.ui.timetable.AddChildActivity",
+                "com.mobile.greenacademypartner.ui.parents.AddChildActivity",
+                "com.mobile.greenacademypartner.ui.parent.AddChildActivity",
+                "com.mobile.greenacademypartner.ui.mypage.AddChildActivity",
+                "com.mobile.greenacademypartner.ui.setting.AddChildActivity"
+        };
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String parentId = firstNonEmpty(
+                prefs.getString("parentId", null),
+                prefs.getString("userId", null),
+                prefs.getString("username", null)
+        );
+
+        for (String fqcn : candidates) {
+            try {
+                Class<?> clz = Class.forName(fqcn);
+                Intent intent = new Intent(this, (Class<? extends Activity>) clz);
+                if (parentId != null) intent.putExtra("parentId", parentId);
+                startActivity(intent);
+                return;
+            } catch (ClassNotFoundException ignored) {
+            } catch (Throwable t) {
+                Log.e("Settings", "자녀 추가 화면 실행 실패: " + fqcn, t);
+            }
+        }
+        Toast.makeText(this, "자녀 추가 화면 클래스를 찾을 수 없습니다. 클래스 경로를 확인해주세요.", Toast.LENGTH_LONG).show();
     }
 
     private void setupColorSelection() {

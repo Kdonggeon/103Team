@@ -3,6 +3,7 @@ package com.mobile.greenacademypartner.ui.qna;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -27,10 +28,10 @@ import retrofit2.Response;
 public class AnswerAdapter extends RecyclerView.Adapter<AnswerAdapter.ViewHolder> {
 
     private List<Answer> answers = new ArrayList<>();
-    private Context context;
+    private final Context context;
 
-    private String questionId;
-    private String currentUserRole;
+    private final String questionId;
+    private final String currentUserRole;
 
     // 생성자
     public AnswerAdapter(Context context, String questionId, String currentUserRole) {
@@ -41,7 +42,7 @@ public class AnswerAdapter extends RecyclerView.Adapter<AnswerAdapter.ViewHolder
 
     // 리스트 갱신
     public void submitList(List<Answer> list) {
-        this.answers = list;
+        this.answers = list != null ? list : new ArrayList<>();
         notifyDataSetChanged();
     }
 
@@ -117,23 +118,26 @@ public class AnswerAdapter extends RecyclerView.Adapter<AnswerAdapter.ViewHolder
     private void deleteAnswer(Answer answer) {
         Log.d("AnswerAdapter", "[Delete] Attempting to delete AnswerID: " + answer.getId());
 
+        String auth = getAuthHeader(context);
         AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
-        api.deleteAnswer(answer.getId()).enqueue(new Callback<Void>() {
+        api.deleteAnswer(auth, answer.getId()).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 Log.d("AnswerAdapter", "[Delete] Response code: " + response.code());
                 if (response.isSuccessful()) {
                     Toast.makeText(context, "삭제 완료", Toast.LENGTH_SHORT).show();
                     refresh();
+                } else if (response.code() == 403) {
+                    Toast.makeText(context, "접근 권한이 없습니다.", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(context, "삭제 실패", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, "삭제 실패(" + response.code() + ")", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
                 Log.e("AnswerAdapter", "[Delete] Network Failure", t);
-                Toast.makeText(context, "네트워크 오류", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -152,11 +156,20 @@ public class AnswerAdapter extends RecyclerView.Adapter<AnswerAdapter.ViewHolder
         }
     }
 
+    // Authorization 헤더 생성
+    private String getAuthHeader(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences("login_prefs", Context.MODE_PRIVATE);
+        String token = prefs.getString("jwt", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("token", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("accessToken", null);
+        return (token == null || token.isEmpty()) ? null : "Bearer " + token;
+    }
+
     // ViewHolder
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        private TextView tvContent;
-        private TextView tvAuthor;
-        private TextView tvDate;
+        private final TextView tvContent;
+        private final TextView tvAuthor;
+        private final TextView tvDate;
 
         public ViewHolder(View itemView) {
             super(itemView);

@@ -50,8 +50,11 @@
     <style name="Widget.App.Card" parent="Widget.App.Card.Fixed" />
 
     <!-- TextInputLayout(FilledBox): 살짝 축소(52dp) - 필요 없으면 기존 값 유지 가능 -->
-    <style name="Widget.App.TextInputLayout.Fixed" parent="Widget.Material3.TextInputLayout.FilledBox">
+    <style name="Widget.App.TextInputLayout.Fixed"
+        parent="Widget.Material3.TextInputLayout.OutlinedBox">
         <item name="android:minHeight">52dp</item>
+        <item name="boxStrokeWidth">1dp</item>
+        <item name="boxStrokeWidthFocused">2dp</item>
     </style>
 
     <!-- 일반 EditText: 기존 그대로(48dp) 유지 -->

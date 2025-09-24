@@ -1,59 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
 <androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-   >
+    android:layout_height="match_parent">
 
-    <!-- 본문과 FAB를 겹치기 위한 FrameLayout -->
-    <FrameLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <LinearLayout
-            android:orientation="vertical"
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:title="자녀 시간표"
+            android:titleTextColor="@android:color/white"/>
+
+        <androidx.appcompat.widget.AppCompatSpinner
+            android:id="@+id/spinner_children"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_margin="16dp"
+            android:background="@drawable/spinner_bg_with_arrow"
+            android:spinnerMode="dropdown"
+
+ />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_timetable"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@color/white"
-            android:padding="0dp">
+            android:padding="16dp" />
+    </LinearLayout>
 
-            <androidx.appcompat.widget.Toolbar
-                android:id="@+id/toolbar"
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                android:background="@color/green"
-                android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-                android:elevation="4dp" />
-
-            <ListView
-                android:id="@+id/children_list_view"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:divider="@color/gray"
-                android:dividerHeight="1dp" />
-        </LinearLayout>
-
-        <!-- 🔽 FAB는 FrameLayout 하위에 위치해야 동작 -->
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btn_add_child"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|end"
-            android:layout_margin="16dp"
-            android:src="@android:drawable/ic_input_add"
-            android:contentDescription="자녀 추가 버튼"
-            android:tint="@color/white"
-            android:backgroundTint="@color/green"/>
-    </FrameLayout>
-
-    <!-- 사이드바 -->
     <LinearLayout
         android:id="@+id/nav_container"
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:orientation="vertical"
-        android:background="@color/white"
-        android:paddingTop="32dp"/>
+        android:background="@color/white"/>
 </androidx.drawerlayout.widget.DrawerLayout>

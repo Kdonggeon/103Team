@@ -1,6 +1,6 @@
 package com.mobile.greenacademypartner.ui.qna;
 
-import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
@@ -34,12 +34,10 @@ public class EditAnswerActivity extends AppCompatActivity {
         editTextAnswer = findViewById(R.id.et_edit_answer_content);
         btnSave = findViewById(R.id.btn_save_answer);
 
-        // ✅ 인텐트 Extra 로그 찍기
         answerId = getIntent().getStringExtra("answerId");
         questionId = getIntent().getStringExtra("questionId");
 
-        Log.d("EditAnswerActivity", "[onCreate] answerId: " + answerId);
-        Log.d("EditAnswerActivity", "[onCreate] questionId: " + questionId);
+        Log.d("EditAnswerActivity", "[onCreate] answerId=" + answerId + ", questionId=" + questionId);
 
         if (answerId != null && !answerId.isEmpty()) {
             loadAnswerDetail(answerId);
@@ -47,7 +45,6 @@ public class EditAnswerActivity extends AppCompatActivity {
 
         btnSave.setOnClickListener(v -> {
             String content = editTextAnswer.getText().toString().trim();
-
             if (content.isEmpty()) {
                 Toast.makeText(this, "내용을 입력하세요.", Toast.LENGTH_SHORT).show();
                 return;
@@ -56,23 +53,32 @@ public class EditAnswerActivity extends AppCompatActivity {
             if (answerId != null && !answerId.isEmpty()) {
                 updateAnswer(answerId, content);
             } else {
+                if (questionId == null || questionId.isEmpty()) {
+                    Toast.makeText(this, "질문 ID가 없습니다.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 createAnswer(questionId, content);
             }
         });
     }
 
     private void loadAnswerDetail(String id) {
-        Log.d("EditAnswerActivity", "[loadAnswerDetail] Loading answerId: " + id);
+        Log.d("EditAnswerActivity", "[loadAnswerDetail] id=" + id);
+        String auth = getAuthHeader();
 
         AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
-        api.getAnswer(id).enqueue(new Callback<Answer>() {
+        api.getAnswer(auth, id).enqueue(new Callback<Answer>() {
             @Override
             public void onResponse(Call<Answer> call, Response<Answer> response) {
-                Log.d("EditAnswerActivity", "[loadAnswerDetail] Response code: " + response.code());
+                Log.d("EditAnswerActivity", "[loadAnswerDetail] code=" + response.code());
+                if (response.code() == 403) {
+                    Toast.makeText(EditAnswerActivity.this, "접근 권한이 없습니다.", Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
                 if (response.isSuccessful() && response.body() != null) {
                     editTextAnswer.setText(response.body().getContent());
                 } else {
-                    Log.w("EditAnswerActivity", "[loadAnswerDetail] Failed to load. Body: " + response.body());
                     Toast.makeText(EditAnswerActivity.this, "답변을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
                     finish();
                 }
@@ -87,23 +93,28 @@ public class EditAnswerActivity extends AppCompatActivity {
         });
     }
 
-    private void createAnswer(String questionId, String content) {
-        Log.d("EditAnswerActivity", "[createAnswer] questionId: " + questionId);
+    private void createAnswer(String qid, String content) {
+        Log.d("EditAnswerActivity", "[createAnswer] questionId=" + qid);
+        String auth = getAuthHeader();
 
         Answer newAnswer = new Answer();
         newAnswer.setContent(content);
 
         AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
-        api.createAnswer(questionId, newAnswer).enqueue(new Callback<Answer>() {
+        api.createAnswer(auth, qid, newAnswer).enqueue(new Callback<Answer>() {
             @Override
             public void onResponse(Call<Answer> call, Response<Answer> response) {
-                Log.d("EditAnswerActivity", "[createAnswer] Response code: " + response.code());
+                Log.d("EditAnswerActivity", "[createAnswer] code=" + response.code());
+                if (response.code() == 403) {
+                    Toast.makeText(EditAnswerActivity.this, "접근 권한이 없습니다.", Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
                 if (response.isSuccessful()) {
                     Toast.makeText(EditAnswerActivity.this, "등록 완료", Toast.LENGTH_SHORT).show();
                     finish();
                 } else {
-                    Log.w("EditAnswerActivity", "[createAnswer] 등록 실패. Body: " + response.body());
-                    Toast.makeText(EditAnswerActivity.this, "등록 실패", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(EditAnswerActivity.this, "등록 실패(" + response.code() + ")", Toast.LENGTH_SHORT).show();
                 }
             }
 
@@ -116,22 +127,27 @@ public class EditAnswerActivity extends AppCompatActivity {
     }
 
     private void updateAnswer(String id, String content) {
-        Log.d("EditAnswerActivity", "[updateAnswer] Updating answerId: " + id);
+        Log.d("EditAnswerActivity", "[updateAnswer] id=" + id);
+        String auth = getAuthHeader();
 
         Answer updatedAnswer = new Answer();
         updatedAnswer.setContent(content);
 
         AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
-        api.updateAnswer(id, updatedAnswer).enqueue(new Callback<Answer>() {
+        api.updateAnswer(auth, id, updatedAnswer).enqueue(new Callback<Answer>() {
             @Override
             public void onResponse(Call<Answer> call, Response<Answer> response) {
-                Log.d("EditAnswerActivity", "[updateAnswer] Response code: " + response.code());
+                Log.d("EditAnswerActivity", "[updateAnswer] code=" + response.code());
+                if (response.code() == 403) {
+                    Toast.makeText(EditAnswerActivity.this, "접근 권한이 없습니다.", Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
                 if (response.isSuccessful()) {
                     Toast.makeText(EditAnswerActivity.this, "수정 완료", Toast.LENGTH_SHORT).show();
                     finish();
                 } else {
-                    Log.w("EditAnswerActivity", "[updateAnswer] 수정 실패. Body: " + response.body());
-                    Toast.makeText(EditAnswerActivity.this, "수정 실패", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(EditAnswerActivity.this, "수정 실패(" + response.code() + ")", Toast.LENGTH_SHORT).show();
                 }
             }
 
@@ -141,5 +157,13 @@ public class EditAnswerActivity extends AppCompatActivity {
                 Toast.makeText(EditAnswerActivity.this, "네트워크 오류", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private String getAuthHeader() {
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String token = prefs.getString("jwt", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("token", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("accessToken", null);
+        return (token == null || token.isEmpty()) ? null : "Bearer " + token;
     }
 }

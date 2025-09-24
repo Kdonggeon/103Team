@@ -1,3 +1,4 @@
+
 package com.mobile.greenacademypartner.ui.qna;
 
 import android.content.Intent;
@@ -5,7 +6,6 @@ import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -50,7 +50,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
     private Toolbar toolbar;
 
-    // 질문 본문
+    // 상단 카드
     private TextView tvTitle, tvAuthor, tvDate, tvContent;
 
     // 스레드 목록(FollowUp + Answer)
@@ -63,9 +63,8 @@ public class QuestionDetailActivity extends AppCompatActivity {
     private EditText etMessage;
     private Button btnSend;
 
-    // 기존 버튼(호환)
-    private Button btnAddAnswer;     // 숨김 처리
-    private Button btnDeleteQuestion;
+    // 레거시 버튼(필요 시만 레이아웃에 추가)
+    private Button btnAddAnswer;
 
     // 상태
     private String questionId;
@@ -73,6 +72,14 @@ public class QuestionDetailActivity extends AppCompatActivity {
     private String username;
 
     // ───────────────── 유틸 ─────────────────
+    private String getAuthHeader() {
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String token = prefs.getString("jwt", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("token", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("accessToken", null);
+        return (token == null || token.isEmpty()) ? null : "Bearer " + token;
+    }
+
     private String normalizeRole(String raw) {
         if (raw == null) return "";
         String r = raw.trim().toUpperCase(Locale.ROOT);
@@ -105,7 +112,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
         Toast.makeText(this, sb.toString(), Toast.LENGTH_LONG).show();
     }
 
-    private String formatMd(String s) {
+    private String formatDateBadge(String s) {
         if (s == null) return "";
         for (String fmt : Arrays.asList(
                 "yyyy-MM-dd'T'HH:mm:ss.SSSX",
@@ -117,10 +124,10 @@ public class QuestionDetailActivity extends AppCompatActivity {
         )) {
             try {
                 Date d = new SimpleDateFormat(fmt, Locale.KOREA).parse(s);
-                return new SimpleDateFormat("M월 d일", Locale.KOREA).format(d);
+                return new SimpleDateFormat("yyyy.MM.dd", Locale.KOREA).format(d);
             } catch (ParseException ignored) {}
         }
-        return s;
+        return "";
     }
 
     private Date safeParse(String s) {
@@ -141,33 +148,40 @@ public class QuestionDetailActivity extends AppCompatActivity {
     }
 
     private String safe(String s) { return s == null ? "" : s; }
-
     private String nz(String s) { return s == null ? "" : s; }
     private String nzTrim(String s) { return s == null ? "" : s.trim(); }
-
     private boolean isNotEmpty(String s) { return s != null && !s.trim().isEmpty(); }
 
-    private boolean sameItem(ThreadAdapter.Item a, ThreadAdapter.Item b) {
-        if (a == null || b == null) return false;
-        if (a.type != b.type) return false;
-        // 작성자+내용 기준으로 동일 판단(시간 포맷 차이 허용)
-        return nz(a.author).equals(nz(b.author))
-                && nzTrim(a.content).equals(nzTrim(b.content));
+    // 동일 메시지 판별 키: 역할(type) + 내용(공백 트림)
+    private String keyOf(ThreadAdapter.Item i) {
+        return i.type.name() + "|" + nzTrim(i.author) + "|" + nzTrim(i.createdAt) + "|" + nzTrim(i.content);
     }
 
+    // 서버 목록과 로컬(낙관적 추가) 병합: 동일 메시지는 더 늦은 시간 유지
     private List<ThreadAdapter.Item> mergeServerWithLocal(List<ThreadAdapter.Item> serverList) {
-        List<ThreadAdapter.Item> finalList = new ArrayList<>();
-        if (serverList != null) finalList.addAll(serverList);
+        java.util.LinkedHashMap<String, ThreadAdapter.Item> map = new java.util.LinkedHashMap<>();
 
-        for (ThreadAdapter.Item local : threadItems) {
-            boolean exists = false;
-            for (ThreadAdapter.Item s : finalList) {
-                if (sameItem(s, local)) { exists = true; break; }
-            }
-            if (!exists) finalList.add(local);
+        if (serverList != null) {
+            for (ThreadAdapter.Item s : serverList) map.put(keyOf(s), s);
         }
-        Collections.sort(finalList, Comparator.comparing(i -> safeParse(i.createdAt)));
-        return finalList;
+
+        for (ThreadAdapter.Item l : threadItems) {
+            String k = keyOf(l);
+            ThreadAdapter.Item cur = map.get(k);
+            if (cur == null) {
+                map.put(k, l);
+            } else {
+                Date ds = safeParse(cur.createdAt);
+                Date dl = safeParse(l.createdAt);
+                if (dl != null && (ds == null || dl.after(ds))) {
+                    map.put(k, new ThreadAdapter.Item(cur.type, cur.author, cur.content, l.createdAt));
+                }
+            }
+        }
+
+        List<ThreadAdapter.Item> out = new ArrayList<>(map.values());
+        Collections.sort(out, Comparator.comparing(i -> safeParse(i.createdAt)));
+        return out;
     }
 
     // ───────────────── 병합/정렬 ─────────────────
@@ -176,13 +190,12 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
         if (flist != null) {
             for (FollowUp f : flist) {
-                // ✅ 학생이름 > 학부모이름 > author(ID)
                 String display = isNotEmpty(f.getStudentName()) ? f.getStudentName()
                         : isNotEmpty(f.getParentName()) ? f.getParentName()
                         : safe(f.getAuthor());
 
                 items.add(new ThreadAdapter.Item(
-                        ThreadAdapter.Item.Type.USER_FOLLOWUP,
+                        ThreadAdapter.Type.USER_FOLLOWUP,
                         display,
                         f.getContent(),
                         f.getCreatedAt()
@@ -192,12 +205,11 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
         if (alist != null) {
             for (Answer a : alist) {
-                // ✅ 교사이름 > author(ID)
                 String display = isNotEmpty(a.getTeacherName()) ? a.getTeacherName()
                         : safe(a.getAuthor());
 
                 items.add(new ThreadAdapter.Item(
-                        ThreadAdapter.Item.Type.TEACHER_ANSWER,
+                        ThreadAdapter.Type.TEACHER_ANSWER,
                         display,
                         a.getContent(),
                         a.getCreatedAt()
@@ -207,7 +219,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
         Collections.sort(items, Comparator.comparing(i -> safeParse(i.createdAt)));
         return items;
-    } // ←←← 메서드 정확히 닫기!
+    }
 
     // ───────────────── 라이프사이클 ─────────────────
     @Override
@@ -219,8 +231,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar_question_detail);
         if (toolbar != null) {
             setSupportActionBar(toolbar);
-
-            // 다른 화면과 동일하게 두 유틸 모두 적용
             ToolbarColorUtil.applyToolbarColor(this, toolbar);
             ThemeColorUtil.applyThemeColor(this, toolbar);
 
@@ -246,35 +256,41 @@ public class QuestionDetailActivity extends AppCompatActivity {
             return;
         }
 
-        // 질문 본문 뷰
-        tvTitle = findViewById(R.id.tv_question_title);
-        tvAuthor = findViewById(R.id.tv_question_author);
-        tvDate = findViewById(R.id.tv_question_date);
+        // 상단 카드 뷰
+        tvTitle   = findViewById(R.id.tv_question_title);
+        tvAuthor  = findViewById(R.id.tv_question_author);
+        tvDate    = findViewById(R.id.tv_question_date);
         tvContent = findViewById(R.id.tv_question_content);
 
-        // 기존 버튼(호환)
+        // 레거시 버튼
         btnAddAnswer = findViewById(R.id.btn_add_answer);
-        if (btnAddAnswer != null) btnAddAnswer.setVisibility(View.GONE);
-        if (btnDeleteQuestion != null) {
-            btnDeleteQuestion.setOnClickListener(v -> deleteQuestion());
-        }
+        if (btnAddAnswer != null) btnAddAnswer.setVisibility(android.view.View.GONE);
 
         // 하단 입력
         etMessage = findViewById(R.id.et_message);
-        btnSend = findViewById(R.id.btn_send);
-        if (btnSend != null) {
-            btnSend.setOnClickListener(v -> onClickSendMessage());
-        }
+        btnSend   = findViewById(R.id.btn_send);
+        if (btnSend != null) btnSend.setOnClickListener(v -> onClickSendMessage());
 
         // 스레드 RecyclerView
-        rvThread = findViewById(R.id.rv_answers);
-        rvThread.setLayoutManager(new LinearLayoutManager(this));
-        threadAdapter = new ThreadAdapter();
-        rvThread.setAdapter(threadAdapter);
+               rvThread = findViewById(R.id.rv_answers);
+                LinearLayoutManager lm = new LinearLayoutManager(this);
+                lm.setReverseLayout(false);
+                lm.setStackFromEnd(true);
+                rvThread.setLayoutManager(lm);
+                threadAdapter = new ThreadAdapter();
+                rvThread.setAdapter(threadAdapter);
+
+                                threadAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+            @Override public void onItemRangeInserted(int positionStart, int itemCount) {
+                                                int last = lm.findLastVisibleItemPosition();
+                                                if (last >= threadAdapter.getItemCount() - itemCount - 2) {
+                                                        rvThread.scrollToPosition(threadAdapter.getItemCount() - 1);
+                                                }
+            }});
 
         // 데이터 로드
-        loadQuestionDetail();
-        loadThread();
+        loadQuestionDetail(); // 상단 카드(제목/학원/날짜)
+        loadThread();         // 대화 스레드(각 말풍선에 시간 표시)
     }
 
     @Override
@@ -283,8 +299,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
         if (toolbar != null) {
             ToolbarColorUtil.applyToolbarColor(this, toolbar);
             ThemeColorUtil.applyThemeColor(this, toolbar);
-
-            // 제목/아이콘 흰색 유지
             toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
             toolbar.setSubtitleTextColor(ContextCompat.getColor(this, android.R.color.white));
             tintToolbarNavIconWhite(toolbar);
@@ -312,6 +326,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
         }
 
         btnSend.setEnabled(false); // 중복 클릭 방지
+        final String auth = getAuthHeader();
 
         if ("TEACHER".equals(role)) {
             // 교사 → 답변
@@ -319,9 +334,10 @@ public class QuestionDetailActivity extends AppCompatActivity {
             a.setContent(content);
             AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
 
-            api.createAnswer(questionId, a).enqueue(new Callback<Answer>() {
+            api.createAnswer(auth, questionId, a).enqueue(new Callback<Answer>() {
                 @Override public void onResponse(Call<Answer> call, Response<Answer> res) {
                     btnSend.setEnabled(true);
+                    if (res.code() == 403) { handleForbiddenAndFinish(); return; }
                     if (res.isSuccessful()) {
                         Toast.makeText(QuestionDetailActivity.this, "답변 등록 성공", Toast.LENGTH_SHORT).show();
                         etMessage.setText("");
@@ -330,13 +346,12 @@ public class QuestionDetailActivity extends AppCompatActivity {
                                 ? res.body().getCreatedAt()
                                 : new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA).format(new Date());
 
-                        // ✅ 교사이름 우선, 없으면 로그인 아이디
                         String displayName = (res.body()!=null && !TextUtils.isEmpty(res.body().getTeacherName()))
                                 ? res.body().getTeacherName()
                                 : (username == null ? "" : username);
 
                         threadItems.add(new ThreadAdapter.Item(
-                                ThreadAdapter.Item.Type.TEACHER_ANSWER,
+                                ThreadAdapter.Type.TEACHER_ANSWER,
                                 displayName,
                                 content,
                                 createdAt
@@ -348,8 +363,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
                             }
                         });
 
-                        // 서버 목록으로 재동기화
-                        loadThread();
+                        loadThread(); // 서버 목록으로 재동기화
                     } else {
                         toastHttpFail("답변 등록 실패", res);
                     }
@@ -366,9 +380,10 @@ public class QuestionDetailActivity extends AppCompatActivity {
             fu.setContent(content);
             FollowUpApi api = RetrofitClient.getClient().create(FollowUpApi.class);
 
-            api.create(questionId, fu).enqueue(new Callback<FollowUp>() {
+            api.create(auth, questionId, fu).enqueue(new Callback<FollowUp>() {
                 @Override public void onResponse(Call<FollowUp> call, Response<FollowUp> res) {
                     btnSend.setEnabled(true);
+                    if (res.code() == 403) { handleForbiddenAndFinish(); return; }
                     if (res.isSuccessful()) {
                         Toast.makeText(QuestionDetailActivity.this, "질문 등록 성공", Toast.LENGTH_SHORT).show();
                         etMessage.setText("");
@@ -377,13 +392,12 @@ public class QuestionDetailActivity extends AppCompatActivity {
                                 ? res.body().getCreatedAt()
                                 : new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA).format(new Date());
 
-                        // ✅ 학생이름 > 학부모이름 > 로그인 아이디
                         String displayName = (res.body()!=null && !TextUtils.isEmpty(res.body().getStudentName())) ? res.body().getStudentName()
                                 : (res.body()!=null && !TextUtils.isEmpty(res.body().getParentName())) ? res.body().getParentName()
                                 : (username == null ? "" : username);
 
                         threadItems.add(new ThreadAdapter.Item(
-                                ThreadAdapter.Item.Type.USER_FOLLOWUP,
+                                ThreadAdapter.Type.USER_FOLLOWUP,
                                 displayName,
                                 content,
                                 createdAt
@@ -395,7 +409,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
                             }
                         });
 
-                        // 서버 목록으로 재동기화
                         loadThread();
                     } else {
                         toastHttpFail("질문 등록 실패", res);
@@ -413,12 +426,19 @@ public class QuestionDetailActivity extends AppCompatActivity {
         }
     }
 
-    // ───────────────── 질문 상세 ─────────────────
+    // ───────────────── 상단 카드(제목/학원/날짜) ─────────────────
     private void loadQuestionDetail() {
+        final String auth = getAuthHeader();
+
+        // 인텐트 폴백 값(서버가 비워 보낼 경우 대비)
+        final int extraAcademyNumber = getIntent().getIntExtra("academyNumber", -1);
+        final String extraAcademyName = getIntent().getStringExtra("academyName");
+
         QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
-        api.getQuestion(questionId).enqueue(new Callback<Question>() {
+        api.getQuestion(auth, questionId).enqueue(new Callback<Question>() {
             @Override
             public void onResponse(Call<Question> call, Response<Question> response) {
+                if (response.code() == 403) { handleForbiddenAndFinish(); return; }
                 if (!response.isSuccessful() || response.body() == null) {
                     Toast.makeText(QuestionDetailActivity.this, "질문 정보를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
                     return;
@@ -436,17 +456,35 @@ public class QuestionDetailActivity extends AppCompatActivity {
                 } else {
                     teachersTitle = "미답변";
                 }
+                if (tvTitle != null) tvTitle.setText(teachersTitle);
 
-                // 부제: 학원명(없으면 학원번호)
-                String academyLabel = (!TextUtils.isEmpty(q.getAcademyName()))
-                        ? q.getAcademyName()
-                        : ("학원번호: " + q.getAcademyNumber());
+                // 학원명/번호 견고하게 표시
+                String academyName = (q.getAcademyName()!=null && !q.getAcademyName().trim().isEmpty())
+                        ? q.getAcademyName().trim()
+                        : (extraAcademyName!=null && !extraAcademyName.trim().isEmpty() ? extraAcademyName.trim() : null);
 
-                if (tvTitle  != null) tvTitle.setText(teachersTitle);
-                if (tvAuthor != null) tvAuthor.setText(academyLabel);
+                int academyNo = (q.getAcademyNumber() > 0) ? q.getAcademyNumber()
+                        : (extraAcademyNumber > 0 ? extraAcademyNumber : 0);
 
-                if (tvDate    != null) tvDate.setVisibility(View.GONE);
-                if (tvContent != null) tvContent.setVisibility(View.GONE);
+                String academyLabel = (academyName != null) ? academyName
+                        : (academyNo > 0 ? ("학원번호: " + academyNo) : "학원");
+
+                if (tvAuthor != null) {
+                    tvAuthor.setSingleLine(false);
+                    tvAuthor.setEllipsize(null);
+                    tvAuthor.setMaxLines(2);
+                    tvAuthor.setText(academyLabel);
+                }
+
+                // 날짜 배지(질문 생성일)
+                if (tvDate != null) {
+                    String badge = formatDateBadge(q.getCreatedAt());
+                    tvDate.setText(badge);
+                    tvDate.setVisibility(android.view.View.VISIBLE);
+                }
+
+                // 본문 비표시
+                if (tvContent != null) tvContent.setVisibility(android.view.View.GONE);
             }
 
             @Override
@@ -460,18 +498,21 @@ public class QuestionDetailActivity extends AppCompatActivity {
     private void loadThread() { loadThread(null); }
 
     private void loadThread(Runnable onComplete) {
+        final String auth = getAuthHeader();
         final FollowUpApi fapi = RetrofitClient.getClient().create(FollowUpApi.class);
         final AnswerApi aapi = RetrofitClient.getClient().create(AnswerApi.class);
 
-        fapi.list(questionId).enqueue(new Callback<List<FollowUp>>() {
+        fapi.list(auth, questionId).enqueue(new Callback<List<FollowUp>>() {
             @Override
             public void onResponse(Call<List<FollowUp>> call, Response<List<FollowUp>> fRes) {
+                if (fRes.code() == 403) { handleForbiddenAndFinish(); return; }
                 final List<FollowUp> fuList = fRes.isSuccessful() && fRes.body() != null
                         ? fRes.body() : Collections.emptyList();
 
-                aapi.listAnswers(questionId).enqueue(new Callback<List<Answer>>() {
+                aapi.listAnswers(auth, questionId).enqueue(new Callback<List<Answer>>() {
                     @Override
                     public void onResponse(Call<List<Answer>> call, Response<List<Answer>> aRes) {
+                        if (aRes.code() == 403) { handleForbiddenAndFinish(); return; }
                         List<Answer> aList = aRes.isSuccessful() && aRes.body() != null
                                 ? aRes.body() : Collections.emptyList();
 
@@ -499,7 +540,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
                         threadItems.clear();
                         threadItems.addAll(finalList);
                         threadAdapter.submit(new ArrayList<>(threadItems));
-
                         if (onComplete != null) onComplete.run();
                     }
                 });
@@ -507,9 +547,10 @@ public class QuestionDetailActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<List<FollowUp>> call, Throwable t) {
-                aapi.listAnswers(questionId).enqueue(new Callback<List<Answer>>() {
+                aapi.listAnswers(auth, questionId).enqueue(new Callback<List<Answer>>() {
                     @Override
                     public void onResponse(Call<List<Answer>> call, Response<List<Answer>> aRes) {
+                        if (aRes.code() == 403) { handleForbiddenAndFinish(); return; }
                         List<Answer> aList = aRes.isSuccessful() && aRes.body() != null
                                 ? aRes.body() : Collections.emptyList();
 
@@ -540,22 +581,9 @@ public class QuestionDetailActivity extends AppCompatActivity {
         });
     }
 
-    // ───────────────── 삭제 ─────────────────
-    private void deleteQuestion() {
-        QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
-        api.deleteQuestion(questionId).enqueue(new Callback<Void>() {
-            @Override public void onResponse(Call<Void> call, Response<Void> response) {
-                if (response.isSuccessful()) {
-                    Toast.makeText(QuestionDetailActivity.this, "삭제되었습니다.", Toast.LENGTH_SHORT).show();
-                    finish();
-                } else {
-                    Toast.makeText(QuestionDetailActivity.this, "삭제 실패", Toast.LENGTH_SHORT).show();
-                }
-            }
-            @Override public void onFailure(Call<Void> call, Throwable t) {
-                Toast.makeText(QuestionDetailActivity.this, "오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
+    private void handleForbiddenAndFinish() {
+        Toast.makeText(this, "접근 권한이 없습니다.", Toast.LENGTH_SHORT).show();
+        finish();
     }
 
     // (레거시 호환) 외부에서 호출하는 시그니처 유지

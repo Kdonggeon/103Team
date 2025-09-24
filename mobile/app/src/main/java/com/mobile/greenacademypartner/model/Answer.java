@@ -8,6 +8,7 @@ public class Answer {
     private String questionId;
     private String author;      // 교사 ID
     private String content;
+    @SerializedName(value = "createdAt", alternate = {"created_at","CreatedAt","Created_At"})
     private String createdAt;
 
     // 백엔드 응답 키: "교사이름"

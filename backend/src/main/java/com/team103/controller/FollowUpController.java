@@ -27,6 +27,7 @@ public class FollowUpController {
 
     @Autowired
     private ParentRepository parentRepository;
+    
 
     public FollowUpController(FollowUpRepository followUpRepository) {
         this.followUpRepository = followUpRepository;

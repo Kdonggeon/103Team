@@ -40,6 +40,9 @@ import retrofit2.Response;
 
 public class StudentTimetableActivity extends AppCompatActivity {
 
+    // 학부모 → 학생 화면 재사용용 오버라이드 키
+    public static final String EXTRA_OVERRIDE_STUDENT_ID = "overrideStudentId";
+
     private DrawerLayout drawerLayout;
     private Toolbar toolbar;
     private LinearLayout navContainer;
@@ -48,7 +51,7 @@ public class StudentTimetableActivity extends AppCompatActivity {
 
     // 공통 포맷/타임존
     private final TimeZone tz = TimeZone.getTimeZone("Asia/Seoul");
-    private final Locale   loc = Locale.KOREA;
+    private final Locale loc = Locale.KOREA;
     private final SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd", loc);
 
     @Override
@@ -67,7 +70,8 @@ public class StudentTimetableActivity extends AppCompatActivity {
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
                 R.string.navigation_drawer_open,
-                R.string.navigation_drawer_close);
+                R.string.navigation_drawer_close
+        );
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
@@ -102,6 +106,7 @@ public class StudentTimetableActivity extends AppCompatActivity {
             int y = now.get(Calendar.YEAR);
             int m = now.get(Calendar.MONTH);      // 0-based
             int d = now.get(Calendar.DAY_OF_MONTH);
+
             DatePickerDialog dlg = new DatePickerDialog(
                     this,
                     (view, year, month, dayOfMonth) -> {
@@ -121,10 +126,10 @@ public class StudentTimetableActivity extends AppCompatActivity {
 
     // 선택한 날짜(또는 오늘)의 요일에 맞춰 수업 필터
     private void loadClassesForDate(Calendar target) {
-        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        String studentId = prefs.getString("username", null);
-        if (studentId == null) {
-            Toast.makeText(this, "로그인 정보가 없습니다", Toast.LENGTH_SHORT).show();
+        String studentId = resolveTargetStudentId();
+        if (studentId == null || studentId.trim().isEmpty()) {
+            Toast.makeText(this, "로그인(또는 자녀 선택) 정보가 없습니다", Toast.LENGTH_SHORT).show();
+            Log.e("StudentTimetable", "studentId is null/empty");
             return;
         }
 
@@ -154,7 +159,7 @@ public class StudentTimetableActivity extends AppCompatActivity {
                     }
                 }
 
-                // 시간순 정렬
+                // 시작시간 오름차순 정렬 (null 안전)
                 filtered.sort(Comparator.comparing(
                         c -> c.getStartTime() != null ? c.getStartTime() : "",
                         String::compareTo
@@ -180,5 +185,24 @@ public class StudentTimetableActivity extends AppCompatActivity {
                 Toast.makeText(StudentTimetableActivity.this, "서버 오류", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    /**
+     * 학부모가 자녀 선택 후 넘겨준 overrideStudentId(문자/정수 모두 대응)를 우선 사용하고,
+     * 없으면 기존 로그인 정보(username)를 사용합니다.
+     */
+    private String resolveTargetStudentId() {
+        Intent it = getIntent();
+        if (it != null && it.hasExtra(EXTRA_OVERRIDE_STUDENT_ID)) {
+            // 1) 문자열 형태 시도
+            String s = it.getStringExtra(EXTRA_OVERRIDE_STUDENT_ID);
+            if (s != null && !s.trim().isEmpty()) return s.trim();
+            // 2) 정수 형태 시도
+            int v = it.getIntExtra(EXTRA_OVERRIDE_STUDENT_ID, -1);
+            if (v != -1) return String.valueOf(v);
+        }
+        // 3) 기존(학생 로그인) 로직 유지
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        return prefs.getString("username", null); // 프로젝트에서 실제 사용 중인 키를 그대로 유지
     }
 }

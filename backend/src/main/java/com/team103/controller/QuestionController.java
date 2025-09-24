@@ -41,49 +41,200 @@ public class QuestionController {
     @Autowired private StudentRepository studentRepository;
     @Autowired private ParentRepository parentRepository;
 
+    // === 내부 유틸 ===
+    private boolean isParentOwnsRoom(Question q, String parentId) {
+        return q != null
+                && q.getRoomParentId() != null
+                && q.getRoomParentId().equals(parentId);
+    }
+
+    // ID 하나로 학생/학부모 방 자동 판별 후 조회/생성 (교사/원장 전용)
+    @GetMapping("/room/by-id")
+    public ResponseEntity<Question> getOrCreateRoomById(@RequestParam("academyNumber") int academyNumber,
+                                                        @RequestParam("id") String targetId,
+                                                        HttpSession session) {
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
+        if (role == null || userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!(role.equalsIgnoreCase("teacher") || role.equalsIgnoreCase("director"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (targetId == null || targetId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        targetId = targetId.trim();
+
+        Student s0 = null;
+        Parent  p0 = null;
+        try { s0 = studentRepository.findByStudentId(targetId); } catch (Exception ignore) {}
+        try { p0 = parentRepository.findByParentsId(targetId); } catch (Exception ignore) {}
+
+        boolean isStudent = (s0 != null);
+        boolean isParent  = (p0 != null);
+
+        if (!isStudent && !isParent) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        Question room = null;
+
+        if (isStudent) {
+            // 학생 방 조회: 해당 학원 목록에서 roomStudentId 매칭
+            List<Question> candidates = questionRepository.findByAcademyNumber(academyNumber);
+            for (Question q : candidates) {
+                if (q != null && targetId.equals(q.getRoomStudentId())) {
+                    room = q;
+                    break;
+                }
+            }
+            // 없으면 생성
+            if (room == null) {
+                room = new Question();
+                room.setContent("");
+                room.setAcademyNumber(academyNumber);
+                room.setRoomStudentId(targetId);
+                room.setRoom(true); // ★ 중요: 방 플래그 세팅
+
+                String titleName = (s0 != null && s0.getStudentName() != null && !s0.getStudentName().isEmpty())
+                        ? s0.getStudentName() : targetId;
+                room.setTitle("학생 " + titleName + " 채팅방");
+
+                room.setAuthor(targetId);
+                room.setAuthorRole("student");
+                room.setCreatedAt(new Date());
+                room = questionRepository.save(room);
+            }
+        } else {
+            // 학부모 방 조회: 기존 메서드 사용
+            room = questionRepository.findRoomByAcademyAndParent(academyNumber, targetId);
+            // 없으면 생성
+            if (room == null) {
+                room = new Question();
+                room.setContent("");
+                room.setAcademyNumber(academyNumber);
+                room.setRoomParentId(targetId);
+                room.setRoom(true); // ★ 중요: 방 플래그 세팅
+
+                String titleName = (p0 != null && p0.getParentsName() != null && !p0.getParentsName().isEmpty())
+                        ? p0.getParentsName() : targetId;
+                room.setTitle("보호자 " + titleName + " 채팅방");
+
+                room.setAuthor(targetId);
+                room.setAuthorRole("parent");
+                room.setCreatedAt(new Date());
+                room = questionRepository.save(room);
+            }
+        }
+
+        populateExtras(room);
+        computeUnreadForUser(room, userId);
+        return ResponseEntity.ok(room);
+    }
+
+    // 교사/원장 전용: 학부모 ID로 방 조회/생성
+    @GetMapping("/room/parent/for-teacher")
+    public ResponseEntity<Question> getOrCreateParentRoomForTeacher(@RequestParam("academyNumber") int academyNumber,
+                                                                    @RequestParam("parentId") String parentId,
+                                                                    HttpSession session) {
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
+        if (role == null || userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!(role.equalsIgnoreCase("teacher") || role.equalsIgnoreCase("director"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        if (parentId == null || parentId.trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+        parentId = parentId.trim();
+
+        // 1) 기존 방 조회
+        Question room = questionRepository.findRoomByAcademyAndParent(academyNumber, parentId);
+
+        // 2) 없으면 생성
+        if (room == null) {
+            room = new Question();
+            room.setContent("");
+            room.setAcademyNumber(academyNumber);
+            room.setRoomParentId(parentId);   // 학부모 기준 방 식별자
+            room.setRoom(true); // ★ 중요: 방 플래그 세팅
+
+            // 제목: "보호자 {이름} 채팅방"
+            String titleName = parentId;
+            try {
+                Parent p = parentRepository.findByParentsId(parentId);
+                if (p != null && p.getParentsName() != null && !p.getParentsName().isEmpty()) {
+                    titleName = p.getParentsName();
+                }
+            } catch (Exception ignore) {}
+            room.setTitle("보호자 " + titleName + " 채팅방");
+
+            room.setAuthor(parentId);
+            room.setAuthorRole("parent");
+            room.setCreatedAt(new Date());
+            room = questionRepository.save(room);
+        }
+
+        populateExtras(room);
+        computeUnreadForUser(room, userId);
+        return ResponseEntity.ok(room);
+    }
+
     // 목록 (학원별 또는 전체)
     @GetMapping
-    public List<Question> getQuestions(@RequestParam(value = "academyNumber", required = false) Integer academyNumber) {
+    public List<Question> getQuestions(@RequestParam(value = "academyNumber", required = false) Integer academyNumber,
+                                       HttpSession session) {
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
+
+        // 학부모: 본인 방만 반환 (academyNumber 미지정 시 빈 리스트)
+        if ("parent".equalsIgnoreCase(role)) {
+            List<Question> result = new ArrayList<>();
+            if (academyNumber != null) {
+                Question room = questionRepository.findRoomByAcademyAndParent(academyNumber, userId);
+                if (room != null) {
+                    populateExtras(room);
+                    computeUnreadForUser(room, userId);
+                    result.add(room);
+                }
+            }
+            return result;
+        }
+
+        // 그 외(학생/교사/원장): 기존 로직 유지
         List<Question> list = (academyNumber != null)
                 ? questionRepository.findByAcademyNumber(academyNumber)
                 : questionRepository.findAll();
-        for (Question q : list) populateExtras(q);
+        for (Question q : list) {
+            populateExtras(q);
+            if (userId != null) computeUnreadForUser(q, userId);
+        }
         return list;
     }
 
-    // ✅ 학생별 1:1 방 보장: studentId 없으면 세션(role)로 자동 추론
+    // 학생별 1:1 방 (학생/교사/원장)
     @GetMapping("/room")
     public ResponseEntity<Question> getOrCreateRoom(@RequestParam("academyNumber") int academyNumber,
                                                     @RequestParam(value = "studentId", required = false) String studentId,
                                                     HttpSession session) {
-        String role = (String) session.getAttribute("role");       // "student" | "parent" | "teacher" | ...
-        String userId = (String) session.getAttribute("username"); // LoginController 기준
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
         if (role == null || userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // --- studentId 자동 보정 ---
+        if ("parent".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+
         if (studentId == null || studentId.trim().isEmpty()) {
             if ("student".equalsIgnoreCase(role)) {
-                studentId = userId; // 학생은 본인
-            } else if ("parent".equalsIgnoreCase(role)) {
-                // 학부모는 자녀 목록 중 1명 선택(가능하면 해당 학원 소속 우선)
-                Parent p = parentRepository.findByParentsId(userId);
-                if (p != null && p.getStudentIds() != null && !p.getStudentIds().isEmpty()) {
-                    String pick = null;
-                    try {
-                        for (String sid : p.getStudentIds()) {
-                            Student s = studentRepository.findByStudentId(sid);
-                            if (s != null && s.getAcademyNumbers() != null && s.getAcademyNumbers().contains(academyNumber)) {
-                                pick = sid; break;
-                            }
-                        }
-                    } catch (Exception ignore) {}
-                    if (pick == null) pick = p.getStudentIds().get(0);
-                    studentId = pick;
-                }
+                studentId = userId;
             }
-            // 교사는 여전히 null일 수 있음 → 아래에서 400 처리
         }
 
         if (studentId == null || studentId.trim().isEmpty()) {
@@ -106,9 +257,9 @@ public class QuestionController {
             room = new Question();
             room.setContent("");
             room.setAcademyNumber(academyNumber);
-            room.setRoomStudentId(studentId);     // ★ 핵심: 학생별 방 식별자
+            room.setRoomStudentId(studentId);
+            room.setRoom(true); // ★ 중요: 방 플래그 세팅
 
-            // 제목: "학생 {이름} 채팅방"
             String titleName = studentId;
             try {
                 Student s = studentRepository.findByStudentId(studentId);
@@ -118,7 +269,6 @@ public class QuestionController {
             } catch (Exception ignore) {}
             room.setTitle("학생 " + titleName + " 채팅방");
 
-            // 방의 작성자(author)는 학생으로 고정(알림 분기 일관성)
             room.setAuthor(studentId);
             room.setAuthorRole("student");
             room.setCreatedAt(new Date());
@@ -126,9 +276,41 @@ public class QuestionController {
             room = questionRepository.save(room);
         }
 
-        // 3) 부가정보 + 미확인 답변 계산 후 반환
         populateExtras(room);
         computeUnreadForUser(room, userId);
+        return ResponseEntity.ok(room);
+    }
+
+    // 학부모 전용: (academyNumber, parentId=세션) 기준 방 조회/생성
+    @RequestMapping(value = "/room/parent", method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity<Question> getOrCreateParentRoom(@RequestParam("academyNumber") int academyNumber,
+                                                          HttpSession session) {
+        String role = (String) session.getAttribute("role");
+        String parentId = (String) session.getAttribute("username");
+        if (role == null || parentId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!"parent".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Question room = questionRepository.findRoomByAcademyAndParent(academyNumber, parentId);
+
+        if (room == null) {
+            room = new Question();
+            room.setContent("");
+            room.setAcademyNumber(academyNumber);
+            room.setRoomParentId(parentId);
+            room.setRoom(true); // ★ 중요: 방 플래그 세팅
+            room.setTitle("QnA");
+            room.setAuthor(parentId);
+            room.setAuthorRole("parent");
+            room.setCreatedAt(new Date());
+            room = questionRepository.save(room);
+        }
+
+        populateExtras(room);
+        computeUnreadForUser(room, parentId);
         return ResponseEntity.ok(room);
     }
 
@@ -146,21 +328,18 @@ public class QuestionController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("학생 또는 학부모만 질문을 생성할 수 있습니다.");
         }
 
-        // ✅ 제목만 필수
         if (question.getTitle() == null || question.getTitle().trim().isEmpty()) {
             return ResponseEntity.badRequest().body("제목을 입력하세요.");
         }
 
-        // 본문 미입력 허용
         if (question.getContent() == null) {
             question.setContent("");
         }
 
         question.setAuthor(userId);
         question.setAuthorRole(role);
-        question.setCreatedAt(new Date()); // 생성 시각 보장
+        question.setCreatedAt(new Date());
 
-        // academyNumber는 클라이언트에서 넣어주는 값 사용(없으면 0 등)
         Question saved = questionRepository.save(question);
         return ResponseEntity.ok(saved);
     }
@@ -187,19 +366,32 @@ public class QuestionController {
         return ResponseEntity.noContent().build();
     }
 
-    // 단건
+    // 단건 (학부모는 본인 방만 접근 가능)
     @GetMapping("/{id}")
-    public ResponseEntity<Question> getQuestionById(@PathVariable String id) {
-        return questionRepository.findById(id)
-                .map(q -> { populateExtras(q); return ResponseEntity.ok(q); })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Question> getQuestionById(@PathVariable String id, HttpSession session) {
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
+
+        Optional<Question> opt = questionRepository.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+
+        Question q = opt.get();
+
+        if ("parent".equalsIgnoreCase(role)) {
+            if (!isParentOwnsRoom(q, userId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+
+        populateExtras(q);
+        if (userId != null) computeUnreadForUser(q, userId);
+        return ResponseEntity.ok(q);
     }
 
     // 부가정보(학원명, 교사이름들) 채우기
     private void populateExtras(Question q) {
         if (q == null) return;
 
-        // 학원명
         try {
             Academy ac = academyRepository.findByNumber(q.getAcademyNumber());
             if (ac != null && ac.getName() != null) {
@@ -207,7 +399,6 @@ public class QuestionController {
             }
         } catch (Exception ignore) {}
 
-        // 교사들 이름(등장 순서 유지, 중복 제거)
         try {
             List<Answer> answers = answerRepository.findActiveByQuestionId(q.getId());
             answers.sort(Comparator.comparing(Answer::getCreatedAt,
@@ -257,11 +448,22 @@ public class QuestionController {
         q.setRecentResponderNames(names);
     }
 
-    // 읽음 표시 API
+    // 읽음 표시 API (학부모는 본인 방만)
     @PutMapping("/{id}/read")
     public ResponseEntity<Void> markRead(@PathVariable String id, HttpSession session){
+        String role = (String) session.getAttribute("role");
         String userId = (String) session.getAttribute("username");
         if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        Optional<Question> opt = questionRepository.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        Question q = opt.get();
+
+        if ("parent".equalsIgnoreCase(role)) {
+            if (!isParentOwnsRoom(q, userId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
 
         QuestionReadState rs = readRepo.findByQuestionIdAndUserId(id, userId)
                 .orElseGet(() -> {
@@ -273,5 +475,34 @@ public class QuestionController {
         rs.setLastReadAt(new Date());
         readRepo.save(rs);
         return ResponseEntity.noContent().build();
+    }
+
+    // === 알림 유틸 (실제 발송 라인은 프로젝트의 서비스로 연결해 사용) ===
+    private String getRoomCounterpartId(Question room, String senderRole) {
+        if (room.getRoomStudentId() != null && !room.getRoomStudentId().isEmpty()) {
+            if (!"student".equalsIgnoreCase(senderRole)) {
+                return room.getRoomStudentId();
+            }
+        }
+        if (room.getRoomParentId() != null && !room.getRoomParentId().isEmpty()) {
+            if (!"parent".equalsIgnoreCase(senderRole)) {
+                return room.getRoomParentId();
+            }
+        }
+        return null;
+    }
+
+    private void notifyQnaReply(Question room, String senderRole, String previewText) {
+        String title = (room.getTitle() != null && !room.getTitle().isEmpty()) ? room.getTitle() : "QnA";
+        String body  = (previewText == null || previewText.isEmpty()) ? "새 답변이 도착했습니다." : previewText;
+
+        if ("teacher".equalsIgnoreCase(senderRole) || "director".equalsIgnoreCase(senderRole)) {
+            String targetId = getRoomCounterpartId(room, senderRole);
+            if (targetId == null) return;
+
+            // 예시) notificationService.sendToUser(targetId, title, body, room.getId());
+        } else {
+            // 예시) notificationService.sendToTeacherTopic(room.getAcademyNumber(), title, body, room.getId());
+        }
     }
 }

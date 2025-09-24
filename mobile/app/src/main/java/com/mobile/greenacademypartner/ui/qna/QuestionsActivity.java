@@ -5,7 +5,11 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.Toast;
 
@@ -94,13 +98,13 @@ public class QuestionsActivity extends AppCompatActivity {
         }
     }
 
-    // Authorization 헤더 문자열 생성
+    // Authorization 헤더 문자열 생성 (토큰 없으면 null 반환 → 헤더 생략)
     private String getAuthHeader() {
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String token = prefs.getString("jwt", null);
         if (token == null || token.isEmpty()) token = prefs.getString("token", null);
         if (token == null || token.isEmpty()) token = prefs.getString("accessToken", null);
-        return (token == null || token.isEmpty()) ? "" : "Bearer " + token;
+        return (token == null || token.isEmpty()) ? null : "Bearer " + token;
     }
 
     // 역할 조회
@@ -110,7 +114,7 @@ public class QuestionsActivity extends AppCompatActivity {
         return role == null ? "" : role;
     }
 
-    // 학생 ID 조회(없으면 null 반환)
+    // 학생 ID 조회(없으면 null 반환) — 교사/원장 흐름에서만 사용
     @Nullable
     private String getSelectedStudentId() {
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
@@ -145,18 +149,54 @@ public class QuestionsActivity extends AppCompatActivity {
         return out;
     }
 
-    // 학원 방(room) 정보로 최근 답변자/미확인 집계 로딩 (studentId null 허용)
+    // 학원 방(room) 정보로 최근 답변자/미확인 집계 로딩
     private void fetchResponderNamesForAcademy(int academyNumber) {
+        String role = getRole();
         String auth = getAuthHeader();
-        String studentId = getSelectedStudentId(); // null이면 서버가 세션으로 자동 추론(학생/학부모)
 
+        if ("parent".equalsIgnoreCase(role)) {
+            // 학부모 전용 방 요약 갱신
+            questionApi.getOrCreateParentRoom(auth, academyNumber).enqueue(new Callback<Question>() {
+                @Override
+                public void onResponse(Call<Question> call, Response<Question> r) {
+                    if (!r.isSuccessful() || r.body() == null) return;
+                    Question room = r.body();
+
+                    int idx = -1;
+                    for (int i = 0; i < cards.size(); i++) {
+                        if (cards.get(i).getAcademyNumber() == academyNumber) { idx = i; break; }
+                    }
+
+                    if (idx >= 0) {
+                        Question old = cards.get(idx);
+                        Question updated = new Question();
+                        updated.setId(room.getId());
+                        updated.setAcademyNumber(old.getAcademyNumber());
+                        updated.setAcademyName(
+                                (room.getAcademyName()!=null && !room.getAcademyName().trim().isEmpty())
+                                        ? room.getAcademyName().trim()
+                                        : old.getAcademyName()
+                        );
+                        updated.setTeacherNames(room.getTeacherNames());
+                        updated.setUnreadCount(room.getUnreadCount());
+                        updated.setRecentResponderNames(room.getRecentResponderNames());
+                        cards.set(idx, updated);
+                        adapter.submitList(new ArrayList<>(cards));
+                    }
+                }
+                @Override public void onFailure(Call<Question> call, Throwable t) { /* 무시 */ }
+            });
+            return;
+        }
+
+        // 학생/교사/원장
+        String studentId = getSelectedStudentId();
         questionApi.getOrCreateRoom(auth, academyNumber, studentId).enqueue(new Callback<Question>() {
             @Override
             public void onResponse(Call<Question> call, Response<Question> r) {
                 if (!r.isSuccessful() || r.body() == null) return;
                 Question room = r.body();
 
-                // 기존 객체 수정 금지 → 새 인스턴스로 교체
                 int idx = -1;
                 for (int i = 0; i < cards.size(); i++) {
                     if (cards.get(i).getAcademyNumber() == academyNumber) { idx = i; break; }
@@ -165,7 +205,7 @@ public class QuestionsActivity extends AppCompatActivity {
                 if (idx >= 0) {
                     Question old = cards.get(idx);
                     Question updated = new Question();
-                    updated.setId(old.getId());
+                    updated.setId(room.getId());
                     updated.setAcademyNumber(old.getAcademyNumber());
                     updated.setAcademyName(
                             (room.getAcademyName()!=null && !room.getAcademyName().trim().isEmpty())
@@ -192,20 +232,55 @@ public class QuestionsActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<Question> call, Throwable t) {
-                // 무시(표시는 로컬 기본 상태 유지)
+                // 무시
             }
         });
     }
 
     // 카드 클릭 시 방 열기
     private void openAcademyRoom(int academyNumber, String academyName) {
-        String auth = getAuthHeader();
-        String studentId = getSelectedStudentId(); // null이면 서버가 세션으로 자동 추론(학생/학부모)
         String role = getRole();
+        String auth = getAuthHeader();
 
-        // 교사/원장은 학생 미지정이면 서버 호출 전에 바로 입력 유도(400 회피)
-        if ((role.equalsIgnoreCase("teacher") || role.equalsIgnoreCase("director"))
-                && (studentId == null)) {
+        if ("parent".equalsIgnoreCase(role)) {
+            // ★ 학부모: 학부모 전용 방으로 바로 진입
+            questionApi.getOrCreateParentRoom(auth, academyNumber).enqueue(new Callback<Question>() {
+                @Override
+                public void onResponse(Call<Question> call, Response<Question> resp) {
+                    if (!resp.isSuccessful() || resp.body() == null || resp.body().getId() == null) {
+                        Toast.makeText(QuestionsActivity.this, "채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Question room = resp.body();
+                    String roomId = room.getId();
+
+                    // 읽음 초기화
+                    questionApi.markRead(auth, roomId).enqueue(new Callback<Void>() {
+                        @Override public void onResponse(Call<Void> c2, Response<Void> r2) {
+                            clearUnreadBadge(academyNumber);
+                        }
+                        @Override public void onFailure(Call<Void> c2, Throwable t) { }
+                    });
+
+                    Intent intent = new Intent(QuestionsActivity.this, QuestionDetailActivity.class);
+                    intent.putExtra("questionId", roomId);
+                    intent.putExtra("academyNumber", academyNumber);
+                    intent.putExtra("academyName",   academyName);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    startActivity(intent);
+                }
+                @Override
+                public void onFailure(Call<Question> call, Throwable t) {
+                    Toast.makeText(QuestionsActivity.this, "네트워크 오류로 채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                }
+            });
+            return;
+        }
+
+        // 학생/교사/원장: 기존 로직
+        String studentId = getSelectedStudentId();
+
+        if ((role.equalsIgnoreCase("teacher") || role.equalsIgnoreCase("director")) && (studentId == null)) {
             promptStudentIdAndOpen(academyNumber, academyName);
             return;
         }
@@ -214,9 +289,10 @@ public class QuestionsActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Question> call, Response<Question> resp) {
                 if (resp.code() == 400) {
-                    // 교사 계정인데 학생 미지정 → 입력 받아 저장 후 재시도
-                    promptStudentIdAndOpen(academyNumber, academyName);
-                    return;
+                    if (role.equalsIgnoreCase("teacher") || role.equalsIgnoreCase("director")) {
+                        promptStudentIdAndOpen(academyNumber, academyName);
+                        return;
+                    }
                 }
                 if (!resp.isSuccessful() || resp.body() == null) {
                     Toast.makeText(QuestionsActivity.this,
@@ -229,24 +305,9 @@ public class QuestionsActivity extends AppCompatActivity {
                 // 읽음 표시(표시 초기화)
                 questionApi.markRead(auth, roomId).enqueue(new Callback<Void>() {
                     @Override public void onResponse(Call<Void> c2, Response<Void> r2) {
-                        int idx = -1;
-                        for (int i = 0; i < cards.size(); i++) {
-                            if (cards.get(i).getAcademyNumber() == academyNumber) { idx = i; break; }
-                        }
-                        if (idx >= 0) {
-                            Question old = cards.get(idx);
-                            Question cleared = new Question();
-                            cleared.setId(old.getId());
-                            cleared.setAcademyNumber(old.getAcademyNumber());
-                            cleared.setAcademyName(old.getAcademyName());
-                            cleared.setTeacherNames(old.getTeacherNames());
-                            cleared.setUnreadCount(0);
-                            cleared.setRecentResponderNames(null);
-                            cards.set(idx, cleared);
-                            adapter.submitList(new ArrayList<>(cards));
-                        }
+                        clearUnreadBadge(academyNumber);
                     }
-                    @Override public void onFailure(Call<Void> c2, Throwable t) { /* 무시 */ }
+                    @Override public void onFailure(Call<Void> c2, Throwable t) { }
                 });
 
                 // 상세 진입
@@ -254,7 +315,6 @@ public class QuestionsActivity extends AppCompatActivity {
                 intent.putExtra("questionId", roomId);
                 intent.putExtra("academyNumber", academyNumber);
                 intent.putExtra("academyName",   academyName);
-                // 다중 창 상태에서 중복 쌓임/상태 꼬임 방지
                 intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                 startActivity(intent);
             }
@@ -267,32 +327,76 @@ public class QuestionsActivity extends AppCompatActivity {
         });
     }
 
-    // 교사용: 학생 ID 입력 다이얼로그 → 저장 후 재시도
+    // 읽음 배지 초기화(로컬 카드 갱신)
+    private void clearUnreadBadge(int academyNumber) {
+        int idx = -1;
+        for (int i = 0; i < cards.size(); i++) {
+            if (cards.get(i).getAcademyNumber() == academyNumber) { idx = i; break; }
+        }
+        if (idx >= 0) {
+            Question old = cards.get(idx);
+            Question cleared = new Question();
+            cleared.setId(old.getId());
+            cleared.setAcademyNumber(old.getAcademyNumber());
+            cleared.setAcademyName(old.getAcademyName());
+            cleared.setTeacherNames(old.getTeacherNames());
+            cleared.setUnreadCount(0);
+            cleared.setRecentResponderNames(null);
+            cards.set(idx, cleared);
+            adapter.submitList(new ArrayList<>(cards));
+        }
+    }
+
+    // 교사/원장: 학생 ID 입력 다이얼로그 → 저장 후 재시도
     private void promptStudentIdAndOpen(int academyNumber, String academyName) {
         final EditText et = new EditText(this);
-        et.setHint("학생 ID를 입력하세요");
+        et.setHint("ID를 입력하세요");
+
         new AlertDialog.Builder(this)
-                .setTitle("학생 선택")
+                .setTitle("채팅 대상 ID")
                 .setView(et)
                 .setPositiveButton("확인", (d, w) -> {
-                    String sid = et.getText().toString().trim();
-                    if (!sid.isEmpty()) {
-                        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-                        prefs.edit().putString("selectedStudentId", sid).apply();
-                        openAcademyRoom(academyNumber, academyName); // 저장 후 재시도
-                    } else {
-                        Toast.makeText(this, "학생 ID를 입력하세요.", Toast.LENGTH_SHORT).show();
+                    String entered = et.getText().toString().trim();
+                    if (entered.isEmpty()) {
+                        Toast.makeText(this, "ID를 입력하세요.", Toast.LENGTH_SHORT).show();
+                        return;
                     }
+                    String auth = getAuthHeader();
+                    QuestionApi questionApi = RetrofitClient.getClient().create(QuestionApi.class);
+
+                    questionApi.getOrCreateRoomById(auth, academyNumber, entered)
+                            .enqueue(new Callback<Question>() {
+                                @Override
+                                public void onResponse(Call<Question> call, Response<Question> resp) {
+                                    if (!resp.isSuccessful() || resp.body() == null || resp.body().getId() == null) {
+                                        Toast.makeText(QuestionsActivity.this, "채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                                        return;
+                                    }
+                                    Question room = resp.body();
+                                    Intent intent = new Intent(QuestionsActivity.this, QuestionDetailActivity.class);
+                                    intent.putExtra("questionId", room.getId());
+                                    intent.putExtra("academyNumber", academyNumber);
+                                    intent.putExtra("academyName", academyName);
+                                    startActivity(intent);
+                                }
+
+                                @Override
+                                public void onFailure(Call<Question> call, Throwable t) {
+                                    Toast.makeText(QuestionsActivity.this, "네트워크 오류로 채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                                }
+                            });
                 })
                 .setNegativeButton("취소", null)
                 .show();
     }
 
+
+
     @Override
     protected void onResume() {
         super.onResume();
         if (cards != null && !cards.isEmpty()) {
-            for (com.mobile.greenacademypartner.model.Question c : cards) {
+            for (Question c : cards) {
                 fetchResponderNamesForAcademy(c.getAcademyNumber());
             }
         }

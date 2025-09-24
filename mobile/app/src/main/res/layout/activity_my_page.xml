@@ -20,6 +20,45 @@
             app:title="마이페이지"
             app:titleTextColor="@color/white" />
 
+        <!-- 헤더 카드: 이름 굵게 표시 (text_role_title 유지) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_header_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            app:cardUseCompatPadding="true"
+            app:cardCornerRadius="12dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="#33000000"
+            app:cardBackgroundColor="#F4F6F8">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <!-- 역할 타이틀(이제 'OOO의 마이페이지'로 사용) -->
+                <TextView
+                    android:id="@+id/text_role_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="마이페이지"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#111316" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <Spinner
+            android:id="@+id/spinner_profile_target"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_margin="16dp"
+            android:background="@drawable/spinner_bg_with_arrow"
+            android:spinnerMode="dropdown"/>
+
         <!-- 스크롤: 여백 최소, 뷰포트 채움 -->
         <ScrollView
             android:layout_width="match_parent"
@@ -34,35 +73,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
-                <!-- 헤더 카드: 이름 굵게 표시 (text_role_title 유지) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_header_name"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    app:cardUseCompatPadding="true"
-                    app:cardCornerRadius="12dp"
-                    app:strokeWidth="1dp"
-                    app:strokeColor="#33000000"
-                    app:cardBackgroundColor="#F4F6F8">
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="12dp">
-
-                        <!-- 역할 타이틀(이제 'OOO의 마이페이지'로 사용) -->
-                        <TextView
-                            android:id="@+id/text_role_title"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="마이페이지"
-                            android:textSize="20sp"
-                            android:textStyle="bold"
-                            android:textColor="#111316" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
 
                 <!-- 입력 폼 카드: 화면 남는 공간을 채움 -->
                 <com.google.android.material.card.MaterialCardView

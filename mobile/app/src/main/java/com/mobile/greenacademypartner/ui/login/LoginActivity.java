@@ -2,6 +2,8 @@ package com.mobile.greenacademypartner.ui.login;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.util.Log;
@@ -14,10 +16,14 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.gson.Gson;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.AuthApi;
+import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
+import com.mobile.greenacademypartner.api.StudentApi;
+import com.mobile.greenacademypartner.api.TeacherApi;
 import com.mobile.greenacademypartner.model.login.LoginRequest;
 import com.mobile.greenacademypartner.model.login.LoginResponse;
 import com.mobile.greenacademypartner.ui.main.MainActivity;
@@ -32,6 +38,8 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class LoginActivity extends AppCompatActivity {
+
+    private static final String TAG = "LoginActivity";
 
     private TextView findAccount;
     private TextView signupText;
@@ -57,6 +65,9 @@ public class LoginActivity extends AppCompatActivity {
         autoLoginCheckBox = findViewById(R.id.login_check);
         btnTogglePassword = findViewById(R.id.btn_toggle_password);
         autoLoginCheckBox.setChecked(prefs.getBoolean("auto_login", false));
+
+        // 알림 권한(Android 13+) 사전 요청
+        requestNotificationPermissionIfNeeded();
 
         // 비밀번호 토글
         btnTogglePassword.setOnClickListener(v -> {
@@ -99,7 +110,7 @@ public class LoginActivity extends AppCompatActivity {
                         @Override
                         public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                             if (response.isSuccessful() && response.body() != null) {
-                                Log.d("Login", "성공: " + new Gson().toJson(response.body()));
+                                Log.d(TAG, "로그인 성공: " + new Gson().toJson(response.body()));
                                 LoginResponse res = response.body();
 
                                 SharedPreferences.Editor editor = prefs.edit();
@@ -116,7 +127,6 @@ public class LoginActivity extends AppCompatActivity {
                                 // 역할별 ID를 명시적으로 저장(다른 역할 키는 정리)
                                 String role = res.getRole() == null ? "" : res.getRole().toLowerCase();
                                 if ("teacher".equals(role) || "director".equals(role)) {
-                                    // 서버 응답에 별도 teacherId가 없으면 username을 교사 ID로 사용
                                     editor.putString("teacherId", res.getUsername());
                                     editor.remove("studentId");
                                     editor.remove("parentId");
@@ -129,7 +139,6 @@ public class LoginActivity extends AppCompatActivity {
                                     editor.remove("teacherId");
                                     editor.remove("studentId");
                                 } else {
-                                    // 알 수 없는 역할 방어
                                     editor.remove("teacherId");
                                     editor.remove("studentId");
                                     editor.remove("parentId");
@@ -159,17 +168,20 @@ public class LoginActivity extends AppCompatActivity {
 
                                 editor.apply();
 
+                                // ★★★ 로그인 직후 FCM 토큰 업서트 (세션 쿠키 포함된 RetrofitClient 사용) ★★★
+                                upsertFcmTokenImmediately(role, res.getUsername());
+
                                 // 역할 전환 시 상태 꼬임 방지: 태스크 초기화 후 진입
-                                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                                Intent intent = new Intent(LoginActivity.this, com.mobile.greenacademypartner.ui.main.MainDashboardActivity.class);
                                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                 startActivity(intent);
                                 finish();
                             } else {
-                                Log.e("Login", "응답 실패: code = " + response.code());
+                                Log.e(TAG, "응답 실패: code = " + response.code());
                                 try {
-                                    Log.e("Login", "에러 바디: " + response.errorBody().string());
+                                    Log.e(TAG, "에러 바디: " + response.errorBody().string());
                                 } catch (IOException e) {
-                                    Log.e("Login", "에러 바디 파싱 실패", e);
+                                    Log.e(TAG, "에러 바디 파싱 실패", e);
                                 }
 
                                 Toast.makeText(LoginActivity.this,
@@ -180,12 +192,74 @@ public class LoginActivity extends AppCompatActivity {
 
                         @Override
                         public void onFailure(Call<LoginResponse> call, Throwable t) {
-                            Log.e("Login", "서버 연결 실패", t);
+                            Log.e(TAG, "서버 연결 실패", t);
                             Toast.makeText(LoginActivity.this,
                                     "서버 연결 실패",
                                     Toast.LENGTH_SHORT).show();
                         }
                     });
         });
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1001);
+            }
+        }
+    }
+
+
+    private void upsertFcmTokenImmediately(String roleLower, String username) {
+        FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
+            if (token == null || token.trim().isEmpty()) {
+                Log.w(TAG, "FCM 토큰이 비어 있습니다.");
+                return;
+            }
+            Log.d(TAG, "FCM 토큰 획득: " + token + " / role=" + roleLower + ", user=" + username);
+
+            // 역할별 엔드포인트로 업서트 (프로젝트에 구현된 API 사용)
+            try {
+                if ("parent".equals(roleLower)) {
+                    ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
+                    // 예: @POST("/api/parents/{id}/fcm-token") Call<Void> updateFcmToken(@Path("id") String parentsId, @Body String token);
+                    api.updateFcmToken(username, token).enqueue(new VoidLoggingCallback("parent"));
+
+                } else if ("student".equals(roleLower)) {
+                    StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
+                    // 예: @POST("/api/students/{id}/fcm-token")
+                    api.updateFcmToken(username, token).enqueue(new VoidLoggingCallback("student"));
+
+                } else if ("teacher".equals(roleLower) || "director".equals(roleLower)) {
+                    TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
+                    // 예: @POST("/api/teachers/{id}/fcm-token")
+                    api.updateFcmToken(username, token).enqueue(new VoidLoggingCallback(roleLower));
+
+                } else {
+                    Log.w(TAG, "알 수 없는 역할. FCM 토큰 업서트 생략: " + roleLower);
+                }
+            } catch (Exception e) {
+                // 만약 역할별 API가 없다면, 공용 TokenApi(/api/fcm/token) 사용하도록 별도 인터페이스를 추가하세요.
+                Log.e(TAG, "FCM 토큰 업서트 중 예외", e);
+            }
+        }).addOnFailureListener(e -> Log.e(TAG, "FCM 토큰 획득 실패", e));
+    }
+
+    // 업서트 콜백 로깅용
+    private static class VoidLoggingCallback implements Callback<Void> {
+        private final String tagSuffix;
+        private VoidLoggingCallback(String tagSuffix) { this.tagSuffix = tagSuffix; }
+
+        @Override public void onResponse(Call<Void> call, Response<Void> response) {
+            if (response.isSuccessful()) {
+                Log.d(TAG, "FCM 토큰 업서트 성공(" + tagSuffix + ")");
+            } else {
+                Log.e(TAG, "FCM 토큰 업서트 실패(" + tagSuffix + "): code=" + response.code());
+            }
+        }
+        @Override public void onFailure(Call<Void> call, Throwable t) {
+            Log.e(TAG, "FCM 토큰 업서트 네트워크 실패(" + tagSuffix + ")", t);
+        }
     }
 }

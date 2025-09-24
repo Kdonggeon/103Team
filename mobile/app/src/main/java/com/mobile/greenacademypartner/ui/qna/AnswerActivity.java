@@ -33,9 +33,9 @@ public class AnswerActivity extends AppCompatActivity {
 
         questionId = getIntent().getStringExtra("questionId");
 
-        //  role 불러오기
+        // 작성자(옵션) — 필요 없으면 제거 가능
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        String userRole = prefs.getString("userId", "");
+        String userId = prefs.getString("userId", ""); // 프로젝트에서 실제로 쓰는 키 확인
 
         btnPostAnswer.setOnClickListener(v -> {
             String content = etAnswerContent.getText().toString().trim();
@@ -45,20 +45,20 @@ public class AnswerActivity extends AppCompatActivity {
                 return;
             }
 
-            // role을 작성자로 넣기
             Answer a = new Answer();
             a.setContent(content);
-            a.setAuthor(userRole);
+            a.setAuthor(userId); // 서버가 세션에서 author를 정한다면 이 줄은 생략 가능
 
+            String auth = getAuthHeader();
             AnswerApi api = RetrofitClient.getClient().create(AnswerApi.class);
-            api.createAnswer(questionId, a).enqueue(new Callback<Answer>() {
+            api.createAnswer(auth, questionId, a).enqueue(new Callback<Answer>() {
                 @Override
                 public void onResponse(Call<Answer> call, Response<Answer> response) {
                     if (response.isSuccessful()) {
                         Toast.makeText(AnswerActivity.this, "답변이 등록되었습니다.", Toast.LENGTH_SHORT).show();
                         finish();
                     } else {
-                        Toast.makeText(AnswerActivity.this, "등록 실패: 서버 오류", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(AnswerActivity.this, "등록 실패: 서버 오류(" + response.code() + ")", Toast.LENGTH_SHORT).show();
                     }
                 }
 
@@ -68,5 +68,14 @@ public class AnswerActivity extends AppCompatActivity {
                 }
             });
         });
+    }
+
+    // Authorization 헤더 생성 (다른 화면들과 동일한 방식)
+    private String getAuthHeader() {
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String token = prefs.getString("jwt", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("token", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("accessToken", null);
+        return (token == null || token.isEmpty()) ? null : "Bearer " + token;
     }
 }

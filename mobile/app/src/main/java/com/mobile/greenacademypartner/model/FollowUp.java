@@ -9,6 +9,7 @@ public class FollowUp {
     private String author;       // 작성자 ID (학생/학부모)
     private String authorRole;   // "student" or "parent"
     private String content;
+    @SerializedName(value = "createdAt", alternate = {"created_at","CreatedAt","Created_At"})
     private String createdAt;
 
     // 서버가 내려주는 표시용 이름

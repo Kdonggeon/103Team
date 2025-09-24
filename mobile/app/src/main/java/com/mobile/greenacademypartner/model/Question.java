@@ -14,8 +14,13 @@ public class Question {
     private int academyNumber;
     @SerializedName("teacherNames")
     private List<String> teacherNames;
+    @SerializedName(value = "authorRole",      alternate = {"AuthorRole","author_role"})
+    private String authorRole;
+    @SerializedName(value = "roomParentId",    alternate = {"RoomParentId","room_parent_id"})
+    private String roomParentId;
+    @SerializedName(value = "roomStudentId",   alternate = {"RoomStudentId","room_student_id"})
+    private String roomStudentId;
 
-    // ✅ 추가: 학원명(서버가 내려주면 사용, 없으면 null)
     private String academyName;
 
     private List<String> recentResponderNames;
@@ -51,4 +56,14 @@ public class Question {
     public void setRecentResponderNames(List<String> v){ this.recentResponderNames = v; }
     public int getUnreadCount(){ return unreadCount; }
     public void setUnreadCount(int v){ this.unreadCount = v; }
+
+
+    public String getAuthorRole()   { return authorRole; }
+    public void setAuthorRole(String v) { this.authorRole = v; }
+
+    public String getRoomParentId() { return roomParentId; }
+    public void setRoomParentId(String v) { this.roomParentId = v; }
+
+    public String getRoomStudentId(){ return roomStudentId; }
+    public void setRoomStudentId(String v) { this.roomStudentId = v; }
 }

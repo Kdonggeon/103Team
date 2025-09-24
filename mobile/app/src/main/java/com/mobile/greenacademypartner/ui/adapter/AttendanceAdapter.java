@@ -24,22 +24,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 
-/**
- * AttendanceAdapter (시간표처럼 Days_Of_Week 기반 필터)
- *
- * 핵심:
- * - 선택 요일(1=월…7=일)이 각 아이템의 daysOfWeek(List<Integer>) 또는
- *   외부에서 주입한 classDowMap(클래스명 → List<Integer>)에 포함되면 표시.
- *
- * 사용 순서:
- * 1) adapter.setClassDowMap(className -> [1,3,5])  // 103DB.classes의 Days_Of_Week 매핑 주입
- * 2) adapter.setAll(list)                           // 전체 데이터 주입
- * 3) adapter.setDisplayDow(1~7)                     // 선택 요일로 필터
- *
- * 전제:
- * - AttendanceResponse에 getClassName()는 존재.
- * - (있다면) AttendanceResponse.getDaysOfWeek()도 @SerializedName("daysOfWeek"/"Days_Of_Week")로 매핑.
- */
 public class AttendanceAdapter extends RecyclerView.Adapter<AttendanceAdapter.ViewHolder> {
 
     private final Context context;
@@ -48,11 +32,14 @@ public class AttendanceAdapter extends RecyclerView.Adapter<AttendanceAdapter.Vi
     private final List<AttendanceResponse> allItems = new ArrayList<>();
     private final List<AttendanceResponse> items    = new ArrayList<>();
 
-    // 클래스명 → Days_Of_Week(1=월…7=일) 매핑 (시간표의 classes 컬렉션에서 가져온 값)
+    // (정규화된) 클래스명 → Days_Of_Week(1=월…7=일) 매핑
     private final Map<String, List<Integer>> classDowMapByName = new HashMap<>();
 
     // 선택된 요일(1=월 … 7=일). null이면 전체
     private Integer selectedDowMon1ToSun7 = null;
+
+    // 디버그 옵션: 매핑 실패시에도 표시(진단용). 실제 배포는 false 권장.
+    private static final boolean DEBUG_INCLUDE_UNMAPPED = false;
 
     // (호환용) setDisplayDate용 포맷
     private static final TimeZone KST = TimeZone.getTimeZone("Asia/Seoul");
@@ -69,11 +56,17 @@ public class AttendanceAdapter extends RecyclerView.Adapter<AttendanceAdapter.Vi
         setAll(initial);
     }
 
-    /** 103DB.classes의 Days_Of_Week 매핑 주입 (키: 클래스명) */
+    /** 103DB.classes의 Days_Of_Week 매핑 주입 (키: 클래스명, 내부에서 정규화하여 저장) */
     public void setClassDowMap(Map<String, List<Integer>> byClassName) {
         classDowMapByName.clear();
         if (byClassName != null) {
-            classDowMapByName.putAll(byClassName);
+            for (Map.Entry<String, List<Integer>> e : byClassName.entrySet()) {
+                String keyNorm = norm(e.getKey());
+                List<Integer> dows = e.getValue();
+                if (keyNorm != null && !keyNorm.isEmpty() && dows != null && !dows.isEmpty()) {
+                    classDowMapByName.put(keyNorm, dows);
+                }
+            }
         }
         applyFilter(); // 매핑 갱신 시 즉시 반영
     }
@@ -115,7 +108,7 @@ public class AttendanceAdapter extends RecyclerView.Adapter<AttendanceAdapter.Vi
         applyFilter();
     }
 
-    /** 필터 적용: Days_Of_Week 또는 classDowMap만 사용 (날짜 파싱 기반 필터는 사용하지 않음) */
+    /** 필터 적용: 아이템 daysOfWeek 우선 → 없으면 (정규화된) className 매핑 사용 */
     private void applyFilter() {
         items.clear();
 
@@ -137,14 +130,20 @@ public class AttendanceAdapter extends RecyclerView.Adapter<AttendanceAdapter.Vi
             if (dowsFromItem != null && !dowsFromItem.isEmpty()) {
                 if (dowsFromItem.contains(want)) {
                     items.add(ar);
+                } else if (DEBUG_INCLUDE_UNMAPPED) {
+                    // 진단용: 매칭 실패해도 보여주기
+                    items.add(ar);
                 }
                 continue;
             }
 
-            // 2) 없으면 클래스명 기반 매핑 사용
-            String clsName = safe(ar.getClassName());
-            List<Integer> mapped = classDowMapByName.get(clsName);
+            // 2) 없으면 (정규화된) 클래스명 기반 매핑 사용
+            String clsNameNorm = norm(ar.getClassName());
+            List<Integer> mapped = classDowMapByName.get(clsNameNorm);
             if (mapped != null && mapped.contains(want)) {
+                items.add(ar);
+            } else if (mapped == null && DEBUG_INCLUDE_UNMAPPED) {
+                // 진단용: 맵에 키 없을 때도 표시해서 사라짐 현상 추적
                 items.add(ar);
             }
         }
@@ -234,5 +233,10 @@ public class AttendanceAdapter extends RecyclerView.Adapter<AttendanceAdapter.Vi
         } catch (ParseException e) {
             return null;
         }
+    }
+
+    /** 클래스명 정규화: 공백 제거 + 소문자 */
+    private static String norm(String s) {
+        return s == null ? "" : s.trim().replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
     }
 }

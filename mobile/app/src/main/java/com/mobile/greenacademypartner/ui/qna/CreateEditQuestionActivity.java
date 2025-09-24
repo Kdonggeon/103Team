@@ -8,6 +8,8 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.mobile.greenacademypartner.R;
@@ -83,7 +85,9 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
         // 선택 이벤트
         spinnerAcademy.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                selectedAcademyNumber = academyNums.get(position);
+                if (position >= 0 && position < academyNums.size()) {
+                    selectedAcademyNumber = academyNums.get(position);
+                }
             }
             @Override public void onNothingSelected(AdapterView<?> parent) { /* no-op */ }
         });
@@ -107,6 +111,7 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
                 return;
             }
 
+            String auth = getAuthHeader();
             QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
 
             if (isEdit) {
@@ -122,42 +127,88 @@ public class CreateEditQuestionActivity extends AppCompatActivity {
                 q.setCreatedAt(originalQuestion.getCreatedAt());
                 q.setAcademyNumber(originalQuestion.getAcademyNumber());
 
-                api.updateQuestion(questionId, q).enqueue(new Callback<Question>() {
+                api.updateQuestion(auth, questionId, q).enqueue(new Callback<Question>() {
                     @Override public void onResponse(Call<Question> call, Response<Question> response) {
-                        if (response.isSuccessful()) finish();
+                        if (response.code() == 403) {
+                            Toast.makeText(CreateEditQuestionActivity.this, "접근 권한이 없습니다.", Toast.LENGTH_SHORT).show();
+                            finish();
+                            return;
+                        }
+                        if (response.isSuccessful()) {
+                            finish();
+                        } else {
+                            Toast.makeText(CreateEditQuestionActivity.this, "수정 실패(" + response.code() + ")", Toast.LENGTH_SHORT).show();
+                        }
                     }
-                    @Override public void onFailure(Call<Question> call, Throwable t) { /* 에러 처리 필요시 추가 */ }
+                    @Override public void onFailure(Call<Question> call, Throwable t) {
+                        Toast.makeText(CreateEditQuestionActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
                 });
 
             } else {
                 // ✅ 신규 생성: 제목만 필수, content는 빈문자열로
+                if (selectedAcademyNumber == -1) {
+                    Toast.makeText(this, "학원을 선택하세요.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
                 Question q = new Question();
                 q.setTitle(title);
                 q.setContent(""); // 서버에서 내용 미사용
                 q.setAcademyNumber(selectedAcademyNumber);
 
-                api.createQuestion(q).enqueue(new Callback<Question>() {
+                api.createQuestion(auth, q).enqueue(new Callback<Question>() {
                     @Override public void onResponse(Call<Question> call, Response<Question> response) {
-                        if (response.isSuccessful()) finish();
+                        if (response.code() == 403) {
+                            Toast.makeText(CreateEditQuestionActivity.this, "접근 권한이 없습니다.", Toast.LENGTH_SHORT).show();
+                            finish();
+                            return;
+                        }
+                        if (response.isSuccessful()) {
+                            finish();
+                        } else {
+                            Toast.makeText(CreateEditQuestionActivity.this, "생성 실패(" + response.code() + ")", Toast.LENGTH_SHORT).show();
+                        }
                     }
-                    @Override public void onFailure(Call<Question> call, Throwable t) { /* 에러 처리 필요시 추가 */ }
+                    @Override public void onFailure(Call<Question> call, Throwable t) {
+                        Toast.makeText(CreateEditQuestionActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
                 });
             }
         });
     }
 
     private void loadQuestion(String id) {
+        String auth = getAuthHeader();
         QuestionApi api = RetrofitClient.getClient().create(QuestionApi.class);
-        api.getQuestion(id).enqueue(new Callback<Question>() {
+        api.getQuestion(auth, id).enqueue(new Callback<Question>() {
             @Override
             public void onResponse(Call<Question> call, Response<Question> response) {
+                if (response.code() == 403) {
+                    Toast.makeText(CreateEditQuestionActivity.this, "접근 권한이 없습니다.", Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
                 if (response.isSuccessful() && response.body() != null) {
                     originalQuestion = response.body();
                     etTitle.setText(originalQuestion.getTitle());
                     // etContent는 숨김 상태이므로 세팅 필요 없음
+                } else {
+                    Toast.makeText(CreateEditQuestionActivity.this, "불러오기 실패(" + response.code() + ")", Toast.LENGTH_SHORT).show();
                 }
             }
-            @Override public void onFailure(Call<Question> call, Throwable t) { /* 에러 처리 필요시 추가 */ }
+            @Override public void onFailure(Call<Question> call, Throwable t) {
+                Toast.makeText(CreateEditQuestionActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         });
+    }
+
+    // Authorization 헤더 생성
+    private String getAuthHeader() {
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String token = prefs.getString("jwt", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("token", null);
+        if (token == null || token.isEmpty()) token = prefs.getString("accessToken", null);
+        return (token == null || token.isEmpty()) ? null : "Bearer " + token;
     }
 }
