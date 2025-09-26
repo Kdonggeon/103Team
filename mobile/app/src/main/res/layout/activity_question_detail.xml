@@ -73,17 +73,12 @@
                             android:layout_weight="1"
                             android:textColor="@android:color/black" />
 
-                        <TextView
-                            android:id="@+id/tv_question_date"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textColor="@android:color/black" />
                     </LinearLayout>
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- ★ RecyclerView: ScrollView 밖, 0dp + weight=1 -->
+
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_answers"
                 android:layout_width="match_parent"
@@ -92,7 +87,7 @@
                 android:paddingBottom="8dp"/>
         </LinearLayout>
 
-        <!-- ★ 하단 입력 바: ScrollView 밖으로 이동 -->
+
         <LinearLayout
             android:id="@+id/bottom_input_bar"
             android:layout_width="match_parent"

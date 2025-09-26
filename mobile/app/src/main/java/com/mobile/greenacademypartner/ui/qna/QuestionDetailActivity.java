@@ -259,7 +259,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
         // 상단 카드 뷰
         tvTitle   = findViewById(R.id.tv_question_title);
         tvAuthor  = findViewById(R.id.tv_question_author);
-        tvDate    = findViewById(R.id.tv_question_date);
         tvContent = findViewById(R.id.tv_question_content);
 
         // 레거시 버튼
@@ -474,13 +473,6 @@ public class QuestionDetailActivity extends AppCompatActivity {
                     tvAuthor.setEllipsize(null);
                     tvAuthor.setMaxLines(2);
                     tvAuthor.setText(academyLabel);
-                }
-
-                // 날짜 배지(질문 생성일)
-                if (tvDate != null) {
-                    String badge = formatDateBadge(q.getCreatedAt());
-                    tvDate.setText(badge);
-                    tvDate.setVisibility(android.view.View.VISIBLE);
                 }
 
                 // 본문 비표시

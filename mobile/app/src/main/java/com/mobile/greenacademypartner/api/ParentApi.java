@@ -15,7 +15,7 @@ import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
 import retrofit2.http.Path;
-import retrofit2.http.Query;
+
 
 
 public interface ParentApi {
@@ -45,10 +45,8 @@ public interface ParentApi {
 
 
     @PUT("/api/parents/{id}/fcm-token")
-    Call<Void> updateFcmToken(
-            @Path("id") String parentId,
-            @Query("token") String token
-    );
+    Call<Void> updateFcmToken(@Path("id") String parentId,
+                              @Body String fcmToken);
 
 
 

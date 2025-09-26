@@ -172,7 +172,7 @@ public class LoginActivity extends AppCompatActivity {
                                 upsertFcmTokenImmediately(role, res.getUsername());
 
                                 // 역할 전환 시 상태 꼬임 방지: 태스크 초기화 후 진입
-                                Intent intent = new Intent(LoginActivity.this, com.mobile.greenacademypartner.ui.main.MainDashboardActivity.class);
+                                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                 startActivity(intent);
                                 finish();
@@ -210,7 +210,11 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-
+    /**
+     * 로그인 직후, 토큰이 갱신되지 않았더라도 강제로 서버에 업서트.
+     * 서버는 세션 기반(JSESSIONID)으로 userId/role을 식별하거나,
+     * 역할별 API(updateFcmToken)로 userId를 명시 전달하는 구조를 사용.
+     */
     private void upsertFcmTokenImmediately(String roleLower, String username) {
         FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
             if (token == null || token.trim().isEmpty()) {

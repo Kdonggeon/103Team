@@ -23,6 +23,7 @@ import jakarta.servlet.http.HttpSession;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,7 +59,6 @@ public class LoginController {
             session.setAttribute("username", student.getStudentId());
             session.setAttribute("role", "student");
 
-            // 수정: academyNumbers 필드에 List<Integer> 직접 전달
             LoginResponse res = new LoginResponse(
                 "success",
                 "student",
@@ -70,7 +70,7 @@ public class LoginController {
                 student.getSchool(),
                 student.getGrade(),
                 student.getGender(),
-                student.getAcademyNumbers() 
+                student.getAcademyNumbers()
             );
 
             try {
@@ -88,7 +88,6 @@ public class LoginController {
             session.setAttribute("username", teacher.getTeacherId());
             session.setAttribute("role", "teacher");
 
-            // 수정: academyNumbers 필드에 List<Integer> 직접 전달
             LoginResponse res = new LoginResponse(
                 "success",
                 "teacher",
@@ -100,7 +99,7 @@ public class LoginController {
                 null,
                 0,
                 null,
-                teacher.getAcademyNumbers()  // 기존 Collections.singletonList() 제거
+                teacher.getAcademyNumbers()
             );
 
             try {
@@ -110,17 +109,17 @@ public class LoginController {
             }
             return ResponseEntity.ok(res);
         }
-        
+
         // 3. 원장 로그인
         Director director = directorRepo.findByUsername(username);
-        
+
         System.out.println("디버깅: 입력 ID = " + username);
         System.out.println("디버깅: 찾은 원장 = " + (director != null ? director.getUsername() : "없음"));
         System.out.println("디버깅: 저장된 해시 = " + (director != null ? director.getPassword() : "없음"));
         System.out.println("디버깅: 비번 일치 = " + (director != null && passwordEncoder.matches(password, director.getPassword())));
 
         if (director != null && passwordEncoder.matches(password, director.getPassword())) {
-            String token = jwtUtil.generateToken(username,"director");
+            String token = jwtUtil.generateToken(username, "director");
 
             LoginResponse response = new LoginResponse(
                 "success",
@@ -129,7 +128,7 @@ public class LoginController {
                 director.getName(),
                 token,
                 director.getPhone(),
-                null, null, 0, null,  // 학생 전용 필드
+                null, null, 0, null,
                 director.getAcademyNumbers()
             );
 
@@ -138,56 +137,117 @@ public class LoginController {
             return ResponseEntity.ok(response);
         }
 
-
-     // 4. 학부모 로그인 처리
+        // 4. 학부모 로그인 처리
         Parent parent = parentRepo.findByParentsId(username);
         if (parent != null && passwordEncoder.matches(password, parent.getParentsPw())) {
             String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
             session.setAttribute("username", parent.getParentsId());
             session.setAttribute("role", "parent");
 
-            //  자녀(Student)의 academyNumbers 수집
-            List<Student> children = studentRepo.findByParentsNumber(parent.getParentsNumber());
-            Set<Integer> academyNumberSet = new HashSet<>();
+            // ✅ 학원 번호 수집: ① Parent 자체 → ② studentIds → ③ Parents_Number
+            Set<Integer> academySet = new LinkedHashSet<>();
 
-            String firstChildId = null;
-            if (children != null && !children.isEmpty()) {
-                for (Student child : children) {
-                    // 각 자녀의 academyNumbers에서 학원 번호 수집
-                    if (child.getAcademyNumbers() != null) {
-                        academyNumberSet.addAll(child.getAcademyNumbers());
-                    }
-                }
-                firstChildId = children.get(0).getStudentId();  // 첫 번째 자녀 ID 저장
-            }
-
-            //  학원 번호 리스트로 변환
-            List<Integer> academyNumbers = new ArrayList<>(academyNumberSet);
-
-            // ✅ 응답 생성 시 academyNumbers 전달
-            LoginResponse res = new LoginResponse(
-                "success",
-                "parent",
-                parent.getParentsId(),
-                parent.getParentsName(),
-                token,
-                parent.getParentsPhoneNumber(),
-                null,
-                null,
-                0,
-                null,
-                academyNumbers
-            );
-
-            res.setParentsNumber(parent.getParentsNumber());
-            res.setChildStudentId(firstChildId);  // 첫 자녀 ID 설정
-
+            // ① Parent 문서 자체의 Academy_Numbers 사용 (있다면)
             try {
-                System.out.println("최종 응답 → " + new ObjectMapper().writeValueAsString(res));
-            } catch (Exception e) {
-                e.printStackTrace();
+                List<Integer> pAcademies = parent.getAcademyNumbers();
+                if (pAcademies != null && !pAcademies.isEmpty()) {
+                    academySet.addAll(pAcademies);
+                    System.out.println("학부모 보완① parent.academyNumbers 사용: " + pAcademies);
+                }
+            } catch (NoSuchMethodError | Exception ignore) {
+                // 모델에 필드가 없을 수도 있음
             }
-            return ResponseEntity.ok(res);
+
+            // ② Parent가 보유한 studentIds로 학생 일괄 조회 (레포에 메서드가 있어야 함)
+            boolean step2Tried = false;
+            try {
+                List<String> sids = parent.getStudentIds();
+                if ((sids != null && !sids.isEmpty()) && academySet.isEmpty()) {
+                    step2Tried = true;
+                    List<Student> childrenByIds = studentRepo.findByStudentIdIn(sids);
+                    if (childrenByIds != null) {
+                        for (Student s : childrenByIds) {
+                            if (s != null && s.getAcademyNumbers() != null) {
+                                academySet.addAll(s.getAcademyNumbers());
+                            }
+                        }
+                    }
+                    System.out.println("학부모 보완② studentIds 기반 수집: size=" + academySet.size());
+                }
+            } catch (NoSuchMethodError | Exception e) {
+                // findByStudentIdIn 또는 getStudentIds가 없을 수 있음
+                if (step2Tried) e.printStackTrace();
+            }
+
+            // ③ Parents_Number 키로 자녀 조회 (기존 로직)
+            if (academySet.isEmpty()) {
+                String pno = parent.getParentsNumber();
+                List<Student> children = (pno == null || pno.isEmpty())
+                        ? new ArrayList<>()
+                        : studentRepo.findByParentsNumber(pno);
+
+                String firstChildId = null;
+                if (children != null && !children.isEmpty()) {
+                    for (Student child : children) {
+                        if (child.getAcademyNumbers() != null) {
+                            academySet.addAll(child.getAcademyNumbers());
+                        }
+                    }
+                    firstChildId = children.get(0).getStudentId();
+                }
+
+                List<Integer> academyNumbers = new ArrayList<>(academySet);
+
+                LoginResponse res = new LoginResponse(
+                    "success",
+                    "parent",
+                    parent.getParentsId(),
+                    parent.getParentsName(),
+                    token,
+                    parent.getParentsPhoneNumber(),
+                    null,
+                    null,
+                    0,
+                    null,
+                    academyNumbers
+                );
+
+                res.setParentsNumber(parent.getParentsNumber());
+                res.setChildStudentId(firstChildId);
+
+                try {
+                    System.out.println("학부모 로그인 응답(③ 포함) → " + new ObjectMapper().writeValueAsString(res));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return ResponseEntity.ok(res);
+            } else {
+                // ① 또는 ②에서 이미 academySet을 채운 경우
+                List<Integer> academyNumbers = new ArrayList<>(academySet);
+
+                LoginResponse res = new LoginResponse(
+                    "success",
+                    "parent",
+                    parent.getParentsId(),
+                    parent.getParentsName(),
+                    token,
+                    parent.getParentsPhoneNumber(),
+                    null,
+                    null,
+                    0,
+                    null,
+                    academyNumbers
+                );
+                res.setParentsNumber(parent.getParentsNumber());
+                // firstChildId는 ①/② 경로에서는 확정 불가 → 필요 시 클라이언트에서 최초 자녀 조회
+
+                try {
+                    System.out.println("학부모 로그인 응답(①/② 경로) → " + new ObjectMapper().writeValueAsString(res));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return ResponseEntity.ok(res);
+            }
         }
 
         // 로그인 실패

@@ -29,9 +29,6 @@
         </activity>
 
         <!-- 공통 및 HEAD에 있던 액티비티들 -->
-        <activity
-            android:name=".ui.main.MainDashboardActivity"
-            android:exported="false"/>
         <activity android:name=".ui.main.MainActivity" />
         <activity android:name=".ui.login.FindAccountActivity" />
         <activity android:name=".ui.setting.SettingActivity" />

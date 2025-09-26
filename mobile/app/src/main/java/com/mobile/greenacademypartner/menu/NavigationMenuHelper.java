@@ -29,10 +29,6 @@ public class NavigationMenuHelper {
             "My Page", "출석 관리", "시간표", "Q&A", "공지사항", "설정"
     };
 
-    public static int[] getIconsLight() { return icons; }
-    public static int[] getIconsDark() { return icons_dark; }
-    public static Class<?>[] getTargetActivities() { return targetActivities; }
-
     private static final int[] icons = {
             R.drawable.ic_person_light,
             R.drawable.ic_attendance_light,

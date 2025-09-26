@@ -14,9 +14,11 @@ import com.team103.repository.QuestionReadStateRepository;
 import com.team103.repository.QuestionRepository;
 import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
+import com.team103.security.JwtUtil;
 
 import jakarta.servlet.http.HttpSession;
 
+import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -40,6 +42,34 @@ public class QuestionController {
     @Autowired private QuestionReadStateRepository readRepo;
     @Autowired private StudentRepository studentRepository;
     @Autowired private ParentRepository parentRepository;
+    @Autowired private JwtUtil jwtUtil; // ★ 추가
+
+    // === JWT → 세션 보완 (기존 기능 유지, 세션 없을 때만 채움) ===
+    private static final String BEARER = "Bearer ";
+
+    @ModelAttribute
+    public void ensureSessionFromJwt(
+            @RequestHeader(value = "Authorization", required = false) String auth,
+            HttpSession session) {
+        Object u = session.getAttribute("username");
+        Object r = session.getAttribute("role");
+        if ((u == null || r == null) && auth != null && auth.startsWith(BEARER)) {
+            try {
+                String token = auth.substring(BEARER.length());
+                Claims claims = jwtUtil.validateToken(token);
+                String userId = claims.getSubject();
+                Object role = claims.get("role");
+                if (userId != null && session.getAttribute("username") == null) {
+                    session.setAttribute("username", userId);
+                }
+                if (role != null && session.getAttribute("role") == null) {
+                    session.setAttribute("role", String.valueOf(role));
+                }
+            } catch (Exception ignore) {
+                // 토큰이 유효하지 않으면 기존 흐름 유지
+            }
+        }
+    }
 
     // === 내부 유틸 ===
     private boolean isParentOwnsRoom(Question q, String parentId) {
