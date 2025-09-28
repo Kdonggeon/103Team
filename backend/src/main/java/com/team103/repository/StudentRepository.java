@@ -9,22 +9,21 @@ import org.springframework.data.mongodb.repository.Query;
 
 public interface StudentRepository extends MongoRepository<Student, String> {
 
-    @Query("{ 'Student_ID': ?0, 'Student_PW': ?1 }")
-    Student findByStudentIdAndStudentPw(String studentId, String studentPw);
+//    @Query("{ 'Student_ID': ?0, 'Student_PW': ?1 }")
+//    Student findByStudentIdAndStudentPw(String studentId, String studentPw);
 
     Student findByStudentId(String studentId);
 
     boolean existsByStudentId(String studentId);
-    
-    List<Student> findByParentsNumber(String parentsNumber);
-    
-    
-    
 
+    List<Student> findByParentsNumber(String parentsNumber);
+
+    List<Student> findByStudentIdIn(List<String> studentIds);
+    
+    
     // 🔥 명시적 쿼리로 수정
     @Query("{ 'Student_Name': ?0, 'Student_Phone_Number': ?1 }")
     Student findByStudentNameAndStudentPhoneNumber(String name, String phoneNumber);
-    
-    List<Student> findByStudentIdIn(List<String> studentIds);
+
 
 }

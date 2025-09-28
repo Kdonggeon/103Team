@@ -1,6 +1,7 @@
 package com.team103.controller;
 
 import com.team103.dto.AddChildrenRequest;
+import com.team103.dto.FindIdRequest;
 import com.team103.dto.ParentSignupRequest;
 import com.team103.model.Attendance;
 import com.team103.model.Course;
@@ -16,9 +17,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/parents")
@@ -34,7 +37,7 @@ public class ParentController {
     private StudentRepository studentRepo;
 
     @Autowired
-    private CourseRepository classRepo;
+    private CourseRepository courseRepo;
 
     @Autowired
     private AttendanceRepository attendanceRepo;
@@ -43,30 +46,34 @@ public class ParentController {
         this.parentRepo = parentRepo;
     }
 
+    /** 학부모 전체 조회 */
     @GetMapping
     public List<Parent> getAllParents() {
         return parentRepo.findAll();
     }
 
+    /** 학부모 회원가입 */
     @PostMapping
     public ResponseEntity<?> registerParent(@RequestBody ParentSignupRequest request) {
         if (request.getParentsPw() == null || request.getParentsPw().trim().isEmpty()) {
             return ResponseEntity.badRequest().body("비밀번호는 필수 입력 항목입니다.");
         }
-
         String encodedPw = passwordEncoder.encode(request.getParentsPw());
         Parent parent = request.toEntity(encodedPw);
         Parent saved = parentRepo.save(parent);
         return ResponseEntity.ok(saved);
     }
 
+    /** 학부모 ID로 단건 조회 */
     @GetMapping("/{id}")
     public Parent getById(@PathVariable String id) {
         return parentRepo.findByParentsId(id);
     }
 
+    /** 자녀(여러 명) 추가 */
     @PostMapping("/{parentId}/children")
-    public ResponseEntity<?> addChildren(@PathVariable String parentId, @RequestBody AddChildrenRequest request) {
+    public ResponseEntity<?> addChildren(@PathVariable String parentId,
+                                         @RequestBody AddChildrenRequest request) {
         Parent parent = parentRepo.findByParentsId(parentId);
         if (parent == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("부모 정보를 찾을 수 없습니다.");
@@ -83,17 +90,19 @@ public class ParentController {
 
         parent.setStudentIds(currentChildren);
         parentRepo.save(parent);
-
         return ResponseEntity.ok().build();
     }
 
+    /** 특정 자녀의 수업 목록 조회 */
     @GetMapping("/{parentId}/children/{studentId}/classes")
-    public ResponseEntity<?> getChildClasses(@PathVariable String parentId, @PathVariable String studentId) {
-        List<Course> classes = classRepo.findByStudentsContaining(studentId);
+    public ResponseEntity<?> getChildClasses(@PathVariable String parentId,
+                                             @PathVariable String studentId) {
+        List<Course> classes = courseRepo.findByStudentsContaining(studentId);
         return ResponseEntity.ok(classes);
     }
 
-    @GetMapping("/parents/{parentId}/attendance")
+    /** 학부모의 모든 자녀 출석 내역 조회 */
+    @GetMapping("/{parentId}/attendance")
     public ResponseEntity<?> getChildAttendance(@PathVariable String parentId) {
         Parent parent = parentRepo.findByParentsId(parentId);
         if (parent == null) {
@@ -112,6 +121,7 @@ public class ParentController {
         return ResponseEntity.ok(allAttendance);
     }
 
+    /** 학부모의 자녀 목록 조회 */
     @GetMapping("/{parentId}/children")
     public ResponseEntity<?> getChildren(@PathVariable String parentId) {
         Parent parent = parentRepo.findByParentsId(parentId);
@@ -123,6 +133,7 @@ public class ParentController {
         return ResponseEntity.ok(children);
     }
 
+    /** 학부모의 자녀 이름 목록 조회 */
     @GetMapping("/{parentId}/children/names")
     public ResponseEntity<?> getChildNames(@PathVariable String parentId) {
         Parent parent = parentRepo.findByParentsId(parentId);
@@ -141,5 +152,14 @@ public class ParentController {
                 .toList();
 
         return ResponseEntity.ok(studentNames);
+    }
+
+    /** 아이디 찾기 (이름 + 전화번호) */
+    @PostMapping("/find_id")
+    public ResponseEntity<Map<String,String>> findParentId(@RequestBody FindIdRequest req) {
+        String phone = req.normalizedPhone();
+        Parent p = parentRepo.findByParentsNameAndParentsPhoneNumber(req.getName(), phone);
+        if (p == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "not found");
+        return ResponseEntity.ok(Map.of("username", p.getParentsId()));
     }
 }
