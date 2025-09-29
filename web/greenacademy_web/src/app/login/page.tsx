@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "../lib/api";
+import { api } from "@/lib/api";
 import Link from "next/link";
 
 
@@ -148,12 +148,13 @@ export default function LoginPage() {
 
         {/* 하단 링크 */}
         <div className="pt-1 text-center text-sm text-gray-500">
-          <Link href="/find-id" className="hover:underline">아이디 찾기</Link>
+          <Link href="/find_id" className="hover:underline">아이디 찾기</Link>
           <span className="mx-2 text-gray-300">|</span>
-          <Link href="/find-password" className="hover:underline">비밀번호 찾기</Link>
+          <Link href="/reset_pw" className="hover:underline">비밀번호 찾기</Link>
           <span className="mx-2 text-gray-300">|</span>
           <Link href="/signup" className="hover:underline">회원가입</Link>
         </div>
+
       </form>
     </main>
   );

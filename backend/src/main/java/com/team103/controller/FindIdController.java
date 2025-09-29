@@ -25,7 +25,7 @@ public class FindIdController {
     public ResponseEntity<?> findId(@RequestBody FindIdRequest request) {
         String role = request.getRole();
         String name = request.getName();
-        String phone = request.getPhone();
+        String phone = request.getPhoneNumber();
         
         System.out.println("🔍 name=" + name + ", phone=" + phone);
 

@@ -4,7 +4,7 @@ import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import type { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation"; // ✅ App Router 환경에서는 next/navigation 사용
 
 /**
  * ✅ 역할별(학생/학부모/교사/원장) 동적 회원가입 폼 (반응형)
@@ -336,10 +336,10 @@ export default function RoleBasedSignupPage() {
     }
   }
 
-return (
+ return (
   <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center p-4">
     <div className="w-full max-w-3xl bg-gray-850/60 backdrop-blur rounded-2xl shadow-2xl p-6 md:p-8 ring-1 ring-gray-800">
-      <h1 className="text-2xl md:text-3xl font-bold mb-4">회원가입</h1>
+      <h1 className="text-2xl md:text-3xl font-bold mb-4">역할별 회원가입</h1>
 
       {/* 역할 토글 */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -377,13 +377,11 @@ return (
       )}
 
       <p className="mt-6 text-xs text-gray-400">
-        Tip: 운영 서버에서는 쿠키에 <code>SameSite=None; Secure</code> 설정이 필요할 수 있습니다.
-        프론트에서 <code>credentials: "include"</code>를 유지하세요.
+       
       </p>
     </div>
   </div>
 );
-
 
 /**
  * ──────────────────────────────────────────────────────────────
@@ -435,7 +433,7 @@ if (process.env.NODE_ENV !== "production") {
       phone: "010-7777-8888",
       academyNumbers: [1, 2, 3],
     } as any);
-    console.assert(
+   console.assert(
   Array.isArray(d.academyNumbers) && (d.academyNumbers?.length ?? 0) === 3,
   "director payload shape ok"
 );
@@ -443,4 +441,5 @@ if (process.env.NODE_ENV !== "production") {
   } catch (e) {
     console.warn("[dev-tests] payloadMapper tests failed:", e);
   }
+}
 }
