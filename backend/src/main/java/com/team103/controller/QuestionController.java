@@ -122,7 +122,6 @@ public class QuestionController {
             // 없으면 생성
             if (room == null) {
                 room = new Question();
-                room.setContent("");
                 room.setAcademyNumber(academyNumber);
                 room.setRoomStudentId(targetId);
                 room.setRoom(true); // ★ 중요: 방 플래그 세팅
@@ -142,7 +141,6 @@ public class QuestionController {
             // 없으면 생성
             if (room == null) {
                 room = new Question();
-                room.setContent("");
                 room.setAcademyNumber(academyNumber);
                 room.setRoomParentId(targetId);
                 room.setRoom(true); // ★ 중요: 방 플래그 세팅
@@ -188,7 +186,6 @@ public class QuestionController {
         // 2) 없으면 생성
         if (room == null) {
             room = new Question();
-            room.setContent("");
             room.setAcademyNumber(academyNumber);
             room.setRoomParentId(parentId);   // 학부모 기준 방 식별자
             room.setRoom(true); // ★ 중요: 방 플래그 세팅
@@ -285,7 +282,6 @@ public class QuestionController {
         // 2) 없으면 생성
         if (room == null) {
             room = new Question();
-            room.setContent("");
             room.setAcademyNumber(academyNumber);
             room.setRoomStudentId(studentId);
             room.setRoom(true); // ★ 중요: 방 플래그 세팅
@@ -328,7 +324,6 @@ public class QuestionController {
 
         if (room == null) {
             room = new Question();
-            room.setContent("");
             room.setAcademyNumber(academyNumber);
             room.setRoomParentId(parentId);
             room.setRoom(true); // ★ 중요: 방 플래그 세팅
