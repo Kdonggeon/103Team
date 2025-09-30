@@ -1,8 +1,12 @@
 package com.mobile.greenacademypartner.api;
 
 import android.content.Context;
+import android.util.Log;
 
-import com.mobile.greenacademypartner.net.BackendGuardInterceptor;
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.mobile.greenacademypartner.AuthHeaderInterceptor;
 import com.mobile.greenacademypartner.ui.qna.SimpleCookieJar;
 
 import java.util.concurrent.TimeUnit;
@@ -18,41 +22,53 @@ public class RetrofitClient {
     private static volatile Retrofit retrofit;
 
     private static final SimpleCookieJar cookieJar = new SimpleCookieJar();
-    private static volatile Context appContext; // 인터셉터에서 사용
+    private static volatile Context appContext;
 
-    private RetrofitClient() {}
-
-    /** Application.onCreate()에서 꼭 한 번 호출 */
+    /** Application.onCreate()에서 한 번 호출 */
     public static void init(Context context) {
         appContext = context.getApplicationContext();
     }
+
+    private RetrofitClient() {}
 
     public static Retrofit getClient() {
         if (retrofit == null) {
             synchronized (RetrofitClient.class) {
                 if (retrofit == null) {
+
                     if (appContext == null) {
-                        throw new IllegalStateException("RetrofitClient not initialized. Call RetrofitClient.init(context) first.");
+                        throw new IllegalStateException(
+                                "RetrofitClient.init(context)를 먼저 호출하세요.");
                     }
 
-                    HttpLoggingInterceptor log = new HttpLoggingInterceptor();
-                    log.setLevel(HttpLoggingInterceptor.Level.BASIC);
+                    // GSON: snake_case ⇄ camelCase 자동 매핑
+                    Gson gson = new GsonBuilder()
+                            .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+                            .create();
 
-                    OkHttpClient ok = new OkHttpClient.Builder()
+                    // ★ 네트워크 상세 로그 (요청/응답 라인·헤더·본문)
+                    HttpLoggingInterceptor httpLog =
+                            new HttpLoggingInterceptor(message -> Log.d("OKHTTP", message));
+                    httpLog.setLevel(HttpLoggingInterceptor.Level.BODY);
+
+                    // 민감 헤더는 로그에서 마스킹
+                    httpLog.redactHeader("Authorization");
+                    httpLog.redactHeader("Cookie");
+                    httpLog.redactHeader("Set-Cookie");
+
+                    OkHttpClient okHttpClient = new OkHttpClient.Builder()
                             .cookieJar(cookieJar)
-                            .addInterceptor(new BackendGuardInterceptor(appContext))
-                            // .addInterceptor(new AuthHeaderInterceptor(appContext)) // 토큰 사용할 때만
-                            .addInterceptor(log) // 개발 중 로그
-                            .callTimeout(3, TimeUnit.SECONDS)
-                            .connectTimeout(2, TimeUnit.SECONDS)
-                            .readTimeout(2, TimeUnit.SECONDS)
-                            .writeTimeout(2, TimeUnit.SECONDS)
+                            .addInterceptor(new AuthHeaderInterceptor(appContext)) // 기존 인증 헤더
+                            .addInterceptor(httpLog)                                 // ★ 네트워크 로그
+                            .connectTimeout(15, TimeUnit.SECONDS)
+                            .readTimeout(20, TimeUnit.SECONDS)
+                            .writeTimeout(20, TimeUnit.SECONDS)
                             .build();
 
                     retrofit = new Retrofit.Builder()
                             .baseUrl(BASE_URL)
-                            .client(ok)
-                            .addConverterFactory(GsonConverterFactory.create())
+                            .client(okHttpClient)
+                            .addConverterFactory(GsonConverterFactory.create(gson))
                             .build();
                 }
             }

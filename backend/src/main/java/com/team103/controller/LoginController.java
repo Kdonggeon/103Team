@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+
 @RestController
 @RequestMapping("/api")
 public class LoginController {
@@ -130,42 +131,118 @@ public class LoginController {
         }
 
         // 4) 학부모
+
         Parent parent = parentRepo.findByParentsId(username);
         if (parent != null && safeMatches(password, parent.getParentsPw())) {
             String token = jwtUtil.generateToken(parent.getParentsId(), "parent");
             session.setAttribute("username", parent.getParentsId());
             session.setAttribute("role", "parent");
 
-            List<Student> children = studentRepo.findByParentsNumber(parent.getParentsNumber());
-            Set<Integer> academyNumberSet = new HashSet<>();
-            String firstChildId = null;
+            // ✅ 학원 번호 수집: ① Parent 자체 → ② studentIds → ③ Parents_Number
+            Set<Integer> academySet = new LinkedHashSet<>();
 
-            if (children != null && !children.isEmpty()) {
-                for (Student child : children) {
-                    if (child.getAcademyNumbers() != null) {
-                        academyNumberSet.addAll(child.getAcademyNumbers());
-                    }
+            // ① Parent 문서 자체의 Academy_Numbers 사용 (있다면)
+            try {
+                List<Integer> pAcademies = parent.getAcademyNumbers();
+                if (pAcademies != null && !pAcademies.isEmpty()) {
+                    academySet.addAll(pAcademies);
+                    System.out.println("학부모 보완① parent.academyNumbers 사용: " + pAcademies);
                 }
-                firstChildId = children.get(0).getStudentId();
+            } catch (NoSuchMethodError | Exception ignore) {
+                // 모델에 필드가 없을 수도 있음
             }
 
-            List<Integer> academyNumbers = new ArrayList<>(academyNumberSet);
+            // ② Parent가 보유한 studentIds로 학생 일괄 조회 (레포에 메서드가 있어야 함)
+            boolean step2Tried = false;
+            try {
+                List<String> sids = parent.getStudentIds();
+                if ((sids != null && !sids.isEmpty()) && academySet.isEmpty()) {
+                    step2Tried = true;
+                    List<Student> childrenByIds = studentRepo.findByStudentIdIn(sids);
+                    if (childrenByIds != null) {
+                        for (Student s : childrenByIds) {
+                            if (s != null && s.getAcademyNumbers() != null) {
+                                academySet.addAll(s.getAcademyNumbers());
+                            }
+                        }
+                    }
+                    System.out.println("학부모 보완② studentIds 기반 수집: size=" + academySet.size());
+                }
+            } catch (NoSuchMethodError | Exception e) {
+                // findByStudentIdIn 또는 getStudentIds가 없을 수 있음
+                if (step2Tried) e.printStackTrace();
+            }
 
-            LoginResponse res = new LoginResponse(
-                "success",
-                "parent",
-                parent.getParentsId(),
-                parent.getParentsName(),
-                token,
-                parent.getParentsPhoneNumber(),
-                null, null, 0, null,
-                academyNumbers
-            );
-            res.setParentsNumber(parent.getParentsNumber());
-            res.setChildStudentId(firstChildId);
+            // ③ Parents_Number 키로 자녀 조회 (기존 로직)
+            if (academySet.isEmpty()) {
+                String pno = parent.getParentsNumber();
+                List<Student> children = (pno == null || pno.isEmpty())
+                        ? new ArrayList<>()
+                        : studentRepo.findByParentsNumber(pno);
 
-            logJson("학부모 로그인 응답", res);
-            return ResponseEntity.ok(res);
+                String firstChildId = null;
+                if (children != null && !children.isEmpty()) {
+                    for (Student child : children) {
+                        if (child.getAcademyNumbers() != null) {
+                            academySet.addAll(child.getAcademyNumbers());
+                        }
+                    }
+                    firstChildId = children.get(0).getStudentId();
+                }
+
+                List<Integer> academyNumbers = new ArrayList<>(academySet);
+
+                LoginResponse res = new LoginResponse(
+                    "success",
+                    "parent",
+                    parent.getParentsId(),
+                    parent.getParentsName(),
+                    token,
+                    parent.getParentsPhoneNumber(),
+                    null,
+                    null,
+                    0,
+                    null,
+                    academyNumbers
+                );
+
+                res.setParentsNumber(parent.getParentsNumber());
+                res.setChildStudentId(firstChildId);
+
+                try {
+                    System.out.println("학부모 로그인 응답(③ 포함) → " + new ObjectMapper().writeValueAsString(res));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return ResponseEntity.ok(res);
+            } else {
+                // ① 또는 ②에서 이미 academySet을 채운 경우
+                List<Integer> academyNumbers = new ArrayList<>(academySet);
+
+                LoginResponse res = new LoginResponse(
+                    "success",
+                    "parent",
+                    parent.getParentsId(),
+                    parent.getParentsName(),
+                    token,
+                    parent.getParentsPhoneNumber(),
+                    null,
+                    null,
+                    0,
+                    null,
+                    academyNumbers
+                );
+                res.setParentsNumber(parent.getParentsNumber());
+                // firstChildId는 ①/② 경로에서는 확정 불가 → 필요 시 클라이언트에서 최초 자녀 조회
+
+                try {
+                    System.out.println("학부모 로그인 응답(①/② 경로) → " + new ObjectMapper().writeValueAsString(res));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return ResponseEntity.ok(res);
+            }
+
         }
 
         // 실패

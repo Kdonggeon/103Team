@@ -18,6 +18,7 @@ import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.NoticeApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.model.Notice;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -32,11 +33,13 @@ public class    NoticeDetailActivity extends AppCompatActivity {
     private NoticeApi api;
     private String noticeId;
 
+    private Toolbar toolbar;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice_detail);
-        Toolbar toolbar = findViewById(R.id.toolbar_notice_detail);
+        toolbar = findViewById(R.id.toolbar_notice_detail);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -148,5 +151,12 @@ public class    NoticeDetailActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 설정에서 색 바꾸고 돌아왔을 때 즉시 반영
+        ThemeColorUtil.applyThemeColor(this, toolbar);
     }
 }

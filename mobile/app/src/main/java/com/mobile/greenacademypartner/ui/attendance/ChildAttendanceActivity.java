@@ -48,12 +48,12 @@ public class ChildAttendanceActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_child_attendance);
 
-        // ✅ 툴바 설정
+        //  툴바 설정
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setTitle("자녀 출석");
 
-        // ✅ 드로어 설정
+        //  드로어 설정
         drawerLayout = findViewById(R.id.drawer_layout);
         navContainer = findViewById(R.id.nav_container);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -62,14 +62,14 @@ public class ChildAttendanceActivity extends AppCompatActivity {
         toggle.syncState();
         ToolbarIconUtil.applyWhiteIcons(toolbar, toggle);
 
-        // ✅ 사이드 메뉴 설정
+        //  사이드 메뉴 설정
         NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, null, 2);
 
-        // ✅ RecyclerView 설정
+        //  RecyclerView 설정
         recyclerView = findViewById(R.id.recycler_today_attendance);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        // ✅ SharedPreferences에서 studentId 가져오기
+        //  SharedPreferences에서 studentId 가져오기
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         studentId = prefs.getString("childStudentId", null);
 
@@ -79,12 +79,12 @@ public class ChildAttendanceActivity extends AppCompatActivity {
             return;
         }
 
-        // ✅ 오늘 날짜 구하기
+        //  오늘 날짜 구하기
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             today = LocalDate.now().toString();
         }
 
-        // ✅ API 호출
+        //  API 호출
         api = RetrofitClient.getClient().create(StudentApi.class);
         Call<List<Attendance>> call = api.getAttendanceByStudentIdAndDate(studentId, today);
 

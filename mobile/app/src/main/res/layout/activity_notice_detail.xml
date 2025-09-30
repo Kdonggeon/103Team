@@ -11,8 +11,7 @@
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:weightSum="1">
+        android:layout_height="match_parent">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar_notice_detail"
@@ -20,71 +19,172 @@
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorPrimary"
             app:title="공지사항 상세"
-            app:titleTextColor="@android:color/white"
+            app:titleTextColor="#FFFFFF"
             app:navigationIcon="?attr/homeAsUpIndicator" />
 
-        <!-- 내용 스크롤 영역: 상단 툴바 아래 가변 높이 -->
+        <!-- 내용 스크롤: 여백 최소, 뷰포트 채우기 -->
         <ScrollView
-            android:padding="16dp"
+            android:id="@+id/scroll_container"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:padding="8dp"
+            android:fillViewport="true">
 
+            <!-- ScrollView 직계 자식은 match_parent로 (fillViewport와 함께) -->
             <LinearLayout
                 android:orientation="vertical"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="match_parent">
 
-                <!-- 제목 -->
-                <TextView
-                    android:id="@+id/tv_detail_title"
+                <!-- 제목 카드: 여백/패딩 최소, 텍스트 진하게 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_notice_title"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:layout_marginTop="2dp"
+                    app:cardUseCompatPadding="true"
+                    app:cardCornerRadius="12dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#33000000"
+                    app:cardBackgroundColor="#F4F6F8">
 
-                <!-- 작성일 -->
-                <TextView
-                    android:id="@+id/tv_detail_date"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:textSize="14sp"
-                    android:textColor="?android:attr/textColorSecondary" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="8dp">
 
-                <!-- 작성자 -->
-                <TextView
-                    android:id="@+id/tv_detail_author"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textSize="14sp"
-                    android:textColor="?android:attr/textColorSecondary" />
+                        <TextView
+                            android:id="@+id/tv_detail_title_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="제목"
+                            android:textSize="11sp"
+                            android:textColor="#7A7F87"
+                            android:layout_marginBottom="4dp" />
 
-                <!-- 구분선 -->
-                <View
-                    android:layout_marginTop="12dp"
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="@android:color/darker_gray" />
+                        <TextView
+                            android:id="@+id/tv_detail_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:textColor="#111316"
+                            android:maxLines="3"
+                            android:ellipsize="end" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                <!-- 내용 -->
-                <TextView
-                    android:id="@+id/tv_detail_content"
-                    android:layout_marginTop="16dp"
+                <!-- 내용 카드: 화면 남는 공간을 전부 채움 (0dp + weight=1) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_notice_content"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="0dp"
+                    app:cardUseCompatPadding="true"
+                    app:cardCornerRadius="12dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#33000000"
+                    app:cardBackgroundColor="#FFFFFF">
+
+                    <!-- 내용/작성자/작성일을 하단 구석 배치하기 위해 ConstraintLayout 사용 -->
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="8dp">
+
+                        <!-- 본문: 위에 붙고, 아래쪽은 꼬리말(작성자/작성일) 위까지 -->
+                        <TextView
+                            android:id="@+id/tv_detail_content"
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:textSize="15sp"
+                            android:lineSpacingExtra="2dp"
+                            android:textColor="#444B53"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintBottom_toTopOf="@id/footer_group"
+                            app:layout_constraintVertical_bias="0"
+                            app:layout_constraintVertical_weight="1" />
+
+                        <!-- 하단 꼬리말(작성자/작성일)을 묶는 그룹 컨테이너 -->
+                        <LinearLayout
+                            android:id="@+id/footer_group"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent">
+
+                            <!-- 작성자: 왼쪽 아래 구석 -->
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="start|bottom"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/tv_detail_author_label"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="작성자:"
+                                    android:textSize="13sp"
+                                    android:textColor="#7A7F87"
+                                    android:layout_marginEnd="4dp" />
+
+                                <TextView
+                                    android:id="@+id/tv_detail_author"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:textSize="13sp"
+                                    android:textColor="#7A7F87" />
+                            </LinearLayout>
+
+                            <!-- 작성일: 오른쪽 아래 구석 -->
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end|bottom"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/tv_detail_date_label"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="작성일:"
+                                    android:textSize="13sp"
+                                    android:textColor="#7A7F87"
+                                    android:layout_marginEnd="4dp" />
+
+                                <TextView
+                                    android:id="@+id/tv_detail_date"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:textSize="13sp"
+                                    android:textColor="#7A7F87" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+                </com.google.android.material.card.MaterialCardView>
 
             </LinearLayout>
         </ScrollView>
 
-        <!-- 버튼 바: 화면 맨 아래, 1:1 비율로 분할 -->
+        <!-- 버튼 바: 여백도 축소 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:weightSum="2"
-            android:padding="16dp"
+            android:padding="8dp"
             style="?android:attr/buttonBarStyle">
 
             <Button

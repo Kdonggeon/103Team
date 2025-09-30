@@ -1,17 +1,20 @@
-// src/main/java/com/team103/config/SecurityConfig.java
+
 package com.team103.config;
 
+import com.team103.security.JwtAuthenticationFilter;
+import com.team103.security.JwtUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.*;
 
 import java.util.List;
 
@@ -19,39 +22,45 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtUtil jwtUtil) throws Exception { // ✅ JwtUtil 주입
         http
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((req, res, e) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+                .accessDeniedHandler((req, res, e) -> res.sendError(HttpServletResponse.SC_FORBIDDEN))
+            )
             .authorizeHttpRequests(auth -> auth
-                // 공개 엔드포인트
                 .requestMatchers("/actuator/health/**", "/actuator/info", "/ping").permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()       // CORS preflight
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // 로그인
                 .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
-
-                // 회원가입 (현재 컨트롤러 형태에 맞춤)
                 .requestMatchers(HttpMethod.POST, "/api/students").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/teachers").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/directors/signup").permitAll()
-
-                // 아이디 찾기 (역할별 분리, 언더스코어)
                 .requestMatchers(HttpMethod.POST, "/api/*/find_id").permitAll()
 
-                // 비밀번호 재설정(쓰는 경우)
-                .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
+                // ✅ 부모 권한 허용
+                .requestMatchers(HttpMethod.GET,
+                        "/api/parents/*/children",
+                        "/api/parents/*/students",
+                        "/api/parents/*/children/names",
+                        "/api/parents/*/attendance"
+                ).hasAnyRole("PARENT","TEACHER","DIRECTOR")
+                .requestMatchers(HttpMethod.PUT,
+                        "/api/parents/*/fcm-token"
+                ).hasAnyRole("PARENT","TEACHER","DIRECTOR")
 
-                // 그 외는 인증 필요
                 .anyRequest().authenticated()
-            );
+            )
+            // ✅ 주입받은 JwtUtil을 전달한 필터 인스턴스 등록
+            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -60,18 +69,9 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-
-        // 개발용: 프론트(Next.js) 오리진 지정
-        config.setAllowedOriginPatterns(List.of(
-            "http://localhost:3000",
-            "http://127.0.0.1:3000"
-        ));
-
+        config.setAllowedOriginPatterns(List.of("http://10.0.2.2:*","http://localhost:*","http://127.0.0.1:*"));
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        // 필요시 노출 헤더 추가
-        // config.setExposedHeaders(List.of("Authorization"));
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

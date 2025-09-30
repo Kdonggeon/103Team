@@ -32,11 +32,14 @@
         android:inputType="textMultiLine" />
 
     <!-- 저장 버튼 -->
+
+
     <Button
         android:id="@+id/btn_save_question"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="저장" />
+        android:text="저장"
+        android:layout_marginStart="8dp"
+        android:layout_gravity="end"/>
 
 </LinearLayout>

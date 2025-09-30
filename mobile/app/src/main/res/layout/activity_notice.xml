@@ -10,22 +10,23 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- 툴바: 배경 하드코딩 제거, 테마 속성 사용 -->
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar_notice"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:gravity="center"
             app:title="공지사항"
-            app:titleTextColor="@android:color/black"
-            android:background="?attr/colorPrimary" />
+            app:titleTextColor="@color/white" />
 
         <Spinner
             android:id="@+id/spinner_academy"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="48dp"
-            android:layout_margin="16dp" />
+            android:layout_margin="16dp"
+            android:spinnerMode="dropdown"
+            android:background="@drawable/spinner_bg_with_arrow"/>
+
 
         <ProgressBar
             android:id="@+id/pb_loading_notices"

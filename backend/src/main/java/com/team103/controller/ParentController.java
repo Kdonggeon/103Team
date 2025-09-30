@@ -52,6 +52,16 @@ public class ParentController {
         return parentRepo.findAll();
     }
 
+    @PutMapping("/{id}/fcm-token")
+    public ResponseEntity<Void> updateFcmToken(@PathVariable("id") String parentsId,
+                                               @RequestParam("token") String token) {
+        Parent p = parentRepo.findByParentsId(parentsId);
+        if (p == null) return ResponseEntity.notFound().build();
+        p.setFcmToken((token == null || token.isBlank()) ? null : token);
+        parentRepo.save(p);
+        return ResponseEntity.ok().build();
+    }
+
     /** 학부모 회원가입 */
     @PostMapping
     public ResponseEntity<?> registerParent(@RequestBody ParentSignupRequest request) {
@@ -124,16 +134,37 @@ public class ParentController {
     /** 학부모의 자녀 목록 조회 */
     @GetMapping("/{parentId}/children")
     public ResponseEntity<?> getChildren(@PathVariable String parentId) {
-        Parent parent = parentRepo.findByParentsId(parentId);
-        if (parent == null) return ResponseEntity.notFound().build();
-
-        String parentNumber = parent.getParentsNumber();
-        List<Student> children = studentRepo.findByParentsNumber(parentNumber);
-
-        return ResponseEntity.ok(children);
+        return ResponseEntity.ok(findChildrenInternal(parentId));
     }
 
-    /** 학부모의 자녀 이름 목록 조회 */
+    /** 별칭 엔드포인트 (동일 로직) */
+    @GetMapping("/{parentId}/students")
+    public ResponseEntity<?> getChildrenAlias(@PathVariable String parentId) {
+        return ResponseEntity.ok(findChildrenInternal(parentId));
+    }
+
+    /** 공통 로직: studentIds 우선 → 없으면 parentsNumber 대체 */
+    private List<Student> findChildrenInternal(String parentId) {
+        Parent parent = parentRepo.findByParentsId(parentId);
+        if (parent == null) return new ArrayList<>();
+
+        // 1) studentIds 우선
+        List<String> studentIds = parent.getStudentIds();
+        if (studentIds != null && !studentIds.isEmpty()) {
+            List<Student> s = studentRepo.findByStudentIdIn(studentIds);
+            if (s != null && !s.isEmpty()) return s;
+        }
+
+        // 2) 없거나 비면 parentsNumber 대체
+        String parentNumber = parent.getParentsNumber(); // 타입이 String이면 그대로
+        if (parentNumber != null && !parentNumber.isBlank()) {
+            List<Student> s = studentRepo.findByParentsNumber(parentNumber);
+            if (s != null) return s;
+        }
+        return new ArrayList<>();
+    }
+
+    /** 학부모의 자녀 이름 목록 조회 (보강: studentIds → parentsNumber 폴백) */
     @GetMapping("/{parentId}/children/names")
     public ResponseEntity<?> getChildNames(@PathVariable String parentId) {
         Parent parent = parentRepo.findByParentsId(parentId);
@@ -141,15 +172,28 @@ public class ParentController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("부모 정보를 찾을 수 없습니다.");
         }
 
+        List<Student> students = new ArrayList<>();
+
+        // 1) studentIds 우선
         List<String> studentIds = parent.getStudentIds();
-        if (studentIds == null || studentIds.isEmpty()) {
-            return ResponseEntity.ok(new ArrayList<>());
+        if (studentIds != null && !studentIds.isEmpty()) {
+            students = studentRepo.findByStudentIdIn(studentIds);
         }
 
-        List<Student> students = studentRepo.findByStudentIdIn(studentIds);
-        List<String> studentNames = students.stream()
-                .map(Student::getStudentName)
-                .toList();
+        // 2) 없거나 비면 parentsNumber 대체
+        if (students == null || students.isEmpty()) {
+            String parentNumber = parent.getParentsNumber();
+            if (parentNumber != null && !parentNumber.isBlank()) {
+                students = studentRepo.findByParentsNumber(parentNumber);
+            }
+        }
+
+        List<String> studentNames = new ArrayList<>();
+        if (students != null) {
+            for (Student s : students) {
+                studentNames.add(s.getStudentName());
+            }
+        }
 
         return ResponseEntity.ok(studentNames);
     }

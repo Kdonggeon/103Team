@@ -20,6 +20,7 @@ import com.mobile.greenacademypartner.api.ParentApi; // ✅ 학부모 FCM 전송
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
 import com.mobile.greenacademypartner.ui.timetable.ParentChildrenListActivity;
 import com.mobile.greenacademypartner.ui.timetable.StudentTimetableActivity;
+import com.mobile.greenacademypartner.util.SessionUtil;
 // import com.mobile.greenacademypartner.api.TeacherApi;                 // 🔕 [REMOVED] teacher 기능 제거
 // import com.mobile.greenacademypartner.ui.timetable.TeacherTimetableActivity; // 🔕 [REMOVED] teacher 화면 제거
 
@@ -62,10 +63,12 @@ public class MainActivity extends AppCompatActivity {
         String token = safe(prefs.getString("token", ""));
         if (token.isEmpty()) token = safe(prefs.getString("accessToken", ""));
 
-        if (!isLoggedIn || username.isEmpty() || role.isEmpty() || token.isEmpty()) {
+        if (!isLoggedIn || username.isEmpty() || role.isEmpty()) {
             clearLoginAndGoLogin(this, "Missing fields");
             return;
         }
+
+
 
         // 2) 네트워크 체크 (권한: ACCESS_NETWORK_STATE 필요)
         if (!isNetworkAvailable(this)) {
@@ -141,7 +144,6 @@ public class MainActivity extends AppCompatActivity {
             });
 
         } else if ("parent".equalsIgnoreCase(role)) {
-            // ✅ 학부모는 ParentApi로 전송
             ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
             api.updateFcmToken(userId, fcmToken).enqueue(new Callback<Void>() {
                 @Override public void onResponse(Call<Void> call, Response<Void> res) {

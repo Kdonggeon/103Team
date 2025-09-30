@@ -11,7 +11,6 @@ public class Parent {
 
     @Id
     private String id;
-
     private String fcmToken;
     private String parentsId;
     private String parentsPw;

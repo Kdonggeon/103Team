@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- 툴바 -->
+        <!-- 툴바 (원본 id 유지) -->
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
@@ -20,125 +20,217 @@
             app:title="마이페이지"
             app:titleTextColor="@color/white" />
 
-        <!-- 마이페이지 내용 -->
-        <ScrollView
+        <!-- 헤더 카드: 이름 굵게 표시 (text_role_title 유지) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_header_name"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            app:cardUseCompatPadding="true"
+            app:cardCornerRadius="12dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="#33000000"
+            app:cardBackgroundColor="#F4F6F8">
 
             <LinearLayout
-                android:orientation="vertical"
-                android:padding="24dp"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
 
+                <!-- 역할 타이틀(이제 'OOO의 마이페이지'로 사용) -->
                 <TextView
                     android:id="@+id/text_role_title"
-                    android:text="역할 마이페이지"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="16dp"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-
-                <EditText
-                    android:id="@+id/edit_name"
-                    android:hint="이름"
-                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="textPersonName"
-                    android:background="@drawable/edit_text_background"
-                    android:padding="10dp"
-                    android:textSize="14sp" />
+                    android:text="마이페이지"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#111316" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-                <EditText
-                    android:id="@+id/edit_id"
-                    android:hint="아이디"
-                    android:enabled="false"
+        <Spinner
+            android:id="@+id/spinner_profile_target"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_margin="16dp"
+            android:background="@drawable/spinner_bg_with_arrow"
+            android:spinnerMode="dropdown"/>
+
+        <!-- 스크롤: 여백 최소, 뷰포트 채움 -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="8dp"
+            android:fillViewport="true">
+
+            <!-- ScrollView 직계 자식은 match_parent -->
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+
+
+                <!-- 입력 폼 카드: 화면 남는 공간을 채움 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_profile_form"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/edit_text_background"
-                    android:padding="10dp"
-                    android:textSize="14sp" />
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_marginTop="6dp"
+                    app:cardUseCompatPadding="true"
+                    app:cardCornerRadius="12dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="#33000000"
+                    app:cardBackgroundColor="#FFFFFF">
 
-                <EditText
-                    android:id="@+id/edit_phone"
-                    android:hint="전화번호"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="phone"
-                    android:background="@drawable/edit_text_background"
-                    android:padding="10dp"
-                    android:textSize="14sp" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:padding="8dp">
 
-                <!-- 학생용 -->
-                <EditText
-                    android:id="@+id/edit_address"
-                    android:hint="주소"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/edit_text_background"
-                    android:padding="10dp"
-                    android:textSize="14sp"
-                    android:visibility="gone" />
+                        <!-- 이름 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edit_name"
+                                android:hint="이름"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textPersonName"
+                                android:textSize="14sp"/>
+                        </com.google.android.material.textfield.TextInputLayout>
 
-                <EditText
-                    android:id="@+id/edit_school"
-                    android:hint="학교"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/edit_text_background"
-                    android:padding="10dp"
-                    android:textSize="14sp"
-                    android:visibility="gone" />
+                        <!-- 아이디 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edit_id"
+                                android:hint="아이디"
+                                android:enabled="false"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="14sp"/>
+                        </com.google.android.material.textfield.TextInputLayout>
 
-                <EditText
-                    android:id="@+id/edit_grade"
-                    android:hint="학년"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="number"
-                    android:background="@drawable/edit_text_background"
-                    android:padding="10dp"
-                    android:textSize="14sp"
-                    android:visibility="gone" />
+                        <!-- 전화번호 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edit_phone"
+                                android:hint="전화번호"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="phone"
+                                android:textSize="14sp"/>
+                        </com.google.android.material.textfield.TextInputLayout>
 
-                <EditText
-                    android:id="@+id/edit_gender"
-                    android:hint="성별"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/edit_text_background"
-                    android:padding="10dp"
-                    android:textSize="14sp"
-                    android:visibility="gone" />
+                        <!-- 학생용: 주소 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edit_address"
+                                android:hint="주소"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="14sp"
+                                android:visibility="gone"/>
+                        </com.google.android.material.textfield.TextInputLayout>
 
-                <!-- 교사용 -->
-                <EditText
-                    android:id="@+id/edit_academy_number"
-                    android:hint="학원 번호"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="number"
-                    android:background="@drawable/edit_text_background"
-                    android:padding="10dp"
-                    android:textSize="14sp"
-                    android:visibility="gone" />
+                        <!-- 학생용: 학교 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edit_school"
+                                android:hint="학교"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="14sp"
+                                android:visibility="gone"/>
+                        </com.google.android.material.textfield.TextInputLayout>
 
-                <!-- 저장 버튼 -->
+                        <!-- 학생용: 학년 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edit_grade"
+                                android:hint="학년"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:textSize="14sp"
+                                android:visibility="gone"/>
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- 학생용: 성별 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edit_gender"
+                                android:hint="성별"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="14sp"
+                                android:visibility="gone"/>
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- 교사용: 학원 번호 -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edit_academy_number"
+                                android:hint="학원 번호"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:textSize="14sp"
+                                android:visibility="gone"/>
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- 남는 공간 채워서 버튼을 카드 하단으로 밀기 -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <!-- 저장 버튼 (원본 id 유지) -->
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
                 <Button
                     android:id="@+id/btn_save"
                     android:text="정보 수정"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
                     android:backgroundTint="@color/green"
                     android:textColor="@color/white" />
+
             </LinearLayout>
         </ScrollView>
     </LinearLayout>
 
-    <!-- 사이드바 메뉴 -->
+    <!-- 사이드바 메뉴 (원본 id 유지) -->
     <LinearLayout
         android:id="@+id/nav_container"
         android:layout_width="280dp"

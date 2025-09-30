@@ -24,11 +24,13 @@ public class TeacherController {
 
     private final TeacherRepository teacherRepo;
 
+
     @Autowired
     private CourseRepository courseRepo;
 
     @Autowired
     private AttendanceRepository attendanceRepo;
+
 
     public TeacherController(TeacherRepository teacherRepo) {
         this.teacherRepo = teacherRepo;
@@ -89,6 +91,16 @@ public class TeacherController {
     public ResponseEntity<?> getTeacherClasses(@PathVariable String teacherId) {
         List<Course> classes = courseRepo.findByTeacherId(teacherId);
         return ResponseEntity.ok(classes);
+    }
+    
+    @PutMapping("/{id}/fcm-token")
+    public ResponseEntity<Void> updateFcmToken(@PathVariable("id") String teacherId,
+                                               @RequestParam("token") String token) {
+        Teacher t = teacherRepo.findByTeacherId(teacherId); // ← 이름 맞춤
+        if (t == null) return ResponseEntity.notFound().build();
+        t.setFcmToken((token == null || token.isBlank()) ? null : token);
+        teacherRepo.save(t); // ← 이름 맞춤
+        return ResponseEntity.ok().build();
     }
 
     /** ✅ 아이디 찾기 (이름 + 전화번호) */

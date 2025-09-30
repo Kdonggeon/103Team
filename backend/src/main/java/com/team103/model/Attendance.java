@@ -32,6 +32,8 @@ public class Attendance {
 
     public List<AttendanceEntry> getAttendanceList() { return attendanceList; }
     public void setAttendanceList(List<AttendanceEntry> attendanceList) { this.attendanceList = attendanceList; }
+    
+    
 }
 
 

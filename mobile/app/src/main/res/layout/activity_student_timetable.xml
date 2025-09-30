@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
+
 
     <!-- 본문 -->
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
+
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
@@ -19,13 +22,19 @@
             app:title="시간표"
             app:titleTextColor="@color/white"  />
 
-        <!-- 오늘 수업 목록 RecyclerView -->
+
+
+        <!-- 오늘 수업 목록 RecyclerView (각 시간 = item_timetable 카드) -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_today_attendance"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:padding="8dp" />
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:clipToPadding="false"
+            tools:listitem="@layout/item_timetable" />
+
 
         <Button
             android:id="@+id/btn_scan_qr"
@@ -34,10 +43,11 @@
             android:text="QR 출석하기"
             android:layout_margin="12dp"
             android:backgroundTint="@color/green"
-        android:textColor="@android:color/white" />
+            android:textColor="@android:color/white" />
 
 
     </LinearLayout>
+
 
     <!-- 사이드바 메뉴 -->
     <LinearLayout
@@ -47,5 +57,6 @@
         android:layout_gravity="start"
         android:orientation="vertical"
         android:background="@color/gray" />
+
 
 </androidx.drawerlayout.widget.DrawerLayout>

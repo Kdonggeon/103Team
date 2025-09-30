@@ -1,8 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+
     <style name="Base.Theme.GreenAcademyPartner" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- 기존 유지 -->
+        <item name="textAppearanceLineHeightEnabled">false</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.Green.Body.Compact</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.Green.Title.Compact</item>
+        <item name="toolbarStyle">@style/Widget.Green.Toolbar.Compact</item>
+
+        <!-- ▼ 전역 고정 높이/패딩 연결 -->
+        <item name="materialButtonStyle">@style/Widget.App.Button.Fixed</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.App.Button.Outlined.Fixed</item>
+        <item name="materialCardViewStyle">@style/Widget.App.Card.Fixed</item>
+        <item name="textInputStyle">@style/Widget.App.TextInputLayout.Fixed</item>
+        <item name="editTextStyle">@style/Widget.App.EditText.Fixed</item>
+
+        <!-- 호환(플랫폼/기본 위젯 대비) -->
+        <item name="buttonStyle">@style/Widget.App.Button.Fixed</item>
+        <item name="cardViewStyle">@style/Widget.App.Card.Fixed</item>
     </style>
 
     <style name="Theme.GreenAcademyPartner" parent="Base.Theme.GreenAcademyPartner" />

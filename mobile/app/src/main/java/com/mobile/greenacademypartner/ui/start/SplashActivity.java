@@ -8,17 +8,19 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.util.Log;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import com.google.firebase.messaging.FirebaseMessaging;
-import com.mobile.greenacademypartner.api.StudentApi;
-//import com.mobile.greenacademypartner.api.TeacherApi;
+import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
+import com.mobile.greenacademypartner.api.StudentApi;
+
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
 import com.mobile.greenacademypartner.ui.main.MainActivity;
+
+import android.util.Log;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -32,7 +34,7 @@ public class SplashActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // 🔽 Android 13 이상은 알림 권한 직접 요청 필요
+        // Android 13+ 알림 권한
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
@@ -42,67 +44,93 @@ public class SplashActivity extends AppCompatActivity {
             }
         }
 
-        // FCM 토큰 발급 및 서버 전송
-        FirebaseMessaging.getInstance().getToken()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        String token = task.getResult();
-                        sendTokenToServer(token);
-                    } else {
-                        Log.w("SplashActivity", "FCM 토큰 가져오기 실패", task.getException());
-                    }
-                });
+        SharedPreferences settings = getSharedPreferences("settings", MODE_PRIVATE);
+        SharedPreferences login = getSharedPreferences("login_prefs", MODE_PRIVATE);
+        String uid = login.getString("username", "");
+        boolean enabled = settings.getBoolean("notifications_enabled_" + uid, true);
 
-        // Splash 화면 지연 후 로그인 또는 메인으로 이동
+        if (enabled) {
+            FirebaseMessaging.getInstance().getToken()
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            String token = task.getResult();
+                            sendTokenToServer(token);
+                        } else {
+                            Log.w("SplashActivity", "FCM 토큰 가져오기 실패", task.getException());
+                        }
+                    });
+        } else {
+            Log.d("SplashActivity", "알림 OFF → 토큰 삭제 및 서버 반영");
+            FirebaseMessaging.getInstance().deleteToken()
+                    .addOnCompleteListener(task -> sendTokenToServer(""));
+        }
+
         new Handler().postDelayed(() -> {
             SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
             boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
             boolean autoLogin = prefs.getBoolean("auto_login", false);
-            Intent intent;
-            if (isLoggedIn && autoLogin) {
-                intent = new Intent(this, MainActivity.class);
-            } else {
-                intent = new Intent(this, LoginActivity.class);
-            }
+            Intent intent = (isLoggedIn && autoLogin)
+                    ? new Intent(this, MainActivity.class)
+                    : new Intent(this, LoginActivity.class);
             startActivity(intent);
             finish();
         }, SPLASH_DELAY);
     }
 
-    // FCM 토큰을 서버에 전송하는 메서드
+    // FCM 토큰 서버에 전송(ID 폴백 포함)
     private void sendTokenToServer(String token) {
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        String userId = prefs.getString("username", "");
         String role = prefs.getString("role", "student");
 
-        if ("student".equalsIgnoreCase(role)) {
-            StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-            api.updateFcmToken(userId, token)
-                    .enqueue(new Callback<Void>() {
-                        @Override
-                        public void onResponse(Call<Void> call, Response<Void> response) {
-                            Log.d("SplashActivity", "FCM 토큰 전송 성공(학생)");
-                        }
+        String idStudent = prefs.getString("studentId", null);
+        String idTeacher = prefs.getString("teacherId", null);
+        String idParent = prefs.getString("parentId", null);
+        String username = firstNonEmpty(prefs.getString("userId", null),
+                prefs.getString("username", null));
 
-                        @Override
-                        public void onFailure(Call<Void> call, Throwable t) {
-                            Log.w("SplashActivity", "FCM 토큰 전송 실패(학생)", t);
-                        }
-                    });
-//        } else {
-//            TeacherApi api = RetrofitClient.getClient().create(TeacherApi.class);
-//            api.updateFcmToken(userId, token)
-//                    .enqueue(new Callback<Void>() {
-//                        @Override
-//                        public void onResponse(Call<Void> call, Response<Void> response) {
-//                            Log.d("SplashActivity", "FCM 토큰 전송 성공(교사)");
-//                        }
-//
-//                        @Override
-//                        public void onFailure(Call<Void> call, Throwable t) {
-//                            Log.w("SplashActivity", "FCM 토큰 전송 실패(교사)", t);
-//                        }
-//                    });
+        if ("student".equalsIgnoreCase(role)) {
+            String id = firstNonEmpty(idStudent, username);
+            if (id == null) return;
+            StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
+            api.updateFcmToken(id, token).enqueue(new Callback<Void>() {
+                @Override
+                public void onResponse(Call<Void> call, Response<Void> response) {
+                    Log.d("Splash", "학생 토큰 전송 성공");
+                }
+
+
+                @Override
+                public void onFailure(Call<Void> call, Throwable t) {
+                    Log.w("Splash", "학생 토큰 전송 실패", t);
+                }
+            });
+
+        } else if ("parent".equalsIgnoreCase(role)) {
+            String id = firstNonEmpty(idParent, username);
+            if (id == null) return;
+            ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
+            api.updateFcmToken(id, token).enqueue(new Callback<Void>() {
+                @Override
+                public void onResponse(Call<Void> call, Response<Void> response) {
+                    Log.d("Splash", "부모 토큰 전송 성공");
+                }
+
+                @Override
+                public void onFailure(Call<Void> call, Throwable t) {
+                    Log.w("Splash", "부모 토큰 전송 실패", t);
+                }
+            });
+
         }
     }
+
+
+    private String firstNonEmpty(String... vals) {
+        if (vals == null) return null;
+        for (String v : vals) {
+            if (v != null && !v.trim().isEmpty()) return v;
+        }
+        return null;
+    }
 }
+

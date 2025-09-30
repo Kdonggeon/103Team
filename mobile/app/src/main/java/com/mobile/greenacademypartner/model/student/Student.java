@@ -1,51 +1,52 @@
 package com.mobile.greenacademypartner.model.student;
 
 import com.google.gson.annotations.SerializedName;
-
 import java.util.List;
 
 public class Student {
 
-    @SerializedName("_id")
+    // MongoDB/ObjectId 등
+    @SerializedName(value = "_id", alternate = {"id"})
     private String _id;
 
-    @SerializedName("studentName")
+    @SerializedName(value = "studentName", alternate = {"Student_Name", "name"})
     private String studentName;
 
-    @SerializedName("studentId")
+    @SerializedName(value = "studentId", alternate = {"Student_ID", "studentNumber"})
     private String studentId;
 
-    @SerializedName("Student_PW")
-    private String studentPw; // ✅ int → String (암호화 문자열 받기 위해)
+    @SerializedName(value = "studentPw", alternate = {"Student_PW"})
+    private String studentPw;
 
-    @SerializedName("Student_Address")
+    @SerializedName(value = "studentAddress", alternate = {"Student_Address", "address"})
     private String studentAddress;
 
-    @SerializedName("Student_Phone_Number")
-    private String studentPhoneNumber; // ✅ long → String (앞자리 0 보존 위해 문자열이 적합)
+    @SerializedName(value = "studentPhoneNumber", alternate = {"Student_Phone_Number", "phone", "tel"})
+    private String studentPhoneNumber;
 
-    @SerializedName("School")
+    @SerializedName(value = "school", alternate = {"School", "schoolName"})
     private String school;
 
-    @SerializedName("Grade")
+    @SerializedName(value = "grade", alternate = {"Grade"})
     private int grade;
 
-    @SerializedName("Parents_Number")
+    @SerializedName(value = "parentsNumber", alternate = {"Parents_Number", "parentNumber"})
     private int parentsNumber;
 
-    @SerializedName("Seat_Number")
+    @SerializedName(value = "seatNumber", alternate = {"Seat_Number"})
     private int seatNumber;
 
-    @SerializedName("Checked_In")
+    @SerializedName(value = "checkedIn", alternate = {"Checked_In"})
     private boolean checkedIn;
 
-    @SerializedName("Gender")
+    @SerializedName(value = "gender", alternate = {"Gender", "sex"})
     private String gender;
 
-    @SerializedName("Academy_Number")
+    // 서버/DB에 따라 Academy_Numbers / Academy_Number / academyNumbers 등 섞일 수 있어 모두 허용
+    @SerializedName(value = "academyNumbers", alternate = {"Academy_Numbers", "Academy_Number"})
     private List<Integer> Academy_Numbers;
 
-    // ✅ Getter & Setter
+    // ===== Getter & Setter =====
     public String get_id() { return _id; }
     public void set_id(String _id) { this._id = _id; }
 
@@ -82,6 +83,6 @@ public class Student {
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
 
-    public List<Integer> getAcademy_Numbers() {return Academy_Numbers;}
-    public void setAcademy_Numbers(List<Integer> academy_Numbers) {this.Academy_Numbers = academy_Numbers;}
+    public List<Integer> getAcademy_Numbers() { return Academy_Numbers; }
+    public void setAcademy_Numbers(List<Integer> academy_Numbers) { this.Academy_Numbers = academy_Numbers; }
 }
