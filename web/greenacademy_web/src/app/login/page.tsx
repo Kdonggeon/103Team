@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import Link from "next/link";
 
-
 export default function LoginPage() {
   const router = useRouter();
 
@@ -24,13 +23,25 @@ export default function LoginPage() {
     setMsg(null);
     try {
       const data = await api.login({ username: id, password: pw });
-      localStorage.setItem("login", JSON.stringify({ ...data, keepLogin, ipSecure }));
 
-      // 역할별 라우팅(원하면 바꿔줘)
-      const next =
-        data.role === "student" ? "/student" :
-        data.role === "teacher" ? "/teacher" :
-        data.role === "parent"  ? "/parent"  : "/director";
+      // 세션 저장
+      localStorage.setItem(
+        "login",
+        JSON.stringify({ ...data, keepLogin, ipSecure })
+      );
+
+      // 역할별 라우팅
+      // - teacher/director: 방금 보던 대시보드 페이지(루트 "/")
+      // - student: 학생 포털 새 페이지
+      // - parent : 학부모 포털 새 페이지
+      // 역할별 라우팅
+      let next = "/";
+      if (data.role === "student" || data.role === "parent") {
+        next = "/family-portal"; // 학생/학부모 공용 포털
+      }
+      router.replace(next);
+
+
       router.replace(next);
     } catch (err: any) {
       setMsg(err?.message || "로그인 실패");
@@ -148,13 +159,18 @@ export default function LoginPage() {
 
         {/* 하단 링크 */}
         <div className="pt-1 text-center text-sm text-gray-500">
-          <Link href="/find_id" className="hover:underline">아이디 찾기</Link>
+          <Link href="/find_id" className="hover:underline">
+            아이디 찾기
+          </Link>
           <span className="mx-2 text-gray-300">|</span>
-          <Link href="/reset_pw" className="hover:underline">비밀번호 찾기</Link>
+          <Link href="/reset_pw" className="hover:underline">
+            비밀번호 찾기
+          </Link>
           <span className="mx-2 text-gray-300">|</span>
-          <Link href="/signup" className="hover:underline">회원가입</Link>
+          <Link href="/signup" className="hover:underline">
+            회원가입
+          </Link>
         </div>
-
       </form>
     </main>
   );

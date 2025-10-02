@@ -15,3 +15,9 @@
 local.properties
 mobile/.idea/
 mobile/build/
+backend/src/main/resources/firebase/*.json
+
+# IDE/Build
+.idea/
+mobile/.idea/
+mobile/build/

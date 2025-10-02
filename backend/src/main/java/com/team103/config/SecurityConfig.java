@@ -1,66 +1,68 @@
-
 package com.team103.config;
 
-import com.team103.security.JwtAuthenticationFilter;
-import com.team103.security.JwtUtil;
-import jakarta.servlet.http.HttpServletResponse;
+import com.team103.security.JwtAuthFilter; // ✅ 추가
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.config.http.SessionCreationPolicy;   // ✅ 추가
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.*;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter; // ✅ 추가
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
 
-    @Bean
-    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    private final JwtAuthFilter jwtAuthFilter; // ✅ 주입
+
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JwtUtil jwtUtil) throws Exception { // ✅ JwtUtil 주입
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+            // CORS / CSRF
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
+
+            // ✅ JWT 쓰므로 무상태 세션
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((req, res, e) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED))
-                .accessDeniedHandler((req, res, e) -> res.sendError(HttpServletResponse.SC_FORBIDDEN))
-            )
+
+            // 인가 규칙
             .authorizeHttpRequests(auth -> auth
+                // 공개
                 .requestMatchers("/actuator/health/**", "/actuator/info", "/ping").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
                 .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/students").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/teachers").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/directors/signup").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/*/find_id").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
+                // 회원가입 라우트
+                .requestMatchers(HttpMethod.POST, "/api/students", "/api/parents", "/api/teachers",
+                                             "/api/directors", "/api/directors/signup").permitAll()
 
-                // ✅ 부모 권한 허용
-                .requestMatchers(HttpMethod.GET,
-                        "/api/parents/*/children",
-                        "/api/parents/*/students",
-                        "/api/parents/*/children/names",
-                        "/api/parents/*/attendance"
-                ).hasAnyRole("PARENT","TEACHER","DIRECTOR")
-                .requestMatchers(HttpMethod.PUT,
-                        "/api/parents/*/fcm-token"
-                ).hasAnyRole("PARENT","TEACHER","DIRECTOR")
+                // ✅ 개인정보 수정/비번 변경은 인증 필요
+                .requestMatchers(HttpMethod.PUT, "/api/students/**", "/api/parents/**",
+                                             "/api/teachers/**", "/api/directors/**").authenticated()
+                .requestMatchers("/api/me/change-password").authenticated()
 
+                // 그 외
                 .anyRequest().authenticated()
             )
-            // ✅ 주입받은 JwtUtil을 전달한 필터 인스턴스 등록
-            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
+
+            // ✅ JWT 필터를 UsernamePasswordAuthenticationFilter 앞에 추가
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -69,9 +71,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOriginPatterns(List.of("http://10.0.2.2:*","http://localhost:*","http://127.0.0.1:*"));
+        config.setAllowedOriginPatterns(List.of(
+            "http://localhost:3000",
+            "http://127.0.0.1:3000"
+        ));
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization","Content-Type","X-Requested-With","Accept"));
+        // 필요 시 노출 헤더
+        // config.setExposedHeaders(List.of("Authorization"));
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
