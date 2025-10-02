@@ -47,29 +47,33 @@ public class QuestionController {
     // === JWT → 세션 보완 (기존 기능 유지, 세션 없을 때만 채움) ===
     private static final String BEARER = "Bearer ";
 
-    @ModelAttribute
+
+    @org.springframework.web.bind.annotation.ModelAttribute
     public void ensureSessionFromJwt(
-            @RequestHeader(value = "Authorization", required = false) String auth,
-            HttpSession session) {
-        Object u = session.getAttribute("username");
-        Object r = session.getAttribute("role");
-        if ((u == null || r == null) && auth != null && auth.startsWith(BEARER)) {
-            try {
-                String token = auth.substring(BEARER.length());
-                Claims claims = jwtUtil.validateToken(token);
-                String userId = claims.getSubject();
-                Object role = claims.get("role");
-                if (userId != null && session.getAttribute("username") == null) {
-                    session.setAttribute("username", userId);
-                }
-                if (role != null && session.getAttribute("role") == null) {
-                    session.setAttribute("role", String.valueOf(role));
-                }
-            } catch (Exception ignore) {
-                // 토큰이 유효하지 않으면 기존 흐름 유지
+            @org.springframework.web.bind.annotation.RequestHeader(value = "Authorization", required = false) String auth,
+            jakarta.servlet.http.HttpSession session
+    ) {
+        final String BEARER = "Bearer ";
+        if (auth == null || !auth.startsWith(BEARER)) return;
+
+        try {
+            String token = auth.substring(BEARER.length());
+            io.jsonwebtoken.Claims claims = jwtUtil.validateToken(token);
+
+            String userId = claims.getSubject();
+            String role = claims.get("role", String.class);
+
+            if (userId != null && session.getAttribute("username") == null) {
+                session.setAttribute("username", userId);
             }
+            if (role != null && session.getAttribute("role") == null) {
+                session.setAttribute("role", String.valueOf(role));
+            }
+        } catch (Exception ignore) {
+            // 토큰이 유효하지 않으면 세션 건드리지 않음(기존 흐름 유지)
         }
     }
+
 
     // === 내부 유틸 ===
     private boolean isParentOwnsRoom(Question q, String parentId) {

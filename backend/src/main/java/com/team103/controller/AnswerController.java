@@ -10,22 +10,24 @@ import com.team103.repository.ParentRepository;
 import com.team103.repository.QuestionRepository;
 import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
+import com.team103.security.JwtUtil;
 import com.team103.service.FcmService;
-
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestHeader;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 @RestController
 public class AnswerController {
+
+    private static final String BEARER = "Bearer ";
 
     @Autowired private AnswerRepository answerRepository;
     @Autowired private QuestionRepository questionRepository;
@@ -33,6 +35,39 @@ public class AnswerController {
     @Autowired private TeacherRepository teacherRepository;
     @Autowired private ParentRepository parentRepository;
     @Autowired private FcmService fcmService;
+    @Autowired private JwtUtil jwtUtil;
+
+    /**
+     * Authorization 헤더(Bearer 토큰)가 있으면 세션에 username/role을 채워줌.
+     * (필터와 병행 사용 시에도 문제 없음: 세션이 비어있을 때만 세팅)
+     */
+    @ModelAttribute
+    public void ensureSessionFromJwt(
+            @RequestHeader(value = "Authorization", required = false) String auth,
+            HttpSession session
+    ) {
+        if (!StringUtils.hasText(auth) || !auth.startsWith(BEARER)) return;
+
+        Object u = session.getAttribute("username");
+        Object r = session.getAttribute("role");
+        if (u != null && r != null) return;
+
+        try {
+            String token = auth.substring(BEARER.length());
+            Claims claims = jwtUtil.validateToken(token);
+            String userId = claims.getSubject();
+            String role = claims.get("role", String.class);
+
+            if (u == null && StringUtils.hasText(userId)) {
+                session.setAttribute("username", userId);
+            }
+            if (r == null && StringUtils.hasText(role)) {
+                session.setAttribute("role", role);
+            }
+        } catch (Exception ignore) {
+            // 유효하지 않은 토큰: 세션은 그대로 둠
+        }
+    }
 
     // 특정 질문의 답변 목록 조회
     @GetMapping("/api/questions/{qId}/answers")
@@ -54,33 +89,35 @@ public class AnswerController {
         Question q = questionRepository.findById(questionId).orElse(null);
         if (q == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
+        // 작성자(세션)
+        String role = (String) session.getAttribute("role");        // "teacher" | "director" | "student" | "parent"
+        String userId = (String) session.getAttribute("username");  // 로그인 시 저장한 키와 통일
+        if (!StringUtils.hasText(userId)) return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+
         // 저장
         Answer a = new Answer();
         a.setQuestionId(questionId);
         a.setContent(payload.getContent() == null ? "" : payload.getContent());
         a.setCreatedAt(new Date());
-
-        // 세션에서 작성자
-        String role = (String) session.getAttribute("role");        // "teacher" | "director" | "student" | "parent"
-        String userId = (String) session.getAttribute("username");  // 로그인 시 저장한 키와 통일
         a.setAuthor(userId);
 
-        // (선택) authorRole 필드가 있는 프로젝트라면 반영
+        // (선택) authorRole 필드가 있는 엔티티라면 반영
         try { a.getClass().getMethod("setAuthorRole", String.class).invoke(a, role); } catch (Exception ignore) {}
 
         Answer saved = answerRepository.save(a);
 
         // ---- FCM 알림 ----
         try {
+            Set<String> sentTokens = new HashSet<>();
+
             if ("teacher".equalsIgnoreCase(role) || "director".equalsIgnoreCase(role)) {
                 // 교사/원장 → 학부모(우선), 학생(있다면)
-                Set<String> sentTokens = new HashSet<>();
 
-                // 1) parent 전용 방이면 roomParentId 기준으로 해당 학부모에게
+                // 1) parent 전용 방이면 roomParentId 기준
                 String parentIdInRoom = q.getRoomParentId();
-                if (parentIdInRoom != null && !parentIdInRoom.isEmpty()) {
+                if (StringUtils.hasText(parentIdInRoom)) {
                     Parent p = parentRepository.findByParentsId(parentIdInRoom);
-                    if (p != null && p.getFcmToken() != null && !p.getFcmToken().isEmpty() && sentTokens.add(p.getFcmToken())) {
+                    if (p != null && StringUtils.hasText(p.getFcmToken()) && sentTokens.add(p.getFcmToken())) {
                         fcmService.sendMessageTo(
                                 p.getParentsId(),
                                 p.getFcmToken(),
@@ -90,24 +127,24 @@ public class AnswerController {
                     }
                 }
 
-                // 2) student 전용 방이면 학생 + 그 학생의 학부모 전원에게
+                // 2) student 전용 방이면 학생 + 그 학생의 학부모 전원
                 String studentIdInRoom = q.getRoomStudentId();
-                if (studentIdInRoom != null && !studentIdInRoom.isEmpty()) {
+                if (StringUtils.hasText(studentIdInRoom)) {
                     // 학생
                     Student s = studentRepository.findByStudentId(studentIdInRoom);
-                    if (s != null && s.getFcmToken() != null && !s.getFcmToken().isEmpty() && sentTokens.add(s.getFcmToken())) {
+                    if (s != null && StringUtils.hasText(s.getFcmToken()) && sentTokens.add(s.getFcmToken())) {
                         fcmService.sendMessageTo(
-                                studentIdInRoom,
+                                s.getStudentId(),
                                 s.getFcmToken(),
                                 "새 답변 알림",
                                 "선생님의 답변이 도착했습니다."
                         );
                     }
-                    // 학부모들
+                    // 학부모들 (⚠️ ParentRepository에 findByStudentId 필요)
                     List<Parent> parents = parentRepository.findByStudentId(studentIdInRoom);
                     if (parents != null) {
                         for (Parent p : parents) {
-                            if (p.getFcmToken() != null && !p.getFcmToken().isEmpty() && sentTokens.add(p.getFcmToken())) {
+                            if (StringUtils.hasText(p.getFcmToken()) && sentTokens.add(p.getFcmToken())) {
                                 fcmService.sendMessageTo(
                                         p.getParentsId(),
                                         p.getFcmToken(),
@@ -123,11 +160,9 @@ public class AnswerController {
                 // 학생/학부모 → 같은 학원 교사들
                 int academyNumber = q.getAcademyNumber();
                 List<Teacher> teachers = teacherRepository.findByAcademyNumber(academyNumber);
-
-                Set<String> sentTokens = new HashSet<>();
                 if (teachers != null) {
                     for (Teacher t : teachers) {
-                        if (t.getFcmToken() != null && !t.getFcmToken().isEmpty() && sentTokens.add(t.getFcmToken())) {
+                        if (StringUtils.hasText(t.getFcmToken()) && sentTokens.add(t.getFcmToken())) {
                             fcmService.sendMessageTo(
                                     t.getTeacherId(),
                                     t.getFcmToken(),
@@ -194,9 +229,9 @@ public class AnswerController {
     }
 
     private String resolveTeacherName(String teacherId) {
-        if (teacherId == null) return "";
+        if (!StringUtils.hasText(teacherId)) return "";
         Teacher t = teacherRepository.findByTeacherId(teacherId);
-        return (t != null && t.getTeacherName() != null && !t.getTeacherName().isEmpty())
+        return (t != null && StringUtils.hasText(t.getTeacherName()))
                 ? t.getTeacherName()
                 : teacherId;
     }

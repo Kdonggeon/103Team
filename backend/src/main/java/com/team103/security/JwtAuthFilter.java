@@ -1,46 +1,75 @@
-// src/main/java/com/team103/security/JwtAuthFilter.java
 package com.team103.security;
 
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
 
-@Component
 public class JwtAuthFilter extends OncePerRequestFilter {
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
 
-    private final JwtUtil jwt;
+    private final JwtUtil jwtUtil;
 
-    public JwtAuthFilter(JwtUtil jwt) { this.jwt = jwt; }
+    public JwtAuthFilter(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
+    }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain)
             throws ServletException, IOException {
 
-        String token = JwtUtil.resolve(req.getHeader("Authorization"));
-        if (token != null) {
+        String token = resolveToken(request);
+        if (StringUtils.hasText(token)) {
             try {
-                Claims c = jwt.validateAndGetClaims(token);
-                String username = c.getSubject();
-                String role = (String) c.get("role");
-                var auth = new UsernamePasswordAuthenticationToken(
-                        username, null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                Claims claims = jwtUtil.validateToken(token);
+                String username = claims.getSubject();
+                String role = claims.get("role", String.class);
+                String springRole = "ROLE_" + (role == null ? "" : role.toUpperCase());
+
+                SecurityContextHolder.getContext().setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                username,
+                                null,
+                                List.of(new SimpleGrantedAuthority(springRole))
+                        )
                 );
-                SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception e) {
-                SecurityContextHolder.clearContext(); // 토큰 문제면 인증 없음으로 진행
+                log.debug("JWT 검증 실패: {}", e.getMessage());
+                SecurityContextHolder.clearContext();
             }
         }
-        chain.doFilter(req, res);
+        chain.doFilter(request, response);
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        // 1) Authorization: Bearer xxx
+        String bearer = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {
+            return bearer.substring(7);
+        }
+        // 2) token 쿠키
+        if (request.getCookies() != null) {
+            for (Cookie c : request.getCookies()) {
+                if ("token".equalsIgnoreCase(c.getName()) && StringUtils.hasText(c.getValue())) {
+                    return c.getValue();
+                }
+            }
+        }
+        return null;
     }
 }
