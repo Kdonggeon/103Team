@@ -10,44 +10,24 @@ const colors = {
   grayBg: "#F2F4F7",
 };
 
-/** 타입들 */
+/** 타입 */
 type LoginSession = {
-  status?: string;
-  role: "student" | "teacher" | "parent" | "director";
+  role: "student" | "parent" | "teacher" | "director";
   username: string;
   name?: string;
   token?: string;
-  academyNumbers?: number[];
-  parentsNumber?: number | null;
   childStudentId?: string | null;
+  academyNumbers?: number[];
 };
 
-type StudentAttendanceRow = {
+type AttendanceRow = {
   classId: string;
   className: string;
-  date: string;
+  date: string; // ISO or YYYY-MM-DD
   status: "PRESENT" | "LATE" | "ABSENT" | string;
 };
 
-type TeacherClass = {
-  classId: string;
-  className: string;
-  schedule?: string;
-};
-
-type TeacherAttendanceRow = {
-  classId: string;
-  className?: string;
-  date: string;
-  studentId: string;
-  status: "PRESENT" | "LATE" | "ABSENT" | string;
-};
-
-type SeatCell = {
-  id: number | string;
-  name?: string;
-  status?: "end" | "label" | "empty" | "filled";
-};
+type Notice = { id: string; title: string; createdAt: string };
 
 /** 유틸 */
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
@@ -55,32 +35,27 @@ const toYmd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate()
   ).padStart(2, "0")}`;
-const isSameDate = (isoOrYmd: string, base = new Date()) => {
+const isSameDate = (s: string, base = new Date()) => {
   try {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrYmd)) return isoOrYmd === toYmd(base);
-    const d = new Date(isoOrYmd);
-    return toYmd(d) === toYmd(base);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s === toYmd(base);
+    return toYmd(new Date(s)) === toYmd(base);
   } catch {
     return false;
   }
 };
-
 async function apiGet<T>(url: string, token?: string): Promise<T> {
-  const res = await fetch(url, {
+  const r = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     cache: "no-store",
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText} ${text}`.trim());
-  }
-  return res.json();
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
 }
 
-/** 통계 카드 */
+/** 공통 UI */
 function StatCard({ title, value }: { title: string; value: number }) {
   return (
     <div className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5 px-6 py-4 text-center min-w-[220px]">
@@ -90,7 +65,6 @@ function StatCard({ title, value }: { title: string; value: number }) {
   );
 }
 
-/** 상단 탭 */
 function NavTabs({
   active,
   onChange,
@@ -98,7 +72,8 @@ function NavTabs({
   active: string;
   onChange: (tab: string) => void;
 }) {
-  const tabs = ["종합정보", "관리", "시간표", "Q&A", "공지사항", "가이드"];
+  // 교사/원장과 유사하게, '관리'만 제외
+  const tabs = ["종합정보", "시간표", "Q&A", "공지사항", "가이드"];
   return (
     <div className="flex gap-3 md:gap-4">
       {tabs.map((t) => (
@@ -118,21 +93,18 @@ function NavTabs({
   );
 }
 
-/** 프로필 드롭다운 메뉴 */
+/** 프로필 드롭다운 (가독성 ↑) */
 function ProfileMenu({ user }: { user: LoginSession | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // 바깥 클릭/ESC 닫기
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (!ref.current) return;
       if (!ref.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -141,11 +113,13 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
     };
   }, []);
 
-  const initial = user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
+  const initial =
+    user?.name?.[0]?.toUpperCase() ??
+    user?.username?.[0]?.toUpperCase() ??
+    "?";
 
   return (
     <div className="relative" ref={ref}>
-      {/* 원형 버튼 */}
       <button
         onClick={() => setOpen((p) => !p)}
         className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
@@ -156,74 +130,60 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
         {initial}
       </button>
 
-      {/* 드롭다운 */}
       {open && (
-      <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
-        {/* 사용자 이름 */}
-        <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
-          {user?.name || user?.username}
+        <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
+          <div className="px-4 py-2 text-xs font-medium text-gray-900 border-b border-gray-100">
+            {user?.name || user?.username}
+          </div>
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/notifications");
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            🔔 내 알림
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/settings/theme");
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            🎨 테마 설정
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/settings");
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            ⚙️ 환경 설정
+          </button>
         </div>
-
-        {/* 메뉴 항목 */}
-        <button
-          onClick={() => {
-            setOpen(false);
-            router.push("/notifications");
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-        >
-          🔔 내 알림
-        </button>
-        <button
-          onClick={() => {
-            setOpen(false);
-            router.push("/settings/theme");
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-        >
-          🎨 테마 설정
-        </button>
-        <button
-          onClick={() => {
-            setOpen(false);
-            router.push("/settings");
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-        >
-          ⚙️ 환경 설정
-        </button>
-      </div>
-    )}
-
+      )}
     </div>
   );
 }
 
-/** 사이드 프로필 — 가독성↑ 요소 정리 + 라우팅 연결 */
+/** 사이드바 (원장/선생과 동일 스타일) */
 function SidebarProfile({
   user,
   onLogout,
 }: {
-  user: {
-    role?: "student" | "teacher" | "parent" | "director" | string;
-    username?: string;
-    name?: string;
-    academyNumbers?: (number | string)[];
-  } | null;
+  user: LoginSession | null;
   onLogout: () => void;
 }) {
   const router = useRouter();
 
   const roleColor =
-    user?.role === "teacher"
-      ? "bg-blue-100 text-blue-700 ring-blue-200"
-      : user?.role === "student"
+    user?.role === "student"
       ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
       : user?.role === "parent"
       ? "bg-amber-100 text-amber-700 ring-amber-200"
-      : user?.role === "director"
-      ? "bg-purple-100 text-purple-700 ring-purple-200"
-      : "bg-gray-100 text-gray-700 ring-gray-200";
+      : "bg-purple-100 text-purple-700 ring-purple-200"; // fallback
 
   const academies =
     Array.isArray(user?.academyNumbers) && user!.academyNumbers!.length > 0
@@ -233,7 +193,6 @@ function SidebarProfile({
   return (
     <aside className="w-[260px] shrink-0">
       <div className="rounded-2xl overflow-hidden ring-1 ring-black/5 shadow-sm bg-white">
-        {/* 상단: 이름만 크게 + 역할칩 */}
         <div className="p-5 bg-gradient-to-br from-[#CFF9D6] via-[#B7F2C0] to-[#8CF39B]">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -244,18 +203,15 @@ function SidebarProfile({
             {user?.role && (
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ring-1 ${roleColor}`}
-                title={`role: ${user.role}`}
               >
                 <span className="inline-block w-2 h-2 rounded-full bg-current opacity-70" />
-                {user.role}
+                {user.role === "parent" ? "학부모" : "학생"}
               </span>
             )}
           </div>
         </div>
 
-        {/* 본문 정보 */}
         <div className="p-4 space-y-3">
-          {/* 아이디 */}
           <div className="flex items-start justify-between gap-3">
             <div className="text-xs text-gray-700 leading-6">아이디</div>
             <div className="flex-1 text-right">
@@ -265,7 +221,6 @@ function SidebarProfile({
             </div>
           </div>
 
-          {/* 학원번호 칩 */}
           <div className="flex items-start justify-between gap-3">
             <div className="text-xs text-gray-700 leading-6">학원번호</div>
             <div className="flex-1 text-right">
@@ -286,10 +241,8 @@ function SidebarProfile({
             </div>
           </div>
 
-          {/* 구분선 */}
           <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-2" />
 
-          {/* 액션 버튼들 — 라우팅 연결 */}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => router.push("/settings/profile")}
@@ -305,7 +258,6 @@ function SidebarProfile({
             </button>
           </div>
 
-          {/* 로그아웃 */}
           <button
             onClick={onLogout}
             className="w-full rounded-xl py-3 text-white font-semibold mt-1 active:scale-[0.99] transition"
@@ -316,7 +268,6 @@ function SidebarProfile({
         </div>
       </div>
 
-      {/* 하단 퀵 액션 */}
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4 space-y-3 mt-4">
         <div className="text-sm font-semibold text-gray-900">빠른 실행</div>
         <div className="grid gap-2">
@@ -338,15 +289,13 @@ function SidebarProfile({
   );
 }
 
-/** 역할별 리스트 */
-function WaitingList({
-  title,
+/** 왼쪽 리스트 (오늘 일정) */
+function TodayList({
   list,
   loading,
   error,
 }: {
-  title: string;
-  list: Array<{ label: string; sub?: string }>;
+  list: Array<{ label: string; sub?: string; status?: string }>;
   loading: boolean;
   error?: string | null;
 }) {
@@ -354,29 +303,37 @@ function WaitingList({
     <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
       <div className="flex items-center gap-2 mb-3">
         <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
-          {title}
+          오늘 일정
         </span>
       </div>
 
       <div className="rounded-xl overflow-hidden ring-1 ring-black/5">
-        {loading && (
-          <div className="px-3 py-2 text-sm text-gray-700">불러오는 중…</div>
-        )}
-        {error && (
-          <div className="px-3 py-2 text-sm text-red-600">오류: {error}</div>
-        )}
+        {loading && <div className="px-3 py-2 text-sm text-gray-700">불러오는 중…</div>}
+        {error && <div className="px-3 py-2 text-sm text-red-600">오류: {error}</div>}
         {!loading && !error && list.length === 0 && (
-          <div className="px-3 py-2 text-sm text-gray-500">표시할 항목이 없습니다.</div>
+          <div className="px-3 py-2 text-sm text-gray-600">표시할 항목이 없습니다.</div>
         )}
         {!loading &&
           !error &&
           list.map((w, i) => (
-            <div
-              key={i}
-              className="px-3 py-2 border-b last:border-none text-sm bg-white"
-            >
-              <div className="font-medium text-gray-900">{w.label}</div>
-              {w.sub && <div className="text-xs text-gray-600">{w.sub}</div>}
+            <div key={i} className="px-3 py-2 border-b last:border-none text-sm bg-white flex items-center justify-between">
+              <div>
+                <div className="font-medium text-gray-900">{w.label}</div>
+                {w.sub && <div className="text-xs text-gray-600">{w.sub}</div>}
+              </div>
+              {w.status && (
+                <span
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                    w.status.includes("ABS")
+                      ? "bg-red-100 text-red-700"
+                      : w.status.includes("LATE")
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-emerald-100 text-emerald-700"
+                  }`}
+                >
+                  {w.status}
+                </span>
+              )}
             </div>
           ))}
       </div>
@@ -384,60 +341,50 @@ function WaitingList({
   );
 }
 
-/** 좌석 그리드 */
-function SeatGrid({ seats }: { seats: SeatCell[] | null }) {
-  if (!seats || seats.length === 0) {
-    return (
-      <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
-        좌석 데이터가 연결되어 있지 않습니다. (수업 선택 후 좌석 API를 연동해 주세요)
-      </div>
-    );
-  }
+/** 오른쪽 카드 (최근 공지) */
+function NoticeCard({ notices }: { notices: Notice[] }) {
   return (
     <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
-      <div className="grid grid-cols-5 gap-3">
-        {seats.map((s) => (
-          <div
-            key={s.id}
-            className="h-14 rounded-xl flex items-center justify-center text-sm ring-1 ring-black/5 bg-gray-100 text-gray-900"
-            title={s.name}
-          >
-            {s.name || ""}
-          </div>
-        ))}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
+          최근 공지
+        </span>
       </div>
-      <div className="mt-4 text-right text-xs text-gray-500">* 좌석 배치 (실데이터)</div>
+      {notices.length === 0 ? (
+        <div className="text-sm text-gray-600">표시할 공지가 없습니다.</div>
+      ) : (
+        <ul className="divide-y">
+          {notices.map((n) => (
+            <li key={n.id} className="py-3">
+              <div className="font-medium text-gray-900">{n.title}</div>
+              <div className="text-xs text-gray-600">{n.createdAt}</div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
-/** 메인 대시보드 */
-export default function GreenAcademyDashboard() {
+/** 메인 페이지 */
+export default function FamilyPortalPage() {
   const router = useRouter();
-
-  // 가드
   const [user, setUser] = useState<LoginSession | null>(null);
   const [ready, setReady] = useState(false);
 
-  // 탭
-  const [activeTab, setActiveTab] = useState<string>("종합정보");
+  const [activeTab, setActiveTab] = useState("종합정보");
 
   // 데이터 상태
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [list, setList] = useState<Array<{ label: string; sub?: string; status?: string }>>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
 
   // 통계
   const [present, setPresent] = useState(0);
   const [late, setLate] = useState(0);
   const [absent, setAbsent] = useState(0);
 
-  // 왼쪽 리스트
-  const [list, setList] = useState<Array<{ label: string; sub?: string }>>([]);
-
-  // 좌석
-  const [seats, setSeats] = useState<SeatCell[] | null>(null);
-
-  /** 세션 로드 & 가드 */
   useEffect(() => {
     const raw = localStorage.getItem("login");
     if (!raw) {
@@ -445,8 +392,13 @@ export default function GreenAcademyDashboard() {
       return;
     }
     try {
-      const parsed = JSON.parse(raw) as LoginSession;
-      setUser(parsed);
+      const u = JSON.parse(raw) as LoginSession;
+      // 교사/원장은 이 페이지 사용 X → 메인으로
+      if (u.role === "teacher" || u.role === "director") {
+        router.replace("/");
+        return;
+      }
+      setUser(u);
     } catch {
       localStorage.removeItem("login");
       router.replace("/login");
@@ -456,89 +408,45 @@ export default function GreenAcademyDashboard() {
     }
   }, [router]);
 
-  /** 역할별 데이터 로딩 (종합정보 탭일 때만 호출) */
   useEffect(() => {
     if (!ready || !user) return;
     if (activeTab !== "종합정보") return;
 
-    setLoading(true);
-    setErr(null);
-
     (async () => {
+      setLoading(true);
+      setErr(null);
       try {
-        setList([]);
-        setSeats(null);
-
-        // Teacher: 오늘 수업 목록 + 각 수업 출석 합산
-        if (user.role === "teacher") {
-          const classes = await apiGet<TeacherClass[]>(
-            `${API_BASE}/api/teachers/${encodeURIComponent(user.username)}/classes`,
-            user.token
-          );
-          const todayClasses = classes.filter((c) =>
-            !c.schedule ? true : isSameDate(c.schedule)
-          );
-
-          setList(
-            todayClasses.map((c) => ({
-              label: c.className,
-              sub: c.classId,
-            }))
-          );
-
-          let all: TeacherAttendanceRow[] = [];
-          for (const c of todayClasses) {
-            const att = await apiGet<TeacherAttendanceRow[]>(
-              `${API_BASE}/api/teachers/classes/${encodeURIComponent(
-                c.classId
-              )}/attendance`,
-              user.token
-            );
-            const today = att.filter((r) => isSameDate(r.date));
-            all = all.concat(today.map((t) => ({ ...t, className: c.className })));
-          }
-
-          const sum = summarizeAttendance(all);
-          setPresent(sum.present);
-          setLate(sum.late);
-          setAbsent(sum.absent);
-
-          // 좌석 API가 있다면 여기에서 setSeats
-          // const seatsData = await apiGet<SeatCell[]>(
-          //   `${API_BASE}/api/classes/${encodeURIComponent(todayClasses[0].classId)}/seats`,
-          //   user.token
-          // );
-          // setSeats(seatsData);
-
-          return;
-        }
-
-        // Student/Parent: 본인(또는 자녀) 오늘 출석
         const targetStudentId =
-          user.role === "parent"
-            ? user.childStudentId || user.username
-            : user.username;
+          user.role === "parent" ? user.childStudentId || user.username : user.username;
 
-        const rows = await apiGet<StudentAttendanceRow[]>(
+        const rows = await apiGet<AttendanceRow[]>(
           `${API_BASE}/api/students/${encodeURIComponent(targetStudentId)}/attendance`,
           user.token
         );
-        const todayRows = rows.filter((r) => isSameDate(r.date));
-
-        const sum = summarizeAttendance(todayRows);
-        setPresent(sum.present);
-        setLate(sum.late);
-        setAbsent(sum.absent);
-
+        const today = rows.filter((r) => isSameDate(r.date));
+        const p = today.filter((r) => r.status.toUpperCase().includes("PRESENT")).length;
+        const l = today.filter((r) => r.status.toUpperCase().includes("LATE")).length;
+        const a = today.filter((r) => r.status.toUpperCase().includes("ABS")).length;
+        setPresent(p);
+        setLate(l);
+        setAbsent(a);
         setList(
-          todayRows.map((r) => ({
+          today.map((r) => ({
             label: r.className,
-            sub: `${r.status} • ${r.date}`,
+            sub: r.date,
+            status: r.status.toUpperCase(),
           }))
         );
 
-        // 좌석 API 연동 시:
-        // setSeats(await apiGet<SeatCell[]>(`${API_BASE}/api/classes/${someClassId}/seats`, user.token));
+        try {
+          const ns = await apiGet<Notice[]>(
+            `${API_BASE}/api/notices?scope=student&limit=5`,
+            user.token
+          );
+          setNotices(ns);
+        } catch {
+          setNotices([]);
+        }
       } catch (e: any) {
         setErr(e?.message ?? "데이터를 불러오지 못했습니다.");
       } finally {
@@ -556,12 +464,11 @@ export default function GreenAcademyDashboard() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.grayBg }}>
-      {/* 헤더 */}
+      {/* 헤더 (교사/원장 대시보드와 동일 스타일) */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 ring-1 ring-black/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-1 ring-black/5 overflow-hidden">
-              {/* 헤더 로고 아이콘 */}
               <Image
                 src="/logo.png"
                 alt="Logo"
@@ -573,56 +480,38 @@ export default function GreenAcademyDashboard() {
             </div>
             <div className="leading-tight">
               <div className="text-lg font-semibold text-gray-900">Green Academy</div>
-              <div className="text-sm text-gray-600 -mt-0.5">Partner</div>
+              <div className="text-sm text-gray-600 -mt-0.5">Family Portal</div>
             </div>
           </div>
 
           <NavTabs active={activeTab} onChange={setActiveTab} />
 
-          {/* 프로필 드롭다운 메뉴 */}
           <ProfileMenu user={user} />
         </div>
       </header>
 
-      {/* 본문 */}
+      {/* 본문 레이아웃도 동일 */}
       <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
         <SidebarProfile user={user} onLogout={handleLogout} />
 
-        {/* 탭별 콘텐츠 분기 */}
         {activeTab === "종합정보" && (
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
-                  강의실 찾기 추가 예정
+                  오늘
                 </span>
               </div>
               <div className="flex gap-3">
-                <StatCard title="금일 출석 학생 수" value={present} />
-                <StatCard title="금일 지각 학생 수" value={late} />
-                <StatCard title="금일 미출석 학생 수" value={absent} />
+                <StatCard title="금일 출석" value={present} />
+                <StatCard title="금일 지각" value={late} />
+                <StatCard title="금일 결석" value={absent} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-6">
-              <WaitingList
-                title={user!.role === "teacher" ? "오늘 수업" : "오늘 일정"}
-                list={list}
-                loading={loading}
-                error={err}
-              />
-              <SeatGrid seats={seats} />
-            </div>
-          </div>
-        )}
-
-        {activeTab === "관리" && (
-          <div className="space-y-4">
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">관리</h2>
-              <p className="text-sm text-gray-700">
-                사용자/수업/좌석 관리 기능을 연결하세요. (예: /api/admin/*)
-              </p>
+              <TodayList list={list} loading={loading} error={err} />
+              <NoticeCard notices={notices} />
             </div>
           </div>
         )}
@@ -632,7 +521,7 @@ export default function GreenAcademyDashboard() {
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">시간표</h2>
               <p className="text-sm text-gray-700">
-                역할별 시간표 API를 연동하세요. (교사: 오늘 수업, 학생/학부모: 수업 목록)
+                시간표 API를 연동해 오늘/주간 수업을 보여 주세요.
               </p>
             </div>
           </div>
@@ -641,8 +530,8 @@ export default function GreenAcademyDashboard() {
         {activeTab === "Q&A" && (
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&A</h2>
-              <p className="text-sm text-gray-700">Q&A 게시판을 연결하세요.</p>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&amp;A</h2>
+              <p className="text-sm text-gray-700">질문/답변 게시판을 연결하세요.</p>
             </div>
           </div>
         )}
@@ -660,27 +549,11 @@ export default function GreenAcademyDashboard() {
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">가이드</h2>
-              <p className="text-sm text-gray-700">
-                사용 설명서/튜토리얼 문서를 표시합니다.
-              </p>
+              <p className="text-sm text-gray-700">사용 설명서/튜토리얼 영역입니다.</p>
             </div>
           </div>
         )}
       </main>
     </div>
   );
-}
-
-/** 통계 합산 함수 */
-function summarizeAttendance<T extends { status: string }>(rows: T[]) {
-  let present = 0,
-    late = 0,
-    absent = 0;
-  rows.forEach((r) => {
-    const s = r.status.toUpperCase();
-    if (s.includes("LATE")) late += 1;
-    else if (s.includes("ABSENT") || s.includes("ABS")) absent += 1;
-    else present += 1;
-  });
-  return { present, late, absent };
 }
