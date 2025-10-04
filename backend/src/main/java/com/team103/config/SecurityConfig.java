@@ -47,10 +47,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/*/find_id").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/directors/signup").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/signup/director").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/students").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/teachers").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
+                
 
                 // 계정 탈퇴
                 .requestMatchers(HttpMethod.POST, "/api/account/delete").permitAll()
