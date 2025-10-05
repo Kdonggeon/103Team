@@ -49,6 +49,8 @@
             <version>1.18.32</version>
             <scope>provided</scope>
         </dependency>
+        
+        
 
         <!-- DevTools -->
         <dependency>
@@ -88,6 +90,7 @@
             <version>0.11.5</version>
             <scope>runtime</scope>
         </dependency>
+        
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
@@ -115,5 +118,6 @@
             </plugin>
         </plugins>
     </build>
+    
 
 </project>
