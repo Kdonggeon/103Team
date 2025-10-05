@@ -1,9 +1,11 @@
+// src/app/login/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
 import Link from "next/link";
+import { api, type LoginRequest, type LoginResponse } from "@/app/lib/api";
+import { setSession } from "@/app/lib/session";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,26 +24,20 @@ export default function LoginPage() {
     setLoading(true);
     setMsg(null);
     try {
-      const data = await api.login({ username: id, password: pw });
+      const body: LoginRequest = { username: id, password: pw };
+      const data: LoginResponse = await api.login(body);
 
-      // 세션 저장
-      localStorage.setItem(
-        "login",
-        JSON.stringify({ ...data, keepLogin, ipSecure })
-      );
+      // ✅ 세션 저장: session + (레거시) login 동시 저장됨
+      setSession(data);
 
-      // 역할별 라우팅
-      // - teacher/director: 방금 보던 대시보드 페이지(루트 "/")
-      // - student: 학생 포털 새 페이지
-      // - parent : 학부모 포털 새 페이지
+      // 옵션은 별도 키로 저장(선택)
+      localStorage.setItem("client_prefs", JSON.stringify({ keepLogin, ipSecure }));
+
       // 역할별 라우팅
       let next = "/";
       if (data.role === "student" || data.role === "parent") {
-        next = "/family-portal"; // 학생/학부모 공용 포털
+        next = "/family-portal"; // 필요 시 실제 경로로 변경
       }
-      router.replace(next);
-
-
       router.replace(next);
     } catch (err: any) {
       setMsg(err?.message || "로그인 실패");
@@ -57,7 +53,6 @@ export default function LoginPage() {
         className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-6"
         aria-describedby={msg ? "login-error" : undefined}
       >
-        {/* 상단 브랜드 영역 */}
         <div className="text-center">
           <h1 className="text-3xl font-extrabold text-emerald-600">
             GREEN ACADEMY
@@ -67,7 +62,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* 아이디 */}
         <input
           className="w-full h-12 rounded-xl border border-gray-200 px-4 outline-none bg-emerald-50/20
                      focus:ring-2 focus:ring-emerald-300 focus:border-emerald-300"
@@ -78,7 +72,6 @@ export default function LoginPage() {
           autoFocus
         />
 
-        {/* 비밀번호 + 보기 버튼 */}
         <div
           className="flex h-12 rounded-xl border border-gray-200 overflow-hidden
                      focus-within:ring-2 focus-within:ring-emerald-300 focus-within:border-emerald-300 bg-emerald-50/20"
@@ -104,7 +97,6 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* 옵션줄 */}
         <div className="flex items-center justify-between text-sm text-gray-600">
           <label className="inline-flex items-center gap-2">
             <input
@@ -137,7 +129,6 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* 에러 메시지 */}
         {msg && (
           <div
             id="login-error"
@@ -148,7 +139,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* 로그인 버튼 */}
         <button
           disabled={loading || !id || !pw}
           className="w-full h-12 rounded-xl bg-emerald-500 text-white font-semibold
@@ -157,7 +147,6 @@ export default function LoginPage() {
           {loading ? "로그인 중..." : "로그인"}
         </button>
 
-        {/* 하단 링크 */}
         <div className="pt-1 text-center text-sm text-gray-500">
           <Link href="/find_id" className="hover:underline">
             아이디 찾기

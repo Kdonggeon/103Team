@@ -1,15 +1,15 @@
 package com.team103.controller;
 
-import com.team103.dto.CheckInRequest;    
+import com.team103.dto.CheckInRequest;
 import com.team103.dto.CheckInResponse;
 import com.team103.model.Attendance;
 import com.team103.model.Course;
 import com.team103.repository.AttendanceRepository;
 import com.team103.repository.CourseRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.ResponseEntity;
@@ -55,7 +55,7 @@ public class AttendanceCheckInController {
         LocalDate today = now.toLocalDate();
         int dow = now.getDayOfWeek().getValue(); // 1=월..7=일
 
-        // (2) 수업 조회 (Optional 사용하지 않음)
+        // (2) 수업 조회
         Course course = courseRepository.findByClassId(req.getClassId());
         if (course == null) {
             return ResponseEntity.badRequest().body("수업을 찾을 수 없음");
@@ -79,23 +79,24 @@ public class AttendanceCheckInController {
         LocalDateTime presentUntil = sDateTime.plusMinutes(lateAfterMin);   // S+5
         LocalDateTime lateUntil    = sDateTime.plusMinutes(absentAfterMin); // S+20
 
-        if (nowLt.isBefore(openFrom))             return ResponseEntity.status(409).body("아직 출석 오픈 전");
-        if (nowLt.isAfter(lateUntil))             return ResponseEntity.status(409).body("결석 시간: 출석 불가");
+        if (nowLt.isBefore(openFrom)) return ResponseEntity.status(409).body("아직 출석 오픈 전");
+        if (nowLt.isAfter(lateUntil)) return ResponseEntity.status(409).body("결석 시간: 출석 불가");
 
-        String status = (!nowLt.isAfter(presentUntil)) ? "present" : "late";
+        // 상태 결정
+        String status = (!nowLt.isAfter(presentUntil)) ? "출석" : "지각"; // 표준 한글로
 
-        // (4) attendance upsert
+        // (4) attendance upsert (컬렉션명 통일: "attendances")
         String classId = req.getClassId();
         String date = today.format(DateTimeFormatter.ISO_DATE);
 
         Query q = new Query(Criteria.where("Class_ID").is(classId).and("Date").is(date));
+
         Update up = new Update()
                 .setOnInsert("Session_Start", sStr)
                 .setOnInsert("Session_End", (eStr != null && !eStr.isEmpty()) ? eStr : E.format(HHMM))
                 .set("updatedAt", java.util.Date.from(now.toInstant()));
 
-        // upsert로 문서 보장
-        mongoTemplate.upsert(q, up, "attendance");
+        mongoTemplate.upsert(q, up, "attendances"); // ✅ 컬렉션명 통일
 
         // arrayFilters로 엔트리 업데이트 시도
         Update setEntry = new Update()
@@ -105,7 +106,7 @@ public class AttendanceCheckInController {
                 .filterArray(Criteria.where("s.Student_ID").is(req.getStudentId()));
 
         FindAndModifyOptions opts = FindAndModifyOptions.options().upsert(true).returnNew(true);
-        Attendance updated = mongoTemplate.findAndModify(q, setEntry, opts, Attendance.class, "attendance");
+        Attendance updated = mongoTemplate.findAndModify(q, setEntry, opts, Attendance.class, "attendances");
 
         // 엔트리가 없으면 push
         if (!hasStudentEntry(updated, req.getStudentId())) {
@@ -115,7 +116,7 @@ public class AttendanceCheckInController {
                 put("CheckIn_Time", nowLt.format(DateTimeFormatter.ISO_LOCAL_TIME));
                 put("Source", "app");
             }});
-            mongoTemplate.findAndModify(q, pushEntry, opts, Attendance.class, "attendance");
+            mongoTemplate.findAndModify(q, pushEntry, opts, Attendance.class, "attendances");
         }
 
         // (5) 응답
@@ -128,25 +129,25 @@ public class AttendanceCheckInController {
         return ResponseEntity.ok(res);
     }
 
-    // ---- 유틸 (AttendanceEntry 중첩타입/톱레벨/Map 모든 경우 안전하게 동작) ----
-
+    // ---- 유틸 (Map/Item 혼재 안전 처리) ----
     private boolean hasStudentEntry(Attendance att, String studentId) {
         if (att == null || att.getAttendanceList() == null) return false;
         for (Object e : att.getAttendanceList()) {
             if (e == null) continue;
 
-            // 1) Map 형태로 역직렬화된 경우
-            if (e instanceof Map) {
-                Object sid = ((Map<?, ?>) e).get("Student_ID");
-                if (studentId.equals(sid)) return true;
+            if (e instanceof Attendance.Item item) {
+                if (studentId.equals(item.getStudentId())) return true;
                 continue;
             }
-
-            // 2) POJO(톱레벨/중첩 상관없이)인 경우 - getter 리플렉션
+            if (e instanceof Map<?, ?> m) {
+                Object sid = m.get("Student_ID");
+                if (sid != null && studentId.equals(String.valueOf(sid))) return true;
+                continue;
+            }
             try {
                 Object sid = e.getClass().getMethod("getStudentId").invoke(e);
-                if (studentId.equals(sid)) return true;
-            } catch (Exception ignored) {}
+                if (sid != null && studentId.equals(String.valueOf(sid))) return true;
+            } catch (Exception ignore) {}
         }
         return false;
     }

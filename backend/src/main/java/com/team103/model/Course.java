@@ -1,27 +1,19 @@
 package com.team103.model;
 
-import java.util.List;
-
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.util.List;
+
 @Document(collection = "classes")
 public class Course {
 
+    @Id
+    private String id;                     // ObjectId 문자열 (기존 int _id 문서도 Spring이 매핑 가능)
+                                           // 필요하면 Integer로 바꿔도 되지만, 일단 String이 충돌이 적습니다.
 
-	@Id
-    private String id;
-	
-	@Field("Days_Of_Week")   // 1=월 … 7=일 주간 반복 필드
-	private List<Integer> daysOfWeek;
-	
-	@Field("Start_Time")     // "HH:mm"
-	private String startTime;
-
-	@Field("End_Time")       // "HH:mm"
-	private String endTime;
-	
+    // ====== 기존 수업 기본 정보 ======
     @Field("Class_ID")
     private String classId;
 
@@ -37,75 +29,67 @@ public class Course {
     @Field("Schedule")
     private String schedule;
 
-    public String getId() {
-		return id;
-	}
+    @Field("Days_Of_Week")                 // 1=월 … 7=일
+    private List<Integer> daysOfWeek;
 
-	public void setId(String id) {
-		this.id = id;
-	}
+    @Field("Start_Time")                   // "HH:mm"
+    private String startTime;
 
-	public String getClassId() {
-		return classId;
-	}
+    @Field("End_Time")                     // "HH:mm"
+    private String endTime;
 
-	public void setClassId(String classId) {
-		this.classId = classId;
-	}
+    // ====== 좌석/강의실 연동을 위한 추가 필드 ======
+    @Field("Room_Number")
+    private Integer roomNumber;            // 방 번호 (좌석 보드 매칭)
 
-	public String getClassName() {
-		return className;
-	}
+    @Field("Academy_Number")
+    private Integer academyNumber;         // 학원 번호 (방 조회용)
 
-	public void setClassName(String className) {
-		this.className = className;
-	}
+    // 대시보드용 현재 수업 정보(네가 쓰던 구조 유지)
+    @Field("Current_Class")
+    private Room.CurrentClass current;
 
-	public String getTeacherId() {
-		return teacherId;
-	}
+    // 수업-좌석 배정(좌석 번호 ↔ 학생 ID)
+    @Field("Seats")
+    private List<Room.Seat> seats;
 
-	public void setTeacherId(String teacherId) {
-		this.teacherId = teacherId;
-	}
+    // --- getters/setters ---
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-	public List<String> getStudents() {
-	    return students;
-	}
+    public String getClassId() { return classId; }
+    public void setClassId(String classId) { this.classId = classId; }
 
-	public void setStudents(List<String> students) {
-	    this.students = students;
-	}
+    public String getClassName() { return className; }
+    public void setClassName(String className) { this.className = className; }
 
-	public String getSchedule() {
-		return schedule;
-	}
+    public String getTeacherId() { return teacherId; }
+    public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
 
-	public void setSchedule(String schedule) {
-		this.schedule = schedule;
-	}
-	
-	public List<Integer> getDaysOfWeek() {
-	    return daysOfWeek;
-	}
-	public void setDaysOfWeek(List<Integer> daysOfWeek) {
-	    this.daysOfWeek = daysOfWeek;
-	}
+    public List<String> getStudents() { return students; }
+    public void setStudents(List<String> students) { this.students = students; }
 
-	public String getStartTime() {
-	    return startTime;
-	}
-	public void setStartTime(String startTime) {
-	    this.startTime = startTime;
-	}
+    public String getSchedule() { return schedule; }
+    public void setSchedule(String schedule) { this.schedule = schedule; }
 
-	public String getEndTime() {
-	    return endTime;
-	}
-	public void setEndTime(String endTime) {
-	    this.endTime = endTime;
-	}
+    public List<Integer> getDaysOfWeek() { return daysOfWeek; }
+    public void setDaysOfWeek(List<Integer> daysOfWeek) { this.daysOfWeek = daysOfWeek; }
 
-	
-	
+    public String getStartTime() { return startTime; }
+    public void setStartTime(String startTime) { this.startTime = startTime; }
+
+    public String getEndTime() { return endTime; }
+    public void setEndTime(String endTime) { this.endTime = endTime; }
+
+    public Integer getRoomNumber() { return roomNumber; }
+    public void setRoomNumber(Integer roomNumber) { this.roomNumber = roomNumber; }
+
+    public Integer getAcademyNumber() { return academyNumber; }
+    public void setAcademyNumber(Integer academyNumber) { this.academyNumber = academyNumber; }
+
+    public Room.CurrentClass getCurrent() { return current; }
+    public void setCurrent(Room.CurrentClass current) { this.current = current; }
+
+    public List<Room.Seat> getSeats() { return seats; }
+    public void setSeats(List<Room.Seat> seats) { this.seats = seats; }
 }

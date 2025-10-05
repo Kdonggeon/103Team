@@ -18,7 +18,7 @@ export async function proxyJsonPost(upstreamPath: string, req: Request) {
       return new NextResponse(text || "요청 실패", { status: upstream.status });
     }
 
-    // JSON/텍스트 모두 처리
+    // JSON/텍스트 모두 처리  
     try {
       return NextResponse.json(text ? JSON.parse(text) : {});
     } catch {

@@ -1,8 +1,10 @@
+// src/app/page.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { getSession, clearSession } from "@/app/lib/session";
 
 /** 색상 토큰 */
 const colors = {
@@ -10,37 +12,20 @@ const colors = {
   grayBg: "#F2F4F7",
 };
 
-/** 타입들 */
-type LoginSession = {
-  status?: string;
-  role: "student" | "teacher" | "parent" | "director";
-  username: string;
-  name?: string;
-  token?: string;
-  academyNumbers?: number[];
-  parentsNumber?: number | null;
-  childStudentId?: string | null;
-};
+/** 타입들(대시보드 내부에서만 사용) */
+type LoginSession = ReturnType<typeof getSession>;
 
 type StudentAttendanceRow = {
   classId: string;
   className: string;
-  date: string;
-  status: "PRESENT" | "LATE" | "ABSENT" | string;
+  date: string;         // "yyyy-MM-dd" or ISO
+  status: string;       // "PRESENT" | "LATE" | "ABSENT" | 기타
 };
 
 type TeacherClass = {
   classId: string;
   className: string;
-  schedule?: string;
-};
-
-type TeacherAttendanceRow = {
-  classId: string;
-  className?: string;
-  date: string;
-  studentId: string;
-  status: "PRESENT" | "LATE" | "ABSENT" | string;
+  schedule?: string;    // 옵션
 };
 
 type SeatCell = {
@@ -50,11 +35,11 @@ type SeatCell = {
 };
 
 /** 유틸 */
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 const toYmd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate()
   ).padStart(2, "0")}`;
+
 const isSameDate = (isoOrYmd: string, base = new Date()) => {
   try {
     if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrYmd)) return isoOrYmd === toYmd(base);
@@ -65,19 +50,23 @@ const isSameDate = (isoOrYmd: string, base = new Date()) => {
   }
 };
 
-async function apiGet<T>(url: string, token?: string): Promise<T> {
+/** 공통 fetch 래퍼: /backend 프록시 + Authorization */
+async function apiGet<T>(path: string): Promise<T> {
+  const s = getSession();
+  const token = s?.token ?? null;
+  const url = path.startsWith("/backend") ? path : `/backend${path}`;
   const res = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    cache: "no-store",
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText} ${text}`.trim());
-  }
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? " | " + text : ""}`);
+  return text ? (JSON.parse(text) as T) : ({} as T);
 }
 
 /** 통계 카드 */
@@ -119,12 +108,11 @@ function NavTabs({
 }
 
 /** 프로필 드롭다운 메뉴 */
-function ProfileMenu({ user }: { user: LoginSession | null }) {
+function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // 바깥 클릭/ESC 닫기
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (!ref.current) return;
@@ -141,11 +129,11 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
     };
   }, []);
 
-  const initial = user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
+  const initial =
+    user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
 
   return (
     <div className="relative" ref={ref}>
-      {/* 원형 버튼 */}
       <button
         onClick={() => setOpen((p) => !p)}
         className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
@@ -156,72 +144,64 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
         {initial}
       </button>
 
-      {/* 드롭다운 */}
       {open && (
-      <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
-        {/* 사용자 이름 */}
-        <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
-          {user?.name || user?.username}
+        <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
+          <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
+            {user?.name || user?.username}
+          </div>
+
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/notifications");
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            🔔 내 알림
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/settings/theme");
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            🎨 테마 설정
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/settings");
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            ⚙️ 환경 설정
+          </button>
         </div>
-
-        {/* 메뉴 항목 */}
-        <button
-          onClick={() => {
-            setOpen(false);
-            router.push("/notifications");
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-        >
-          🔔 내 알림
-        </button>
-        <button
-          onClick={() => {
-            setOpen(false);
-            router.push("/settings/theme");
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-        >
-          🎨 테마 설정
-        </button>
-        <button
-          onClick={() => {
-            setOpen(false);
-            router.push("/settings");
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-        >
-          ⚙️ 환경 설정
-        </button>
-      </div>
-    )}
-
+      )}
     </div>
   );
 }
 
-/** 사이드 프로필 — 가독성↑ 요소 정리 + 라우팅 연결 */
+/** 사이드 프로필 */
 function SidebarProfile({
   user,
   onLogout,
 }: {
-  user: {
-    role?: "student" | "teacher" | "parent" | "director" | string;
-    username?: string;
-    name?: string;
-    academyNumbers?: (number | string)[];
-  } | null;
+  user: NonNullable<LoginSession> | null;
   onLogout: () => void;
 }) {
   const router = useRouter();
 
+  const role = user?.role;
   const roleColor =
-    user?.role === "teacher"
+    role === "teacher"
       ? "bg-blue-100 text-blue-700 ring-blue-200"
-      : user?.role === "student"
+      : role === "student"
       ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
-      : user?.role === "parent"
+      : role === "parent"
       ? "bg-amber-100 text-amber-700 ring-amber-200"
-      : user?.role === "director"
+      : role === "director"
       ? "bg-purple-100 text-purple-700 ring-purple-200"
       : "bg-gray-100 text-gray-700 ring-gray-200";
 
@@ -233,7 +213,6 @@ function SidebarProfile({
   return (
     <aside className="w-[260px] shrink-0">
       <div className="rounded-2xl overflow-hidden ring-1 ring-black/5 shadow-sm bg-white">
-        {/* 상단: 이름만 크게 + 역할칩 */}
         <div className="p-5 bg-gradient-to-br from-[#CFF9D6] via-[#B7F2C0] to-[#8CF39B]">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -241,21 +220,19 @@ function SidebarProfile({
                 {user?.name || user?.username || "사용자"}
               </div>
             </div>
-            {user?.role && (
+            {role && (
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ring-1 ${roleColor}`}
-                title={`role: ${user.role}`}
+                title={`role: ${role}`}
               >
                 <span className="inline-block w-2 h-2 rounded-full bg-current opacity-70" />
-                {user.role}
+                {role}
               </span>
             )}
           </div>
         </div>
 
-        {/* 본문 정보 */}
         <div className="p-4 space-y-3">
-          {/* 아이디 */}
           <div className="flex items-start justify-between gap-3">
             <div className="text-xs text-gray-700 leading-6">아이디</div>
             <div className="flex-1 text-right">
@@ -265,7 +242,6 @@ function SidebarProfile({
             </div>
           </div>
 
-          {/* 학원번호 칩 */}
           <div className="flex items-start justify-between gap-3">
             <div className="text-xs text-gray-700 leading-6">학원번호</div>
             <div className="flex-1 text-right">
@@ -286,10 +262,8 @@ function SidebarProfile({
             </div>
           </div>
 
-          {/* 구분선 */}
           <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-2" />
 
-          {/* 액션 버튼들 — 라우팅 연결 */}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => router.push("/settings/profile")}
@@ -305,7 +279,6 @@ function SidebarProfile({
             </button>
           </div>
 
-          {/* 로그아웃 */}
           <button
             onClick={onLogout}
             className="w-full rounded-xl py-3 text-white font-semibold mt-1 active:scale-[0.99] transition"
@@ -316,7 +289,6 @@ function SidebarProfile({
         </div>
       </div>
 
-      {/* 하단 퀵 액션 */}
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4 space-y-3 mt-4">
         <div className="text-sm font-semibold text-gray-900">빠른 실행</div>
         <div className="grid gap-2">
@@ -366,7 +338,9 @@ function WaitingList({
           <div className="px-3 py-2 text-sm text-red-600">오류: {error}</div>
         )}
         {!loading && !error && list.length === 0 && (
-          <div className="px-3 py-2 text-sm text-gray-500">표시할 항목이 없습니다.</div>
+          <div className="px-3 py-2 text-sm text-gray-500">
+            표시할 항목이 없습니다.
+          </div>
         )}
         {!loading &&
           !error &&
@@ -384,7 +358,7 @@ function WaitingList({
   );
 }
 
-/** 좌석 그리드 */
+/** 좌석 그리드(추후 연동) */
 function SeatGrid({ seats }: { seats: SeatCell[] | null }) {
   if (!seats || seats.length === 0) {
     return (
@@ -406,7 +380,9 @@ function SeatGrid({ seats }: { seats: SeatCell[] | null }) {
           </div>
         ))}
       </div>
-      <div className="mt-4 text-right text-xs text-gray-500">* 좌석 배치 (실데이터)</div>
+      <div className="mt-4 text-right text-xs text-gray-500">
+        * 좌석 배치 (실데이터)
+      </div>
     </div>
   );
 }
@@ -416,7 +392,7 @@ export default function GreenAcademyDashboard() {
   const router = useRouter();
 
   // 가드
-  const [user, setUser] = useState<LoginSession | null>(null);
+  const [user, setUser] = useState<NonNullable<LoginSession> | null>(null);
   const [ready, setReady] = useState(false);
 
   // 탭
@@ -434,26 +410,18 @@ export default function GreenAcademyDashboard() {
   // 왼쪽 리스트
   const [list, setList] = useState<Array<{ label: string; sub?: string }>>([]);
 
-  // 좌석
-  const [seats, setSeats] = useState<SeatCell[] | null>(null);
+  // 좌석 (미연동)
+  const [seats] = useState<SeatCell[] | null>(null);
 
   /** 세션 로드 & 가드 */
   useEffect(() => {
-    const raw = localStorage.getItem("login");
-    if (!raw) {
+    const s = getSession();
+    if (!s) {
       router.replace("/login");
       return;
     }
-    try {
-      const parsed = JSON.parse(raw) as LoginSession;
-      setUser(parsed);
-    } catch {
-      localStorage.removeItem("login");
-      router.replace("/login");
-      return;
-    } finally {
-      setReady(true);
-    }
+    setUser(s);
+    setReady(true);
   }, [router]);
 
   /** 역할별 데이터 로딩 (종합정보 탭일 때만 호출) */
@@ -467,14 +435,14 @@ export default function GreenAcademyDashboard() {
     (async () => {
       try {
         setList([]);
-        setSeats(null);
 
-        // Teacher: 오늘 수업 목록 + 각 수업 출석 합산
         if (user.role === "teacher") {
+          // 내 반 목록 가져오기(오늘 수업 표시 용도)
           const classes = await apiGet<TeacherClass[]>(
-            `${API_BASE}/api/teachers/${encodeURIComponent(user.username)}/classes`,
-            user.token
+            `/api/manage/teachers/${encodeURIComponent(user.username)}/classes`
           );
+
+          // schedule 필드가 있으면 오늘만 필터
           const todayClasses = classes.filter((c) =>
             !c.schedule ? true : isSameDate(c.schedule)
           );
@@ -486,59 +454,52 @@ export default function GreenAcademyDashboard() {
             }))
           );
 
-          let all: TeacherAttendanceRow[] = [];
-          for (const c of todayClasses) {
-            const att = await apiGet<TeacherAttendanceRow[]>(
-              `${API_BASE}/api/teachers/classes/${encodeURIComponent(
-                c.classId
-              )}/attendance`,
-              user.token
-            );
-            const today = att.filter((r) => isSameDate(r.date));
-            all = all.concat(today.map((t) => ({ ...t, className: c.className })));
-          }
-
-          const sum = summarizeAttendance(all);
-          setPresent(sum.present);
-          setLate(sum.late);
-          setAbsent(sum.absent);
-
-          // 좌석 API가 있다면 여기에서 setSeats
-          // const seatsData = await apiGet<SeatCell[]>(
-          //   `${API_BASE}/api/classes/${encodeURIComponent(todayClasses[0].classId)}/seats`,
-          //   user.token
-          // );
-          // setSeats(seatsData);
-
+          // 출결 합계는 출결 API 연동 시 갱신
+          setPresent(0);
+          setLate(0);
+          setAbsent(0);
           return;
         }
 
-        // Student/Parent: 본인(또는 자녀) 오늘 출석
-        const targetStudentId =
-          user.role === "parent"
-            ? user.childStudentId || user.username
-            : user.username;
-
-        const rows = await apiGet<StudentAttendanceRow[]>(
-          `${API_BASE}/api/students/${encodeURIComponent(targetStudentId)}/attendance`,
-          user.token
-        );
-        const todayRows = rows.filter((r) => isSameDate(r.date));
-
-        const sum = summarizeAttendance(todayRows);
-        setPresent(sum.present);
-        setLate(sum.late);
-        setAbsent(sum.absent);
-
-        setList(
-          todayRows.map((r) => ({
-            label: r.className,
-            sub: `${r.status} • ${r.date}`,
-          }))
-        );
-
-        // 좌석 API 연동 시:
-        // setSeats(await apiGet<SeatCell[]>(`${API_BASE}/api/classes/${someClassId}/seats`, user.token));
+        // 학생/학부모 출결
+        if (user.role === "parent") {
+          const target = user.childStudentId || user.username;
+          const rows = await apiGet<StudentAttendanceRow[]>(
+            `/api/parents/${encodeURIComponent(target)}/attendance`
+          );
+          const todayRows = rows.filter((r) => isSameDate(r.date));
+          const sum = summarizeAttendance(todayRows);
+          setPresent(sum.present);
+          setLate(sum.late);
+          setAbsent(sum.absent);
+          setList(
+            todayRows.map((r) => ({
+              label: r.className,
+              sub: `${r.status} • ${r.date}`,
+            }))
+          );
+        } else if (user.role === "student") {
+          const rows = await apiGet<StudentAttendanceRow[]>(
+            `/api/students/${encodeURIComponent(user.username)}/attendance`
+          );
+          const todayRows = rows.filter((r) => isSameDate(r.date));
+          const sum = summarizeAttendance(todayRows);
+          setPresent(sum.present);
+          setLate(sum.late);
+          setAbsent(sum.absent);
+          setList(
+            todayRows.map((r) => ({
+              label: r.className,
+              sub: `${r.status} • ${r.date}`,
+            }))
+          );
+        } else {
+          // director 등은 일단 빈값
+          setPresent(0);
+          setLate(0);
+          setAbsent(0);
+          setList([]);
+        }
       } catch (e: any) {
         setErr(e?.message ?? "데이터를 불러오지 못했습니다.");
       } finally {
@@ -548,8 +509,14 @@ export default function GreenAcademyDashboard() {
   }, [ready, user, activeTab]);
 
   const handleLogout = () => {
-    localStorage.removeItem("login");
+    clearSession();
     router.replace("/login");
+  };
+
+  // ✅ “관리” 클릭 시 라우팅, 나머지는 내부 탭 전환
+  const handleTab = (t: string) => {
+    if (t === "관리") router.push("/manage");
+    else setActiveTab(t);
   };
 
   if (!ready) return null;
@@ -561,7 +528,6 @@ export default function GreenAcademyDashboard() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-1 ring-black/5 overflow-hidden">
-              {/* 헤더 로고 아이콘 */}
               <Image
                 src="/logo.png"
                 alt="Logo"
@@ -572,14 +538,15 @@ export default function GreenAcademyDashboard() {
               />
             </div>
             <div className="leading-tight">
-              <div className="text-lg font-semibold text-gray-900">Green Academy</div>
+              <div className="text-lg font-semibold text-gray-900">
+                Green Academy
+              </div>
               <div className="text-sm text-gray-600 -mt-0.5">Partner</div>
             </div>
           </div>
 
-          <NavTabs active={activeTab} onChange={setActiveTab} />
+          <NavTabs active={activeTab} onChange={handleTab} />
 
-          {/* 프로필 드롭다운 메뉴 */}
           <ProfileMenu user={user} />
         </div>
       </header>
@@ -588,7 +555,7 @@ export default function GreenAcademyDashboard() {
       <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
         <SidebarProfile user={user} onLogout={handleLogout} />
 
-        {/* 탭별 콘텐츠 분기 */}
+        {/* 탭별 콘텐츠 */}
         {activeTab === "종합정보" && (
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -611,18 +578,7 @@ export default function GreenAcademyDashboard() {
                 loading={loading}
                 error={err}
               />
-              <SeatGrid seats={seats} />
-            </div>
-          </div>
-        )}
-
-        {activeTab === "관리" && (
-          <div className="space-y-4">
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">관리</h2>
-              <p className="text-sm text-gray-700">
-                사용자/수업/좌석 관리 기능을 연결하세요. (예: /api/admin/*)
-              </p>
+              <SeatGrid seats={null} />
             </div>
           </div>
         )}
@@ -632,7 +588,7 @@ export default function GreenAcademyDashboard() {
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">시간표</h2>
               <p className="text-sm text-gray-700">
-                역할별 시간표 API를 연동하세요. (교사: 오늘 수업, 학생/학부모: 수업 목록)
+                역할별 시간표 API를 연동하세요.
               </p>
             </div>
           </div>
@@ -650,7 +606,9 @@ export default function GreenAcademyDashboard() {
         {activeTab === "공지사항" && (
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">공지사항</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                공지사항
+              </h2>
               <p className="text-sm text-gray-700">공지 API 또는 CMS를 연결하세요.</p>
             </div>
           </div>
@@ -671,13 +629,13 @@ export default function GreenAcademyDashboard() {
   );
 }
 
-/** 통계 합산 함수 */
+/** 통계 합산 */
 function summarizeAttendance<T extends { status: string }>(rows: T[]) {
   let present = 0,
     late = 0,
     absent = 0;
   rows.forEach((r) => {
-    const s = r.status.toUpperCase();
+    const s = (r.status || "").toUpperCase();
     if (s.includes("LATE")) late += 1;
     else if (s.includes("ABSENT") || s.includes("ABS")) absent += 1;
     else present += 1;

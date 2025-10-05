@@ -1,6 +1,7 @@
 package com.team103.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 
@@ -13,5 +14,7 @@ public interface RoomRepository extends MongoRepository<Room, Integer> {
     List<Room> findByAcademyNumber(int academyNumber);
 
     Room findByRoomNumberAndAcademyNumber(int roomNumber, int academyNumber);
+    
+    Optional<Room> findByRoomNumberAndAcademyNumber(Integer roomNumber, Integer academyNumber);
 }
 

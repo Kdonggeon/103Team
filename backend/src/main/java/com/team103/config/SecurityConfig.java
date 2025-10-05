@@ -52,6 +52,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/teachers").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/manage/**").permitAll()
                 
 
                 // 계정 탈퇴
