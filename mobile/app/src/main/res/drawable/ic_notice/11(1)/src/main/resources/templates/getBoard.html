@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<!-- 게시글 상세보기 + 작성자만 채택 기능 + 작성자는 수정 및 삭제가능 + 작성자가 아니면 답변 가능 -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${board.title}">게시글 제목</title>
+    <style>
+        body { background-color: white; color: #000; font-family: 'Segoe UI', sans-serif; padding: 40px; }
+        .back-link { display: inline-block; margin-bottom: 40px; font-size: 15px; text-decoration: none; color: #5555ff; }
+        .back-link:hover { text-decoration: underline; }
+        .post-container { max-width: 800px; margin: 0 auto; }
+        .post-title { font-size: 28px; font-weight: bold; }
+        .post-meta { font-size: 14px; color: #888; margin-bottom: 20px; }
+        .post-content { font-size: 16px; line-height: 1.8; white-space: pre-wrap; }
+        .answer-section { margin-top: 60px; border-top: 1px solid #ccc; padding-top: 30px; }
+        .answer-item { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .answer-meta { font-size: 13px; color: #777; margin-bottom: 5px; }
+        .answer-selected { color: green; font-weight: bold; }
+        .control-buttons { margin-top: 20px; text-align: center; }
+        .control-buttons form, .control-buttons a { display: inline-block; margin: 0 10px; }
+    </style>
+</head>
+<body>
+    <a th:href="@{/getBoardList}" class="back-link">← 목록으로 돌아가기</a>
+    <!-- 링크 복사 버튼 -->
+    <a href="#" id="btnCopyLink" class="back-link" style="float: right; margin-bottom: 40px;">링크 복사</a>
+
+    <div class="post-container">
+        <div class="post-title" th:text="${board.title}">제목</div>
+        <div class="post-meta">
+            <span th:text="${board.member.id}">작성자ID</span> ·
+            <span th:text="${#dates.format(board.createDate,'yyyy-MM-dd HH:mm:ss')}">작성일</span>
+        </div>
+        <div class="post-content" th:text="${board.content}">내용 표시</div>
+
+        <!-- 답변 목록 -->
+        <div class="answer-section">
+            <h3>💬 답변 목록</h3>
+            <div th:if="${#lists.isEmpty(answers)}"><p>아직 등록된 답변이 없습니다.</p></div>
+            <div th:each="answer: ${answers}" class="answer-item">
+                <div class="answer-meta">
+                    <span th:text="${answer.writerId}">답변자ID</span>
+                    <span th:if="${answer.selected}" class="answer-selected"> 채택됨</span>
+                </div>
+                <div th:text="${answer.content}">답변 내용</div>
+                <form th:if="${session.user != null and session.user.id == board.member.id and !answer.selected}" th:action="@{'/answer/select/' + ${answer.id}}" method="post">
+                    <button type="submit">이 답변 채택하기</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 답변 등록 폼 -->
+        <div class="answer-section" th:if="${session.user != null and session.user.id != board.member.id}">
+            <h3>✏️ 답변 작성</h3>
+            <form th:action="@{/answer/add}" method="post" style="display:inline-block; vertical-align: top;">
+                <input type="hidden" name="boardId" th:value="${board.seq}" />
+                <textarea name="content" rows="4" cols="60" placeholder="답변을 입력하세요" required></textarea><br>
+                <button type="submit">답변 등록</button>
+            </form>
+            <!-- 차단 버튼 분리: 독립 폼 -->
+            <form th:action="@{/blacklist/add}" method="post" style="display:inline-block; margin-left:10px; vertical-align: top;">
+                <input type="hidden" name="blockedId" th:value="${board.member.id}" />
+                <button type="submit">차단</button>
+            </form>
+        </div>
+
+        <!-- 수정/삭제 버튼: 작성자만 -->
+        <div class="control-buttons" th:if="${session.user != null and session.user.id == board.member.id}">
+            <a th:href="@{/editBoard(seq=${board.seq})}"><button type="button">수정</button></a>
+            <form th:action="@{/deleteBoard}" method="post" style="display:inline-block; margin-left:10px;">
+                <input type="hidden" name="seq" th:value="${board.seq}" />
+                <button type="submit" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 링크 복사 기능 스크립트 -->
+    <script th:inline="javascript">
+    /*<![CDATA[*/
+      document.getElementById('btnCopyLink').addEventListener('click', function(e) {
+        e.preventDefault();
+        const url = window.location.href;
+        navigator.clipboard.writeText(url)
+          .then(function() {
+            alert('현재 게시글 URL이 복사되었습니다:\n' + url);
+          })
+          .catch(function(err) {
+            console.error('복사 실패:', err);
+            alert('복사에 실패했습니다.');
+          });
+      });
+    /*]]>*/
+    </script>
+</body>
+</html>

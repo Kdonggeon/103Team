@@ -87,6 +87,18 @@
     </style>
     <!-- 기존 참조 호환 -->
     <style name="Widget.Green.BoxRow" parent="Widget.Green.BoxRow.Fixed" />
+    <!-- 라디오 버튼: 원은 유지하되 색상은 고정 -->
+    <style name="Widget.App.RadioButton" parent="Widget.Material3.CompoundButton.RadioButton">
+        <!-- 테마 색상 무시 -->
+        <item name="useMaterialThemeColors">false</item>
+        <!-- 선택/비선택 상태 색상 지정 (회색/검정 등) -->
+        <item name="android:buttonTint">@android:color/darker_gray</item>
+        <!-- 배경 없애기 (선택 시 배경색 방지) -->
+        <item name="android:background">@null</item>
+        <!-- 텍스트 색 -->
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
 
 
 

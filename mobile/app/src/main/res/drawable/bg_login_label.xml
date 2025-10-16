@@ -1,0 +1,7 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/green" />
+    <corners android:radius="24dp" /> <!-- 둥근 pill 모양 -->
+    <padding android:left="16dp" android:top="8dp"
+        android:right="16dp" android:bottom="8dp"/>
+</shape>

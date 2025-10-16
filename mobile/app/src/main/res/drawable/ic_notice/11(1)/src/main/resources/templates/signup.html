@@ -1,0 +1,78 @@
+<!DOCTYPE html> <!-- 회원 가입 창 -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>회원가입</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #ffffff; /* 배경을 흰색으로 통일 */
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 400px;
+            margin: 100px auto;
+            padding: 30px;
+            background-color: #f9f9f9;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+            border-radius: 6px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333333;
+        }
+
+        input[type="text"], input[type="password"], input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #ffffff;
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .login-link a {
+            text-decoration: none;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>회원가입</h2>
+    <form th:action="@{/signup}" method="post">
+        <input type="text" name="id" placeholder="아이디" required />
+        <input type="password" name="password" placeholder="비밀번호" required />
+        <input type="text" name="name" placeholder="이름" required />
+        <input type="submit" value="회원가입" />
+    </form>
+    <div class="login-link">
+        <a th:href="@{/login}">이미 계정이 있으신가요? 로그인하기</a>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>그룹 입장</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f7f7f7;
+            text-align: center;
+            padding-top: 120px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: inline-block;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        input[type="password"] {
+            padding: 8px;
+            margin-bottom: 10px;
+            width: 200px;
+        }
+
+        button {
+            padding: 8px 16px;
+        }
+
+        .error {
+            color: red;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2 th:text="'[' + ${group.name} + '] 비밀번호를 입력하세요'">그룹 비밀번호 입력</h2>
+
+    <form th:action="@{/groupLogin/{id}(id=${group.id})}" method="post">
+        <div th:if="${error}" class="error" th:text="${error}"></div>
+        <input type="password" name="password" placeholder="비밀번호" required />
+        <br/>
+        <button type="submit">입장하기</button>
+    </form>
+
+</body>
+</html>

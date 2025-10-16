@@ -1,0 +1,57 @@
+<!DOCTYPE html> <!-- 작성자만 수정가능 -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>게시글 수정</title>
+    <style>
+        body {
+            background-color: white;
+            color: #000000;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 40px;
+        }
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>게시글 수정</h2>
+        <form th:action="@{/updateBoard}" method="post">
+            <!-- 게시글 번호 (hidden 필드) -->
+            <input type="hidden" name="seq" th:value="${board.seq}" />
+
+            <!-- 제목 -->
+            <label>제목</label>
+            <input type="text" name="title" th:value="${board.title}" required />
+
+            <!-- 내용 -->
+            <label>내용</label>
+            <textarea name="content" rows="10" required th:text="${board.content}"></textarea>
+
+            <!-- 제출 -->
+            <button type="submit">수정 완료</button>
+        </form>
+    </div>
+</body>
+</html>

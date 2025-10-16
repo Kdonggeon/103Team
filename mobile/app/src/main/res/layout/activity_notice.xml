@@ -1,58 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/drawer_layout_notice"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <LinearLayout
-        android:orientation="vertical"
+    <!-- 상단 툴바 -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar_notice"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="?attr/actionBarSize"
+        android:gravity="center"
+        app:title="공지사항"
+        app:titleTextColor="@color/white" />
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar_notice"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:gravity="center"
-            app:title="공지사항"
-            app:titleTextColor="@color/white" />
+    <!-- 학원 선택 스피너 -->
+    <Spinner
+        android:id="@+id/spinner_academy"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:layout_margin="16dp"
+        android:spinnerMode="dropdown"
+        android:background="@drawable/spinner_bg_with_arrow"/>
 
-        <Spinner
-            android:id="@+id/spinner_academy"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="48dp"
-            android:layout_margin="16dp"
-            android:spinnerMode="dropdown"
-            android:background="@drawable/spinner_bg_with_arrow"/>
+    <!-- 로딩 ProgressBar -->
+    <ProgressBar
+        android:id="@+id/pb_loading_notices"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:indeterminate="true"
+        android:visibility="gone" />
 
+    <!-- 공지사항 목록 RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_notices"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="16dp" />
 
-        <ProgressBar
-            android:id="@+id/pb_loading_notices"
-            android:layout_width="match_parent"
-            android:layout_height="4dp"
-            android:indeterminate="true"
-            android:visibility="gone" />
+    <!-- 공지 등록 버튼 -->
+    <Button
+        android:id="@+id/btn_add_notice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="공지 등록" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_notices"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+    <!-- 🔽 네비게이션 숨기기 버튼 -->
+    <ImageButton
+        android:id="@+id/btn_hide_nav"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="4dp"
+        android:src="@android:drawable/arrow_down_float"
+        android:background="@android:color/transparent"
+        android:contentDescription="네비게이션 숨기기" />
 
-        <Button
-            android:id="@+id/btn_add_notice"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="공지 등록" />
-    </LinearLayout>
+    <!-- 🔼 네비게이션 보이기 버튼 (기본 숨김) -->
+    <ImageButton
+        android:id="@+id/btn_show_nav"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="4dp"
+        android:src="@android:drawable/arrow_up_float"
+        android:background="@android:color/transparent"
+        android:visibility="gone"
+        android:contentDescription="네비게이션 보이기" />
 
-    <LinearLayout
-        android:id="@+id/nav_container_notice"
-        android:layout_width="280dp"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:orientation="vertical"
-        android:background="@android:color/darker_gray" />
-</androidx.drawerlayout.widget.DrawerLayout>
+    <!-- ✅ 하단 네비게이션바 -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="12dp"
+        android:background="@drawable/bg_bottom_nav_rounded"
+        app:menu="@menu/bottom_nav_menu"
+        app:itemIconTint="@color/nav_item_color"
+        app:itemTextColor="@color/nav_item_color"
+        app:labelVisibilityMode="selected"
+        android:elevation="8dp"/>
+
+</LinearLayout>

@@ -19,6 +19,7 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.Button;
 import android.widget.GridLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -26,24 +27,27 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.ViewCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.mobile.greenacademypartner.R;
 import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
-import com.mobile.greenacademypartner.menu.NavigationMenuHelper;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
-import com.mobile.greenacademypartner.menu.ToolbarIconUtil;
+import com.mobile.greenacademypartner.ui.attendance.AttendanceActivity;
 import com.mobile.greenacademypartner.ui.login.LoginActivity;
+import com.mobile.greenacademypartner.ui.main.MainActivity;
+import com.mobile.greenacademypartner.ui.mypage.MyPageActivity;
+import com.mobile.greenacademypartner.ui.notice.NoticeActivity;
+import com.mobile.greenacademypartner.ui.timetable.QRScannerActivity;
+import com.mobile.greenacademypartner.ui.timetable.StudentTimetableActivity;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -51,26 +55,23 @@ import retrofit2.Response;
 
 public class SettingActivity extends AppCompatActivity {
 
-    private DrawerLayout drawerLayout;
     private Toolbar toolbar;
-    private LinearLayout navContainer;
-    private TextView mainContentText;
     private GridLayout colorGrid;
     private Button btnLogout;
 
     private LinearLayout boxNotifications;
     private SwitchCompat swInApp;
 
-    // 폰트 설정 섹션 (XML 바인딩 우선, 없으면 동적 생성)
-    private LinearLayout boxFonts; // 동적 대체용(유지)
+    private LinearLayout boxFonts;
     private RadioButton rbSystem, rbNoto;
 
-    // 중립(고정) 틴트 팔레트
-    private ColorStateList NEUTRAL_THUMB;   // 스위치 손잡이
-    private ColorStateList NEUTRAL_TRACK;   // 스위치 트랙
-    private ColorStateList NEUTRAL_RADIO;   // 라디오 버튼
+    private ColorStateList NEUTRAL_THUMB;
+    private ColorStateList NEUTRAL_TRACK;
+    private ColorStateList NEUTRAL_RADIO;
 
-    int defaultIndex = 5;
+    // ✅ 네비게이션 토글 버튼
+    private ImageButton btnHideNav, btnShowNav;
+    private BottomNavigationView bottomNavigation;
 
     @SuppressLint("MissingInflatedId")
     @Override
@@ -78,19 +79,32 @@ public class SettingActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setting);
 
-        // 1) 뷰 초기화
-        drawerLayout = findViewById(R.id.drawer_layout_setting);
         toolbar = findViewById(R.id.toolbar_setting);
-        navContainer = findViewById(R.id.nav_container_setting);
         colorGrid = findViewById(R.id.color_grid);
-        mainContentText = findViewById(R.id.main_content_text);
         btnLogout = findViewById(R.id.btn_logout);
-
         boxNotifications = findViewById(R.id.box_notifications);
         swInApp = findViewById(R.id.switch_inapp_notifications);
 
-        // 2) 배경 흰색 + 중립 팔레트 구성
-        drawerLayout.setBackgroundColor(Color.WHITE);
+        // ✅ 토글 버튼 & 네비게이션 연결
+        bottomNavigation = findViewById(R.id.bottom_navigation);
+        btnHideNav = findViewById(R.id.btn_hide_nav);
+        btnShowNav = findViewById(R.id.btn_show_nav);
+
+        // 🔽 네비게이션 숨기기
+        btnHideNav.setOnClickListener(v -> {
+            bottomNavigation.setVisibility(View.GONE);
+            btnHideNav.setVisibility(View.GONE);
+            btnShowNav.setVisibility(View.VISIBLE);
+        });
+
+        // 🔼 네비게이션 보이기
+        btnShowNav.setOnClickListener(v -> {
+            bottomNavigation.setVisibility(View.VISIBLE);
+            btnShowNav.setVisibility(View.GONE);
+            btnHideNav.setVisibility(View.VISIBLE);
+        });
+
+        // ===== 초기화 =====
         View content = findViewById(android.R.id.content);
         if (content != null) content.setBackgroundColor(Color.WHITE);
         buildNeutralPalettes();
@@ -101,57 +115,32 @@ public class SettingActivity extends AppCompatActivity {
         swInApp.setTrackTintList(null);
         ViewCompat.setBackgroundTintList(swInApp, null);
         swInApp.setBackground(null);
-        clearSwitchBackdrop(); // 최초 배경 제거
+        clearSwitchBackdrop();
         disableMaterialThemeColors(swInApp);
 
-        // XML tint가 있다면 보강 적용(없어도 무방)
         ColorStateList trackXml = ContextCompat.getColorStateList(this, R.color.switch_track_neutral);
         ColorStateList thumbXml = ContextCompat.getColorStateList(this, R.color.switch_thumb_neutral);
         if (trackXml != null) swInApp.setTrackTintList(trackXml);
         if (thumbXml != null) swInApp.setThumbTintList(thumbXml);
 
-        // 3) 툴바 색/설정 및 항상 최상단
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
         toolbar.bringToFront();
         ViewCompat.setElevation(toolbar, dp(6));
 
-        // 4) 드로어 토글
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawerLayout, toolbar,
-                R.string.navigation_drawer_open,
-                R.string.navigation_drawer_close
-        );
-        drawerLayout.addDrawerListener(toggle);
-        toggle.syncState();
-        ToolbarIconUtil.applyWhiteIcons(toolbar, toggle);
-
-        // 5) 메뉴
-        NavigationMenuHelper.setupMenu(this, navContainer, drawerLayout, mainContentText, defaultIndex);
-
-        // 6) “테마 색상 변경” 제목을 colorGrid 위에 동적 추가
         insertThemeTitleAboveGrid();
-
-        // 7) 색상 박스(그룹) 데코/패딩
         decorateColorGrid();
-
-        // 7-1) 인앱 알림 카드 동일 스타일
         decorateNotificationCard();
 
-        // 7-2) 폰트 설정: XML 우선 바인딩, 없으면 기존 동적 생성 유지 (모두에게 보임)
         if (findViewById(R.id.card_font_settings) != null) {
             bindFontControlsFromXml();
         } else {
             insertFontSectionBelowNotifications();
         }
 
-        // 7-3) 자녀 추가 카드(XML): 학부모 전용 가시성/동작 + 카드 디자인 동일화
         setupAddChildCardFromXml();
-
-        // 8) 색상 칩 채우기
         setupColorSelection();
 
-        // 9) 인앱 알림 스위치 상태
         SharedPreferences settings = getSharedPreferences("settings", MODE_PRIVATE);
         SharedPreferences login = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String currentUserId = login.getString("username", "");
@@ -159,13 +148,8 @@ public class SettingActivity extends AppCompatActivity {
         boolean enabled = settings.getBoolean(notifKey, true);
         swInApp.setChecked(enabled);
 
-        // 9-1) 중립 틴트 최초/지연 적용 + 배경 제거
         applyNeutralTints();
         clearSwitchBackdrop();
-        swInApp.post(() -> {
-            applyNeutralTints();
-            clearSwitchBackdrop();
-        });
 
         swInApp.setOnCheckedChangeListener((buttonView, isChecked) -> {
             settings.edit().putBoolean(notifKey, isChecked).apply();
@@ -188,13 +172,8 @@ public class SettingActivity extends AppCompatActivity {
 
             applyNeutralTints();
             clearSwitchBackdrop();
-            swInApp.post(() -> {
-                applyNeutralTints();
-                clearSwitchBackdrop();
-            });
         });
 
-        // 10) 로그아웃
         btnLogout.setOnClickListener(v -> {
             SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
             prefs.edit().clear().apply();
@@ -204,15 +183,32 @@ public class SettingActivity extends AppCompatActivity {
             finish();
         });
 
-        // 11) 설정 메뉴 선택 표시 및 테마 적용 → 즉시 중립 틴트/배경 재적용
-        View settingView = navContainer.getChildAt(defaultIndex);
-        if (settingView != null) settingView.performClick();
-        com.mobile.greenacademypartner.ui.setting.ThemeColorUtil.applyThemeColor(this, toolbar);
-        applyNeutralTints();
-        clearSwitchBackdrop();
-        swInApp.post(() -> {
-            applyNeutralTints();
-            clearSwitchBackdrop();
+        ThemeColorUtil.applyThemeColor(this, toolbar);
+
+        // ✅ 하단 네비게이션 이동
+        bottomNavigation.setOnItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.nav_home) {
+                startActivity(new Intent(this, MainActivity.class));
+                overridePendingTransition(0, 0);
+                return true;
+            } else if (id == R.id.nav_attendance) {
+                startActivity(new Intent(this, AttendanceActivity.class));
+                overridePendingTransition(0, 0);
+                return true;
+            } else if (id == R.id.nav_qr) {
+                startActivity(new Intent(this, QRScannerActivity.class));
+                return true;
+            } else if (id == R.id.nav_timetable) {
+                startActivity(new Intent(this, StudentTimetableActivity.class));
+                overridePendingTransition(0,0);
+                return true;
+            } else if (id == R.id.nav_my) {
+                startActivity(new Intent(this, MyPageActivity.class));
+                overridePendingTransition(0, 0);
+                return true;
+            }
+            return false;
         });
     }
 
@@ -222,13 +218,10 @@ public class SettingActivity extends AppCompatActivity {
         disableMaterialThemeColors(swInApp);
         applyNeutralTints();
         clearSwitchBackdrop();
-        swInApp.post(() -> {
-            applyNeutralTints();
-            clearSwitchBackdrop();
-        });
     }
 
-    /** colorGrid 위에 “테마 색상 변경” 제목을 추가(새 ID 없이 런타임 배치) */
+    /** ===== 유틸 메소드 ===== */
+
     private void insertThemeTitleAboveGrid() {
         if (colorGrid == null) return;
         ViewParent parent = colorGrid.getParent();
@@ -256,35 +249,12 @@ public class SettingActivity extends AppCompatActivity {
             if (lp0 instanceof RelativeLayout.LayoutParams) {
                 RelativeLayout.LayoutParams glp = (RelativeLayout.LayoutParams) lp0;
                 glp.addRule(RelativeLayout.BELOW, titleId);
-                glp.setMargins(dp(16), dp(8), dp(16), dp(16));
-                colorGrid.setLayoutParams(glp);
-            }
-        } else if (parent instanceof LinearLayout) {
-            LinearLayout pr = (LinearLayout) parent;
-            int idx = pr.indexOfChild(colorGrid);
-
-            TextView title = new TextView(this);
-            title.setText("테마 색상 변경");
-            title.setTextSize(18f);
-            title.setTypeface(title.getTypeface(), Typeface.BOLD);
-            title.setTextColor(Color.BLACK);
-            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-            tlp.setMargins(dp(16), dp(16), dp(16), 0);
-            pr.addView(title, idx);
-
-            ViewGroup.LayoutParams lp0 = colorGrid.getLayoutParams();
-            if (lp0 instanceof LinearLayout.LayoutParams) {
-                LinearLayout.LayoutParams glp = (LinearLayout.LayoutParams) lp0;
-                glp.setMargins(dp(16), dp(8), dp(16), dp(16));
+                glp.setMargins(dp(16), dp(20), dp(16), dp(16));
                 colorGrid.setLayoutParams(glp);
             }
         }
     }
 
-    /** XML에 정의된 폰트설정 카드 바인딩(기능/디자인 동일 유지, 모두에게 노출) */
     private void bindFontControlsFromXml() {
         RadioGroup group = findViewById(R.id.rg_font_choice);
         rbSystem = findViewById(R.id.rb_font_system);
@@ -292,9 +262,6 @@ public class SettingActivity extends AppCompatActivity {
         View btnApply = findViewById(R.id.btn_font_apply);
 
         if (group == null || rbSystem == null || rbNoto == null || btnApply == null) return;
-
-        rbSystem.setText("기본 폰트(시스템)");
-        rbNoto.setText("Noto Sans KR");
 
         SharedPreferences sp = getSharedPreferences("app_prefs", MODE_PRIVATE);
         String cur = sp.getString("app_font", "System");
@@ -307,10 +274,9 @@ public class SettingActivity extends AppCompatActivity {
         });
     }
 
-    /** 알림 카드 바로 아래에 “폰트 설정” 카드(동적) 추가: XML이 없을 때만 사용 */
     private void insertFontSectionBelowNotifications() {
         if (boxNotifications == null) return;
-        if (findViewById(R.id.card_font_settings) != null) return; // XML 있으면 스킵
+        if (findViewById(R.id.card_font_settings) != null) return;
 
         boxFonts = new LinearLayout(this);
         boxFonts.setOrientation(LinearLayout.VERTICAL);
@@ -322,16 +288,17 @@ public class SettingActivity extends AppCompatActivity {
         title.setTypeface(title.getTypeface(), Typeface.BOLD);
         title.setTextColor(Color.BLACK);
         title.setPadding(0, 0, 0, dp(8));
-        if (boxFonts instanceof ViewGroup) ((ViewGroup) boxFonts).addView(title);
+        boxFonts.addView(title);
 
         RadioGroup group = new RadioGroup(this);
         group.setOrientation(RadioGroup.VERTICAL);
 
         rbSystem = new RadioButton(this);
         rbSystem.setText("기본 폰트(시스템)");
-
+        rbSystem.setBackgroundColor(Color.TRANSPARENT);
         rbNoto = new RadioButton(this);
         rbNoto.setText("Noto Sans KR");
+        rbNoto.setBackgroundColor(Color.TRANSPARENT);
 
         group.addView(rbSystem);
         group.addView(rbNoto);
@@ -352,70 +319,37 @@ public class SettingActivity extends AppCompatActivity {
             recreate();
         });
 
-        ViewParent parent = boxNotifications.getParent();
-        if (parent instanceof RelativeLayout) {
-            RelativeLayout pr = (RelativeLayout) parent;
-            int fontId = View.generateViewId();
-            boxFonts.setId(fontId);
-            RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
-                    RelativeLayout.LayoutParams.MATCH_PARENT,
-                    RelativeLayout.LayoutParams.WRAP_CONTENT
-            );
-            lp.addRule(RelativeLayout.BELOW, boxNotifications.getId());
-            lp.setMargins(dp(16), dp(12), dp(16), dp(16));
-            pr.addView(boxFonts, lp);
-        } else if (parent instanceof LinearLayout) {
-            LinearLayout pr = (LinearLayout) parent;
-            int idx = pr.indexOfChild(boxNotifications);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-            lp.setMargins(dp(16), dp(12), dp(16), dp(16));
-            pr.addView(boxFonts, idx + 1);
-            boxFonts.setLayoutParams(lp);
-        } else {
-            ViewGroup root = findViewById(android.R.id.content);
-            if (root instanceof ViewGroup && ((ViewGroup) root).getChildCount() > 0) {
-                ViewGroup contentRoot = (ViewGroup) ((ViewGroup) root).getChildAt(0);
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                );
-                lp.setMargins(dp(16), dp(12), dp(16), dp(16));
-                contentRoot.addView(boxFonts, lp);
-            }
-        }
+        RelativeLayout pr = (RelativeLayout) boxNotifications.getParent();
+        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+        );
+        lp.addRule(RelativeLayout.BELOW, boxNotifications.getId());
+        lp.setMargins(dp(16), dp(12), dp(16), dp(16));
+        pr.addView(boxFonts, lp);
     }
 
-    /** XML의 자녀 추가 카드: 학부모에게만 노출 + 동일 카드 디자인 + 곧장 '자녀 추가' 화면 진입 */
     private void setupAddChildCardFromXml() {
         View addCard = findViewById(R.id.card_add_child_settings);
         View addBtn  = findViewById(R.id.btn_add_child_settings);
         if (addCard == null || addBtn == null) return;
 
-        // 카드 디자인을 인앱 알림/테마 카드와 동일하게 통일
         decorateCardLike(addCard);
 
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String role = prefs.getString("role", "");
 
-        // 학부모만 노출
         if (!"parent".equalsIgnoreCase(role)) {
             addCard.setVisibility(View.GONE);
             return;
         }
         addCard.setVisibility(View.VISIBLE);
 
-        // 곧장 '자녀 추가' 화면으로 이동 (시간표/목록 경유 X)
         addBtn.setOnClickListener(v -> launchAddChildActivityDirect());
     }
 
-    /** '자녀 추가' 액티비티를 리플렉션으로 찾아 바로 실행 (패키지 경로 차이 안전 처리) */
-    @SuppressWarnings("unchecked")
     private void launchAddChildActivityDirect() {
         String[] candidates = new String[] {
-                // 프로젝트에서 실제 사용하는 경로를 최상단에 두세요.
                 "com.mobile.greenacademypartner.ui.timetable.AddChildActivity",
                 "com.mobile.greenacademypartner.ui.parents.AddChildActivity",
                 "com.mobile.greenacademypartner.ui.parent.AddChildActivity",
@@ -441,7 +375,7 @@ public class SettingActivity extends AppCompatActivity {
                 Log.e("Settings", "자녀 추가 화면 실행 실패: " + fqcn, t);
             }
         }
-        Toast.makeText(this, "자녀 추가 화면 클래스를 찾을 수 없습니다. 클래스 경로를 확인해주세요.", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "자녀 추가 화면 클래스를 찾을 수 없습니다.", Toast.LENGTH_LONG).show();
     }
 
     private void setupColorSelection() {
@@ -469,11 +403,6 @@ public class SettingActivity extends AppCompatActivity {
             glp.setMargins(dp(8), dp(8), dp(8), dp(8));
             container.setLayoutParams(glp);
 
-            TextView titleView = new TextView(this);
-            titleView.setTextSize(14f);
-            titleView.setTextColor(Color.BLACK);
-            titleView.setPadding(0, 0, dp(0), dp(6));
-
             View chip = new View(this);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(72), dp(44));
             chip.setLayoutParams(lp);
@@ -486,23 +415,16 @@ public class SettingActivity extends AppCompatActivity {
                         .edit()
                         .putInt("theme_color", color)
                         .apply();
-                com.mobile.greenacademypartner.ui.setting.ThemeColorUtil.applyThemeColor(SettingActivity.this, toolbar);
-
+                ThemeColorUtil.applyThemeColor(SettingActivity.this, toolbar);
                 applyNeutralTints();
                 clearSwitchBackdrop();
-                swInApp.post(() -> {
-                    applyNeutralTints();
-                    clearSwitchBackdrop();
-                });
             });
 
-            container.addView(titleView);
             container.addView(chip);
             colorGrid.addView(container);
         }
     }
 
-    /** 색상 버튼 묶음(그리드) - 둥근 박스 + 패딩 */
     private void decorateColorGrid() {
         if (colorGrid == null) return;
         colorGrid.setPadding(dp(16), dp(16), dp(16), dp(16));
@@ -552,16 +474,15 @@ public class SettingActivity extends AppCompatActivity {
         return (int) (v * getResources().getDisplayMetrics().density);
     }
 
-    // ===== 중립(고정) 팔레트 구성 & 적용 =====
     private void buildNeutralPalettes() {
-        NEUTRAL_THUMB = ColorStateList.valueOf(Color.parseColor("#FAFAFA")); // 손잡이
+        NEUTRAL_THUMB = ColorStateList.valueOf(Color.parseColor("#FAFAFA"));
         int[][] states = new int[][]{
                 new int[]{android.R.attr.state_checked},
                 new int[]{-android.R.attr.state_checked},
         };
         int[] colors = new int[]{
-                Color.parseColor("#C9CDD2"),  // 체크 트랙
-                Color.parseColor("#DDE1E6")   // 미체크 트랙
+                Color.parseColor("#C9CDD2"),
+                Color.parseColor("#DDE1E6")
         };
         NEUTRAL_TRACK = new ColorStateList(states, colors);
         NEUTRAL_RADIO = ColorStateList.valueOf(Color.parseColor("#C9CDD2"));
@@ -592,22 +513,12 @@ public class SettingActivity extends AppCompatActivity {
         if (rbSystem != null) {
             CompoundButtonCompat.setButtonTintList(rbSystem, NEUTRAL_RADIO);
             rbSystem.setTextColor(Color.BLACK);
-            if (Build.VERSION.SDK_INT >= 21) {
-                ColorStateList ripple = ColorStateList.valueOf(0x11000000);
-                rbSystem.setBackground(new RippleDrawable(ripple, null, null));
-            } else {
-                rbSystem.setBackground(null);
-            }
+            rbSystem.setBackgroundColor(Color.TRANSPARENT);
         }
         if (rbNoto != null) {
             CompoundButtonCompat.setButtonTintList(rbNoto, NEUTRAL_RADIO);
             rbNoto.setTextColor(Color.BLACK);
-            if (Build.VERSION.SDK_INT >= 21) {
-                ColorStateList ripple = ColorStateList.valueOf(0x11000000);
-                rbNoto.setBackground(new RippleDrawable(ripple, null, null));
-            } else {
-                rbNoto.setBackground(null);
-            }
+            rbNoto.setBackgroundColor(Color.TRANSPARENT);
         }
     }
 
@@ -616,32 +527,24 @@ public class SettingActivity extends AppCompatActivity {
         try {
             java.lang.reflect.Method m = v.getClass().getMethod("setUseMaterialThemeColors", boolean.class);
             m.invoke(v, false);
-        } catch (NoSuchMethodException ignored) {
         } catch (Throwable t) {
             Log.w("Switch", "disableMaterialThemeColors failed: " + t.getMessage());
         }
     }
 
-    /** 스위치 주변에 씌워진 배경/리플 등을 완전히 제거 */
     private void clearSwitchBackdrop() {
         if (swInApp == null) return;
         try {
-            Drawable bg = swInApp.getBackground();
-            if (bg instanceof RippleDrawable) {
-                ((RippleDrawable) bg).setColor(ColorStateList.valueOf(Color.TRANSPARENT));
-            }
             swInApp.setBackground(null);
             ViewCompat.setBackgroundTintList(swInApp, null);
             if (Build.VERSION.SDK_INT >= 23) swInApp.setForeground(null);
         } catch (Throwable ignored) {}
     }
 
-    // ===== FCM 토큰 서버 반영 (ID 폴백 포함) =====
     private void updateServerToken(String role, String token, SharedPreferences login) {
         if (role == null) return;
 
         String idStudent = login.getString("studentId", null);
-        String idTeacher = login.getString("teacherId", null);
         String idParent = login.getString("parentId", null);
         String username = firstNonEmpty(login.getString("userId", null),
                 login.getString("username", null));

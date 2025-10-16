@@ -1,200 +1,184 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.drawerlayout.widget.DrawerLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/drawer_layout"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 메인 컨텐츠 -->
-    <LinearLayout
+    <!-- 툴바 -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:title="자녀 출석 확인"
+        android:titleTextColor="@android:color/white" />
 
-        <!-- 툴바 -->
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
-            android:title="자녀 출석 확인"
-            android:titleTextColor="@android:color/white" />
+    <!-- 상단 요약 카드 -->
+    <LinearLayout
+        android:id="@+id/summary_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:baselineAligned="false">
 
-
-
-        <!-- 상단 요약: 출석 / 지각 / 결석 -->
-        <LinearLayout
-            android:id="@+id/summary_box"
-            android:layout_width="match_parent"
+        <!-- 출석 카드 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="2dp"
-            android:layout_marginBottom="4dp"
-            android:baselineAligned="false">
-
-
-            <!-- 출석 카드 -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:minHeight="40dp"
-                android:layout_marginEnd="4dp"
-                android:layout_weight="1"
-                app:cardUseCompatPadding="false"
-                app:cardElevation="2dp"
-                app:cardCornerRadius="10dp"
-                app:cardBackgroundColor="@android:color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
-                    android:paddingTop="4dp"
-                    android:paddingBottom="4dp">
-
-                    <ImageView
-                        android:id="@+id/img_present"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:src="@drawable/ic_att_present"
-                        android:adjustViewBounds="true"
-                        android:scaleType="centerInside"
-                        android:contentDescription="출석 아이콘" />
-
-                    <TextView
-                        android:id="@+id/tv_present_count"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:text="출석 0"
-                        android:textStyle="bold"
-                        android:textSize="14sp"
-                        android:textColor="#212121" />
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- 지각 카드 -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:minHeight="40dp"
-                android:layout_marginEnd="4dp"
-                android:layout_weight="1"
-                app:cardUseCompatPadding="false"
-                app:cardElevation="2dp"
-                app:cardCornerRadius="10dp"
-                app:cardBackgroundColor="@android:color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
-                    android:paddingTop="4dp"
-                    android:paddingBottom="4dp">
-
-                    <ImageView
-                        android:id="@+id/img_late"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:src="@drawable/ic_att_late"
-                        android:adjustViewBounds="true"
-                        android:scaleType="centerInside"
-                        android:contentDescription="지각 아이콘" />
-
-                    <TextView
-                        android:id="@+id/tv_late_count"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:text="지각 0"
-                        android:textStyle="bold"
-                        android:textSize="14sp"
-                        android:textColor="#212121" />
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- 결석 카드 -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:minHeight="40dp"
-                android:layout_weight="1"
-                app:cardUseCompatPadding="false"
-                app:cardElevation="2dp"
-                app:cardCornerRadius="10dp"
-                app:cardBackgroundColor="@android:color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
-                    android:paddingTop="4dp"
-                    android:paddingBottom="4dp">
-
-                    <ImageView
-                        android:id="@+id/img_absent"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:src="@drawable/ic_att_absent"
-                        android:adjustViewBounds="true"
-                        android:scaleType="centerInside"
-                        android:contentDescription="결석 아이콘" />
-
-                    <TextView
-                        android:id="@+id/tv_absent_count"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:text="결석 0"
-                        android:textStyle="bold"
-                        android:textSize="14sp"
-                        android:textColor="#212121" />
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-        </LinearLayout>
-
-        <!-- 자녀 선택 스피너 (커스텀 배경/드롭다운 옵션) -->
-        <androidx.appcompat.widget.AppCompatSpinner
-            android:id="@+id/spinner_children"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="4dp"
-            android:spinnerMode="dropdown"
-            android:dropDownWidth="match_parent"
-            android:dropDownVerticalOffset="8dp"
-            android:background="@drawable/spinner_bg_with_arrow" />
-        <!-- 출석 리스트 -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/attendance_list_view"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
             android:layout_weight="1"
-            android:padding="16dp" />
+            app:cardCornerRadius="10dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white"
+            android:layout_marginEnd="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="6dp"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/img_present"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/ic_att_present" />
+
+                <TextView
+                    android:id="@+id/tv_present_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="출석 0"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- 지각 카드 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white"
+            android:layout_marginEnd="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="6dp"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/img_late"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/ic_att_late" />
+
+                <TextView
+                    android:id="@+id/tv_late_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="지각 0"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- 결석 카드 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="6dp"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/img_absent"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/ic_att_absent" />
+
+                <TextView
+                    android:id="@+id/tv_absent_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="결석 0"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="#212121" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
     </LinearLayout>
 
-    <!-- 사이드바 -->
-    <LinearLayout
-        android:id="@+id/nav_container"
-        android:layout_width="280dp"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:orientation="vertical"
-        android:background="@color/white" />
+    <!-- 자녀 선택 스피너 -->
+    <androidx.appcompat.widget.AppCompatSpinner
+        android:id="@+id/spinner_children"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_margin="12dp"
+        android:spinnerMode="dropdown"
+        android:background="@drawable/spinner_bg_with_arrow" />
 
-</androidx.drawerlayout.widget.DrawerLayout>
+    <!-- 출석 리스트 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/attendance_list_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="16dp" />
+
+    <!-- 🔹 토글 버튼 (네비게이션 바 show/hide) -->
+    <ImageButton
+        android:id="@+id/btn_hide_nav"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="4dp"
+        android:src="@android:drawable/arrow_down_float"
+        android:background="@android:color/transparent"
+        android:contentDescription="네비게이션 숨기기" />
+
+    <ImageButton
+        android:id="@+id/btn_show_nav"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="4dp"
+        android:src="@android:drawable/arrow_up_float"
+        android:background="@android:color/transparent"
+        android:visibility="gone"
+        android:contentDescription="네비게이션 보이기" />
+
+    <!-- 🔹 하단 네비게이션 -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="12dp"
+        android:background="@drawable/bg_bottom_nav_rounded"
+        app:menu="@menu/bottom_nav_menu"
+        app:itemIconTint="@color/nav_item_color"
+        app:itemTextColor="@color/nav_item_color"
+        app:labelVisibilityMode="selected"
+        android:elevation="8dp"/>
+
+</LinearLayout>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>그룹 게시판 목록</title>
+  <style>
+    .top-bar {
+      background-color: #f0f0f0;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .user-info {
+      font-weight: bold;
+      color: #333;
+    }
+
+    .board-button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 16px;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .board-button:hover {
+      background-color: #45a049;
+    }
+
+    .logout-btn {
+      background-color: #dc3545;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .logout-btn:hover {
+      background-color: #c82333;
+    }
+
+    /* 우측 하단 고정 */
+    .logout-wrapper {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 100;
+    }
+
+    /* 그룹 리스트 스타일 */
+    .group-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+      list-style: none;
+      padding: 0;
+      margin: 30px 0;
+    }
+
+    .group-list li {
+      background-color: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-align: center;
+    }
+
+    .group-list li:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .group-list a {
+      display: block;
+      padding: 20px;
+      color: #333;
+      text-decoration: none;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .group-list a:hover {
+      color: #4CAF50;
+    }
+
+    .container h2 {
+      margin-top: 20px;
+      font-size: 22px;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ✅ 상단바: 로그인한 사용자와 버튼 -->
+  <div class="top-bar">
+    <!-- 로그인한 ID 출력 -->
+    <div class="user-info" th:if="${session.user != null}">
+      <span th:text="${session.user.id} + '님이 로그인 중입니다.'">로그인 정보</span>
+    </div>
+
+    <!-- 자유게시판으로 이동 버튼 -->
+    <a href="/groups" class="board-button">➕ 그룹 만들기</a>
+    <a href="/getBoardList" class="board-button">📢 자유게시판</a>
+  </div>
+
+  <!-- 그룹 목록 본문 -->
+  <div class="container">
+    <h2>📋 그룹 게시판 목록</h2>
+
+    <!-- groups가 없을 때 -->
+    <div th:if="${#lists.isEmpty(groups)}">
+      <p>등록된 그룹이 없습니다.</p>
+    </div>
+
+    <!-- groups가 있을 때 -->
+    <ul class="group-list" th:if="${not #lists.isEmpty(groups)}">
+      <li th:each="group : ${groups}">
+        <a th:href="@{/groupLogin/{id}(id=${group.id})}" th:text="${group.name}">그룹 이름</a>
+      </li>
+    </ul>
+  </div>
+
+  <div class="logout-wrapper">
+    <form th:action="@{/logout}" method="post">
+      <button type="submit" class="logout-btn">로그아웃</button>
+    </form>
+  </div>
+</body>
+</html>

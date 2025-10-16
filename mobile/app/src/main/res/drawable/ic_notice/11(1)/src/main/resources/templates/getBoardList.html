@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<!-- 게시판 목록 -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>게시판 목록</title>
+    <style>
+        body {
+            background-color: white;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 40px;
+            color: black;
+            position: relative;
+        }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .left-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-home {
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            cursor: pointer;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .btn-home:hover {
+            background-color: #1565c0;
+        }
+        .btn-group-top {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-blacklist, .btn-logout {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            text-decoration: none;
+        }
+        .btn-logout {
+            background-color: #888;
+        }
+        .btn-blacklist:hover {
+            background-color: #555;
+        }
+        .btn-logout:hover {
+            background-color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        a {
+            color: #0000cc;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .writer, .date {
+            text-align: center;
+            width: 120px;
+        }
+        .selected-mark {
+            color: green;
+            font-weight: bold;
+            margin-left: 6px;
+        }
+        /* 오른쪽 아래 글쓰기 버튼 */
+        .btn-write {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            background-color: #1976d2;
+            color: white;
+            padding: 12px 20px;
+            font-size: 15px;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        .btn-write:hover {
+            background-color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="left-group">
+            <a th:href="@{/}" class="btn-home">홈</a>
+            <h2>게시판</h2>
+        </div>
+        <div class="btn-group-top">
+            <a th:href="@{/blacklist}" class="btn-blacklist">블랙리스트 관리</a>
+            <a th:href="@{/logout}" class="btn-logout">로그아웃</a>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>제목</th>
+                <th class="writer">작성자</th>
+                <th class="date">작성일</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="board : ${boardList}">
+                <td>
+                    <a th:href="@{/getBoard(seq=${board.seq})}" th:text="${board.title}">제목</a>
+                    <span th:if="${board.hasSelected}" class="selected-mark">[채택 완료]</span>
+                </td>
+                <td class="writer" th:text="${board.writerId}">작성자</td>
+                <td class="date" th:text="${#dates.format(board.createDate, 'MM.dd')}">06.19</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 오른쪽 하단 글쓰기 버튼 -->
+    <a th:href="@{/insertBoard}" class="btn-write">글 작성</a>
+</body>
+</html>

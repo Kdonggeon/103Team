@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="background_light">#F5F5F5</color>
+    <color name="nav_item_color">#000000</color> <!-- 검은색 -->
     <color name="black">#FF2E2F32</color>
     <color name="white">#FFFFFFFF</color>
     <color name="green">#FF65E478</color>
