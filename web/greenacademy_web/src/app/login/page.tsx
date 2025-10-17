@@ -24,11 +24,25 @@ export default function LoginPage() {
     try {
       const data = await api.login({ username: id, password: pw });
 
-      // 세션 저장
-      localStorage.setItem(
-        "login",
-        JSON.stringify({ ...data, keepLogin, ipSecure })
-      );
+// 1) 토큰 필수 확인
+if (!data?.token || typeof data.token !== "string" || data.token.length === 0) {
+  setLoading(false);
+  return setMsg("로그인 토큰이 없습니다. 관리자에게 문의하세요.");
+}
+
+// 2) 인증에 필요한 최소 필드만 명시적으로 저장
+localStorage.setItem(
+  "login",
+  JSON.stringify({
+    token: data.token,
+    role: data.role,
+    username: data.username,
+    name: data.name ?? null,
+    academyNumbers: Array.isArray(data.academyNumbers) ? data.academyNumbers : [],
+    keepLogin,
+    ipSecure,
+  })
+);
 
       // 역할별 라우팅
       // - teacher/director: 방금 보던 대시보드 페이지(루트 "/")

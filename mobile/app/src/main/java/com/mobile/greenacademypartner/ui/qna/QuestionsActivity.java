@@ -5,11 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.Toast;
 
@@ -31,6 +27,7 @@ import com.mobile.greenacademypartner.model.Question;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -152,14 +149,18 @@ public class QuestionsActivity extends AppCompatActivity {
     // 학원 방(room) 정보로 최근 답변자/미확인 집계 로딩
     private void fetchResponderNamesForAcademy(int academyNumber) {
         String role = getRole();
-        String auth = getAuthHeader();
+        String auth = requireAuthOrWarn();
+        if (auth == null) return;
 
         if ("parent".equalsIgnoreCase(role)) {
             // 학부모 전용 방 요약 갱신
             questionApi.getOrCreateParentRoom(auth, academyNumber).enqueue(new Callback<Question>() {
                 @Override
                 public void onResponse(Call<Question> call, Response<Question> r) {
-                    if (!r.isSuccessful() || r.body() == null) return;
+                    if (!r.isSuccessful() || r.body() == null) {
+                        toastHttpFail("채팅방 요약 갱신 실패", r);
+                        return;
+                    }
                     Question room = r.body();
 
                     int idx = -1;
@@ -184,17 +185,28 @@ public class QuestionsActivity extends AppCompatActivity {
                         adapter.submitList(new ArrayList<>(cards));
                     }
                 }
-                @Override public void onFailure(Call<Question> call, Throwable t) { /* 무시 */ }
+                @Override public void onFailure(Call<Question> call, Throwable t) {
+                    Toast.makeText(QuestionsActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
             });
             return;
         }
 
         // 학생/교사/원장
         String studentId = getSelectedStudentId();
+
+        // 요약 갱신 단계에서는 교사/원장에 대해 studentId가 비어있으면 스킵(다이얼로그 난사 방지)
+        if ((role.equalsIgnoreCase("teacher") || role.equalsIgnoreCase("director")) && (studentId == null)) {
+            return;
+        }
+
         questionApi.getOrCreateRoom(auth, academyNumber, studentId).enqueue(new Callback<Question>() {
             @Override
             public void onResponse(Call<Question> call, Response<Question> r) {
-                if (!r.isSuccessful() || r.body() == null) return;
+                if (!r.isSuccessful() || r.body() == null) {
+                    toastHttpFail("채팅방 요약 갱신 실패", r);
+                    return;
+                }
                 Question room = r.body();
 
                 int idx = -1;
@@ -232,7 +244,7 @@ public class QuestionsActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<Question> call, Throwable t) {
-                // 무시
+                Toast.makeText(QuestionsActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -240,7 +252,8 @@ public class QuestionsActivity extends AppCompatActivity {
     // 카드 클릭 시 방 열기
     private void openAcademyRoom(int academyNumber, String academyName) {
         String role = getRole();
-        String auth = getAuthHeader();
+        String auth = requireAuthOrWarn();
+        if (auth == null) return;
 
         if ("parent".equalsIgnoreCase(role)) {
             // ★ 학부모: 학부모 전용 방으로 바로 진입
@@ -248,7 +261,7 @@ public class QuestionsActivity extends AppCompatActivity {
                 @Override
                 public void onResponse(Call<Question> call, Response<Question> resp) {
                     if (!resp.isSuccessful() || resp.body() == null || resp.body().getId() == null) {
-                        Toast.makeText(QuestionsActivity.this, "채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                        toastHttpFail("채팅방 불러오기 실패", resp);
                         return;
                     }
                     Question room = resp.body();
@@ -271,13 +284,13 @@ public class QuestionsActivity extends AppCompatActivity {
                 }
                 @Override
                 public void onFailure(Call<Question> call, Throwable t) {
-                    Toast.makeText(QuestionsActivity.this, "네트워크 오류로 채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(QuestionsActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             });
             return;
         }
 
-        // 학생/교사/원장: 기존 로직
+        // 학생/교사/원장: 기존 로직 + 보강
         String studentId = getSelectedStudentId();
 
         if ((role.equalsIgnoreCase("teacher") || role.equalsIgnoreCase("director")) && (studentId == null)) {
@@ -295,8 +308,7 @@ public class QuestionsActivity extends AppCompatActivity {
                     }
                 }
                 if (!resp.isSuccessful() || resp.body() == null) {
-                    Toast.makeText(QuestionsActivity.this,
-                            "채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                    toastHttpFail("채팅방 불러오기 실패", resp);
                     return;
                 }
                 Question room = resp.body();
@@ -321,8 +333,7 @@ public class QuestionsActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<Question> call, Throwable t) {
-                Toast.makeText(QuestionsActivity.this,
-                        "네트워크 오류로 채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(QuestionsActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -361,7 +372,9 @@ public class QuestionsActivity extends AppCompatActivity {
                         Toast.makeText(this, "ID를 입력하세요.", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    String auth = getAuthHeader();
+                    String auth = requireAuthOrWarn();
+                    if (auth == null) return;
+
                     QuestionApi questionApi = RetrofitClient.getClient().create(QuestionApi.class);
 
                     questionApi.getOrCreateRoomById(auth, academyNumber, entered)
@@ -369,10 +382,19 @@ public class QuestionsActivity extends AppCompatActivity {
                                 @Override
                                 public void onResponse(Call<Question> call, Response<Question> resp) {
                                     if (!resp.isSuccessful() || resp.body() == null || resp.body().getId() == null) {
-                                        Toast.makeText(QuestionsActivity.this, "채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                                        toastHttpFail("채팅방 불러오기 실패", resp);
                                         return;
                                     }
                                     Question room = resp.body();
+
+                                    // 읽음 처리(선택)
+                                    questionApi.markRead(auth, room.getId()).enqueue(new Callback<Void>() {
+                                        @Override public void onResponse(Call<Void> c2, Response<Void> r2) {
+                                            clearUnreadBadge(academyNumber);
+                                        }
+                                        @Override public void onFailure(Call<Void> c2, Throwable t) { }
+                                    });
+
                                     Intent intent = new Intent(QuestionsActivity.this, QuestionDetailActivity.class);
                                     intent.putExtra("questionId", room.getId());
                                     intent.putExtra("academyNumber", academyNumber);
@@ -382,15 +404,13 @@ public class QuestionsActivity extends AppCompatActivity {
 
                                 @Override
                                 public void onFailure(Call<Question> call, Throwable t) {
-                                    Toast.makeText(QuestionsActivity.this, "네트워크 오류로 채팅방을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(QuestionsActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                                 }
                             });
                 })
                 .setNegativeButton("취소", null)
                 .show();
     }
-
-
 
     @Override
     protected void onResume() {
@@ -400,5 +420,28 @@ public class QuestionsActivity extends AppCompatActivity {
                 fetchResponderNamesForAcademy(c.getAcademyNumber());
             }
         }
+    }
+
+    // ---- 보조 메서드 (실패 가시화/인증 보장) ---------------------------------
+
+    private void toastHttpFail(String prefix, Response<?> res) {
+        String msg = prefix + " (" + res.code() + ")";
+        try {
+            if (res.errorBody() != null) {
+                String body = new String(res.errorBody().bytes(), StandardCharsets.UTF_8);
+                if (!body.isEmpty()) msg += "\n" + body;
+            }
+        } catch (Exception ignored) {}
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+    }
+
+    @Nullable
+    private String requireAuthOrWarn() {
+        String auth = getAuthHeader();
+        if (auth == null) {
+            Toast.makeText(this, "로그인 정보가 없습니다. 다시 로그인해 주세요.", Toast.LENGTH_SHORT).show();
+            return null;
+        }
+        return auth;
     }
 }

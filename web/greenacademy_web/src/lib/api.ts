@@ -28,14 +28,68 @@ export interface LoginResponse {
 // ---------- 환경설정 ----------
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:9090";
 
+// ---------- (export) 저장된 JWT 읽기 ----------
+export function getSavedToken(): string | null {
+  try {
+    if (typeof window === "undefined") return null; // SSR 보호
+    const raw = localStorage.getItem("login");
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    const t = obj?.token;
+    return typeof t === "string" && t.length > 0 ? t : null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------- (export) 세션 유틸: 읽기/저장/삭제 ----------
+export function getSavedSession():
+  | { token?: string; role?: string; username?: string; name?: string | null; academyNumbers?: number[] }
+  | null {
+  try {
+    if (typeof window === "undefined") return null; // SSR 보호
+    const raw = localStorage.getItem("login");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function saveSession(data: LoginResponse, extra?: Record<string, unknown>) {
+  const payload = {
+    token: data.token,
+    role: data.role,
+    username: data.username,
+    name: data.name ?? null,
+    academyNumbers: Array.isArray(data.academyNumbers) ? data.academyNumbers : [],
+    ...(extra ?? {}),
+  };
+  localStorage.setItem("login", JSON.stringify(payload));
+}
+
+export function clearSession() {
+  localStorage.removeItem("login");
+}
+
 // ---------- 공통 유틸 ----------
 function isFormData(body: unknown): body is FormData {
   return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as any) };
 
+  // Authorization 자동 주입
+  if (!headers["Authorization"]) {
+    const token = getSavedToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+
+  // JSON 본문이면 Content-Type 지정
   if (init.body && !isFormData(init.body) && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
@@ -43,7 +97,14 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
   const res = await fetch(url, { credentials: "include", ...init, headers });
   const text = await res.text();
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? " | " + text : ""}`);
+
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`AUTH_${res.status}: ${text || "인증이 필요합니다. 다시 로그인 해주세요."}`);
+    }
+    throw new Error(`${res.status} ${res.statusText}${text ? " | " + text : ""}`);
+  }
+
   return text ? (JSON.parse(text) as T) : ({} as T);
 }
 

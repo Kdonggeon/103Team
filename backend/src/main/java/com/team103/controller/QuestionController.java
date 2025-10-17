@@ -151,7 +151,7 @@ public class QuestionController {
 
                 String titleName = (p0 != null && p0.getParentsName() != null && !p0.getParentsName().isEmpty())
                         ? p0.getParentsName() : targetId;
-                room.setTitle("보호자 " + titleName + " 채팅방");
+                room.setTitle("학부모 " + titleName + " 채팅방");
 
                 room.setAuthor(targetId);
                 room.setAuthorRole("parent");
@@ -331,7 +331,14 @@ public class QuestionController {
             room.setAcademyNumber(academyNumber);
             room.setRoomParentId(parentId);
             room.setRoom(true); // ★ 중요: 방 플래그 세팅
-            room.setTitle("QnA");
+            String titleName = parentId;
+            try {
+                Parent p = parentRepository.findByParentsId(parentId);
+                if (p != null && p.getParentsName() != null && !p.getParentsName().isEmpty()) {
+                    titleName = p.getParentsName();
+                }
+            } catch (Exception ignore) {}
+            room.setTitle("보호자 " + titleName + " 채팅방");
             room.setAuthor(parentId);
             room.setAuthorRole("parent");
             room.setCreatedAt(new Date());

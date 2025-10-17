@@ -4,6 +4,9 @@ import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
+import QnaPanel from "../qna/QnaPanel";
+import TeacherQnaPanel from "../qna/TeacherQnaPanel";
+
 /** 색상 토큰 */
 const colors = {
   green: "#65E478",
@@ -11,8 +14,10 @@ const colors = {
 };
 
 /** 타입 */
+type Role = "student" | "parent" | "teacher" | "director";
+
 type LoginSession = {
-  role: "student" | "parent" | "teacher" | "director";
+  role: Role;
   username: string;
   name?: string;
   token?: string;
@@ -72,7 +77,6 @@ function NavTabs({
   active: string;
   onChange: (tab: string) => void;
 }) {
-  // 교사/원장과 유사하게, '관리'만 제외
   const tabs = ["종합정보", "시간표", "Q&A", "공지사항", "가이드"];
   return (
     <div className="flex gap-3 md:gap-4">
@@ -85,6 +89,7 @@ function NavTabs({
               ? "bg-[#8CF39B] text-gray-900"
               : "bg-[#CFF9D6] text-gray-700 hover:bg-[#B7F2C0]"
           }`}
+          aria-current={active === t ? "page" : undefined}
         >
           {t}
         </button>
@@ -93,7 +98,16 @@ function NavTabs({
   );
 }
 
-/** 프로필 드롭다운 (가독성 ↑) */
+/** 역할 문자열 정규화(부분일치) */
+function normalizeRole(raw?: unknown): Role {
+  const s = String(raw ?? "").toLowerCase();
+  if (s.includes("teacher")) return "teacher";
+  if (s.includes("director")) return "director";
+  if (s.includes("parent")) return "parent";
+  return "student";
+}
+
+/** 프로필 드롭다운 */
 function ProfileMenu({ user }: { user: LoginSession | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -168,7 +182,7 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
   );
 }
 
-/** 사이드바 (원장/선생과 동일 스타일) */
+/** 사이드바 */
 function SidebarProfile({
   user,
   onLogout,
@@ -183,7 +197,18 @@ function SidebarProfile({
       ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
       : user?.role === "parent"
       ? "bg-amber-100 text-amber-700 ring-amber-200"
-      : "bg-purple-100 text-purple-700 ring-purple-200"; // fallback
+      : user?.role === "teacher"
+      ? "bg-indigo-100 text-indigo-700 ring-indigo-200"
+      : "bg-purple-100 text-purple-700 ring-purple-200"; // director
+
+  const roleLabel =
+    user?.role === "parent"
+      ? "학부모"
+      : user?.role === "student"
+      ? "학생"
+      : user?.role === "teacher"
+      ? "교사"
+      : "원장";
 
   const academies =
     Array.isArray(user?.academyNumbers) && user!.academyNumbers!.length > 0
@@ -205,7 +230,7 @@ function SidebarProfile({
                 className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ring-1 ${roleColor}`}
               >
                 <span className="inline-block w-2 h-2 rounded-full bg-current opacity-70" />
-                {user.role === "parent" ? "학부모" : "학생"}
+                {roleLabel}
               </span>
             )}
           </div>
@@ -316,7 +341,10 @@ function TodayList({
         {!loading &&
           !error &&
           list.map((w, i) => (
-            <div key={i} className="px-3 py-2 border-b last:border-none text-sm bg-white flex items-center justify-between">
+            <div
+              key={i}
+              className="px-3 py-2 border-b last:border-none text-sm bg-white flex items-center justify-between"
+            >
               <div>
                 <div className="font-medium text-gray-900">{w.label}</div>
                 {w.sub && <div className="text-xs text-gray-600">{w.sub}</div>}
@@ -385,6 +413,10 @@ export default function FamilyPortalPage() {
   const [late, setLate] = useState(0);
   const [absent, setAbsent] = useState(0);
 
+  // 학원번호 상태(학생/학부모의 Q&A 패널에만 사용)
+  const [academyNumber, setAcademyNumber] = useState<number | null>(null);
+
+  // 세션 로딩 (+ role 정규화)
   useEffect(() => {
     const raw = localStorage.getItem("login");
     if (!raw) {
@@ -392,13 +424,16 @@ export default function FamilyPortalPage() {
       return;
     }
     try {
-      const u = JSON.parse(raw) as LoginSession;
-      // 교사/원장은 이 페이지 사용 X → 메인으로
-      if (u.role === "teacher" || u.role === "director") {
-        router.replace("/");
-        return;
-      }
-      setUser(u);
+      const parsed: any = JSON.parse(raw);
+      const normalized: LoginSession = {
+        role: normalizeRole(parsed?.role),
+        username: parsed?.username ?? "",
+        name: parsed?.name ?? undefined,
+        token: parsed?.token ?? undefined,
+        childStudentId: parsed?.childStudentId ?? null,
+        academyNumbers: Array.isArray(parsed?.academyNumbers) ? parsed.academyNumbers : [],
+      };
+      setUser(normalized);
     } catch {
       localStorage.removeItem("login");
       router.replace("/login");
@@ -408,11 +443,38 @@ export default function FamilyPortalPage() {
     }
   }, [router]);
 
+  // 학원번호 선택(학생/학부모만)
+  useEffect(() => {
+    if (!user) return;
+    if (
+      (user.role === "student" || user.role === "parent") &&
+      Array.isArray(user.academyNumbers) &&
+      user.academyNumbers.length > 0
+    ) {
+      setAcademyNumber(user.academyNumbers[0]);
+    } else {
+      setAcademyNumber(null);
+    }
+  }, [user]);
+
+  // 종합정보 탭 데이터(학생/학부모만 의미 있음)
   useEffect(() => {
     if (!ready || !user) return;
     if (activeTab !== "종합정보") return;
 
     (async () => {
+      // 교사/원장은 해당 섹션 비움
+      if (user.role === "teacher" || user.role === "director") {
+        setLoading(false);
+        setErr(null);
+        setList([]);
+        setNotices([]);
+        setPresent(0);
+        setLate(0);
+        setAbsent(0);
+        return;
+      }
+
       setLoading(true);
       setErr(null);
       try {
@@ -462,9 +524,14 @@ export default function FamilyPortalPage() {
 
   if (!ready) return null;
 
+  const subtitle =
+    user?.role === "teacher" || user?.role === "director"
+      ? "Staff Portal"
+      : "Family Portal";
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.grayBg }}>
-      {/* 헤더 (교사/원장 대시보드와 동일 스타일) */}
+      {/* 헤더 */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 ring-1 ring-black/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -480,7 +547,7 @@ export default function FamilyPortalPage() {
             </div>
             <div className="leading-tight">
               <div className="text-lg font-semibold text-gray-900">Green Academy</div>
-              <div className="text-sm text-gray-600 -mt-0.5">Family Portal</div>
+              <div className="text-sm text-gray-600 -mt-0.5">{subtitle}</div>
             </div>
           </div>
 
@@ -490,7 +557,7 @@ export default function FamilyPortalPage() {
         </div>
       </header>
 
-      {/* 본문 레이아웃도 동일 */}
+      {/* 본문 */}
       <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
         <SidebarProfile user={user} onLogout={handleLogout} />
 
@@ -502,16 +569,26 @@ export default function FamilyPortalPage() {
                   오늘
                 </span>
               </div>
-              <div className="flex gap-3">
-                <StatCard title="금일 출석" value={present} />
-                <StatCard title="금일 지각" value={late} />
-                <StatCard title="금일 결석" value={absent} />
-              </div>
+              {(user?.role === "student" || user?.role === "parent") && (
+                <div className="flex gap-3">
+                  <StatCard title="금일 출석" value={present} />
+                  <StatCard title="금일 지각" value={late} />
+                  <StatCard title="금일 결석" value={absent} />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-6">
-              <TodayList list={list} loading={loading} error={err} />
-              <NoticeCard notices={notices} />
+              {user?.role === "student" || user?.role === "parent" ? (
+                <>
+                  <TodayList list={list} loading={loading} error={err} />
+                  <NoticeCard notices={notices} />
+                </>
+              ) : (
+                <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-600">
+                  교사/원장 계정은 ‘종합정보’ 위젯이 없습니다. 상단 탭에서 <b>Q&amp;A</b>를 이용해 주세요.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -531,7 +608,20 @@ export default function FamilyPortalPage() {
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&amp;A</h2>
-              <p className="text-sm text-gray-700">질문/답변 게시판을 연결하세요.</p>
+
+              {/* 역할별 패널 분기 */}
+              {user?.role === "teacher" || user?.role === "director" ? (
+                <TeacherQnaPanel />
+              ) : academyNumber == null ? (
+                <p className="text-sm text-gray-700">
+                  학원번호를 확인할 수 없습니다. 프로필 또는 로그인 정보를 확인해 주세요.
+                </p>
+              ) : (
+                <QnaPanel
+                  academyNumber={academyNumber}
+                  role={user?.role === "parent" ? "parent" : "student"}
+                />
+              )}
             </div>
           </div>
         )}

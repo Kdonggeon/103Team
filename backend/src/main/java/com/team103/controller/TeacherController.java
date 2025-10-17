@@ -30,6 +30,8 @@ public class TeacherController {
 
     @Autowired
     private AttendanceRepository attendanceRepo;
+    
+    
 
 
     public TeacherController(TeacherRepository teacherRepo) {
@@ -111,4 +113,5 @@ public class TeacherController {
         if (t == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "not found");
         return ResponseEntity.ok(Map.of("username", t.getTeacherId()));
     }
+    
 }

@@ -4,6 +4,10 @@ import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
+/** 👉 추가: QnA 패널 import (경로는 app/page.tsx 기준) */
+import QnaPanel from "./qna/QnaPanel";
+import TeacherQnaPanel from "./qna/TeacherQnaPanel";
+
 /** 색상 토큰 */
 const colors = {
   green: "#65E478",
@@ -141,7 +145,8 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
     };
   }, []);
 
-  const initial = user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
+  const initial =
+    user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
 
   return (
     <div className="relative" ref={ref}>
@@ -158,43 +163,42 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
 
       {/* 드롭다운 */}
       {open && (
-      <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
-        {/* 사용자 이름 */}
-        <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
-          {user?.name || user?.username}
+        <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
+          {/* 사용자 이름 */}
+          <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
+            {user?.name || user?.username}
+          </div>
+
+          {/* 메뉴 항목 */}
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/notifications");
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            🔔 내 알림
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/settings/theme");
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            🎨 테마 설정
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/settings");
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            ⚙️ 환경 설정
+          </button>
         </div>
-
-        {/* 메뉴 항목 */}
-        <button
-          onClick={() => {
-            setOpen(false);
-            router.push("/notifications");
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-        >
-          🔔 내 알림
-        </button>
-        <button
-          onClick={() => {
-            setOpen(false);
-            router.push("/settings/theme");
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-        >
-          🎨 테마 설정
-        </button>
-        <button
-          onClick={() => {
-            setOpen(false);
-            router.push("/settings");
-          }}
-          className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-        >
-          ⚙️ 환경 설정
-        </button>
-      </div>
-    )}
-
+      )}
     </div>
   );
 }
@@ -437,6 +441,9 @@ export default function GreenAcademyDashboard() {
   // 좌석
   const [seats, setSeats] = useState<SeatCell[] | null>(null);
 
+  /** 👉 추가: 학생/학부모 QnA용 학원번호 상태 */
+  const [academyNumber, setAcademyNumber] = useState<number | null>(null);
+
   /** 세션 로드 & 가드 */
   useEffect(() => {
     const raw = localStorage.getItem("login");
@@ -455,6 +462,20 @@ export default function GreenAcademyDashboard() {
       setReady(true);
     }
   }, [router]);
+
+  /** 👉 추가: 학원번호 초기화 (학생/학부모 전용) */
+  useEffect(() => {
+    if (!user) return;
+    if (
+      (user.role === "student" || user.role === "parent") &&
+      Array.isArray(user.academyNumbers) &&
+      user.academyNumbers.length > 0
+    ) {
+      setAcademyNumber(user.academyNumbers[0]);
+    } else {
+      setAcademyNumber(null);
+    }
+  }, [user]);
 
   /** 역할별 데이터 로딩 (종합정보 탭일 때만 호출) */
   useEffect(() => {
@@ -638,11 +659,25 @@ export default function GreenAcademyDashboard() {
           </div>
         )}
 
+        {/* 👉 교체된 Q&A 탭 */}
         {activeTab === "Q&A" && (
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&A</h2>
-              <p className="text-sm text-gray-700">Q&A 게시판을 연결하세요.</p>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&amp;A</h2>
+
+              {/* 역할별 패널 분기 (family-portal과 동일) */}
+              {user?.role === "teacher" || user?.role === "director" ? (
+                <TeacherQnaPanel />
+              ) : academyNumber == null ? (
+                <p className="text-sm text-gray-700">
+                  학원번호를 확인할 수 없습니다. 프로필 또는 로그인 정보를 확인해 주세요.
+                </p>
+              ) : (
+                <QnaPanel
+                  academyNumber={academyNumber}
+                  role={user?.role === "parent" ? "parent" : "student"}
+                />
+              )}
             </div>
           </div>
         )}
