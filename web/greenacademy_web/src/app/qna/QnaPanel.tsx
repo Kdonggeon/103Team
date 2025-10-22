@@ -20,16 +20,37 @@ type IdLike = { id?: string; _id?: string };
 type QnaQuestion = IdLike & QType;
 type QnaAnswer = IdLike & AType;
 
+type QnaPanelProps = {
+  academyNumber: number;
+  role: "student" | "parent";
+  /** 선택: 특정 질문을 강제로 열 때 전달 */
+  questionId?: string;
+};
+
 // setInterval 타입 안전
 type IntervalHandle = ReturnType<typeof setInterval> | null;
+
+// 🔹 API BASE (학부모 자녀 이름 조회용)
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+
+// 🔹 공용 GET 유틸
+async function apiGet<T>(url: string, token?: string): Promise<T> {
+  const r = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    cache: "no-store",
+  });
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
 
 export default function QnaPanel({
   academyNumber,
   role,
-}: {
-  academyNumber?: number;
-  role?: "student" | "parent";
-}) {
+  questionId,
+}: QnaPanelProps) {
   const router = useRouter();
 
   // --- 상태 ---
@@ -45,6 +66,9 @@ export default function QnaPanel({
   const [academies, setAcademies] = useState<number[]>([]);
   const [selectedAcademy, setSelectedAcademy] = useState<number | null>(null);
 
+  // 🔹 학부모 전용: 부모/자녀 이름 표기용
+  const [parentChildLabel, setParentChildLabel] = useState<string | null>(null);
+
   const pollRef = useRef<IntervalHandle>(null);
 
   // ✅ 미확인 표시 기준 시각
@@ -56,7 +80,6 @@ export default function QnaPanel({
   const scrollToBottom = () => {
     const el = chatBoxRef.current;
     if (!el) return;
-    // 렌더 직후 안전하게 한 프레임 뒤에 스크롤
     requestAnimationFrame(() => {
       el.scrollTop = el.scrollHeight;
     });
@@ -70,12 +93,19 @@ export default function QnaPanel({
     const q = (await apiGetQuestion(rootId)) as QnaQuestion;
     setQuestion(q);
 
-    // 서버 lastReadAt 우선, 없으면 진입시각
+    // ✅ 질문의 학원번호로 스피너/학원 동기화 (최근 QnA 바로가기 대응)
+    const qAcad = (q as any)?.academyNumber;
+    if (Number.isFinite(qAcad)) {
+      setSelectedAcademy((prev) => (prev === qAcad ? prev : qAcad));
+      setAcademies((prev) => (prev.includes(qAcad) ? prev : [...prev, qAcad]));
+    }
+
+    // 서버 lastReadAt 우선, 없으면 null(다른 휴리스틱 가동)
     const serverLastRead = (q as any)?.lastReadAt;
     if (typeof serverLastRead === "string" && serverLastRead.trim().length > 0) {
-      lastSeenRef.current = serverLastRead;
-    } else if (!lastSeenRef.current) {
-      lastSeenRef.current = pageEnterAtRef.current;
+      lastSeenRef.current = serverLastRead;  // 서버 값이 있으면 사용
+    } else {
+      lastSeenRef.current = null;            // 없으면 null로 둠
     }
 
     const a = (await apiGetAnswers(rootId)) as QnaAnswer[];
@@ -99,8 +129,30 @@ export default function QnaPanel({
     scrollToBottom();
   };
 
-  // 선택된 학원으로 방 열기
+  // ✅ 폴링 시작/갱신
+  const startPolling = (rootId: string) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const latest = (await apiGetAnswers(String(rootId))) as QnaAnswer[];
+        if (Array.isArray(latest)) {
+          setAnswers(latest);
+          scrollToBottom();
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 5000);
+  };
+
+  // 선택된 학원으로 방 열기(질문방 생성/조회 후 로드)
   const openRoomForAcademy = async (academyNo: number) => {
+    // 폴링 먼저 정리(전환 타이밍 꼬임 방지)
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+
     const session: any = getSavedSession();
     const rawRole = String(role ?? session?.role ?? "student").toLowerCase();
     const er: "student" | "parent" = rawRole === "parent" || rawRole === "parents" ? "parent" : "student";
@@ -110,21 +162,86 @@ export default function QnaPanel({
       er === "parent" ? await getOrCreateParentRoom(academyNo) : await getOrCreateStudentRoom(academyNo);
     const id = (room as any)?._id || (room as any)?.id;
     if (!id) throw new Error("Q&A 방을 찾거나 생성하지 못했습니다.");
-    await reloadThread(String(id));
 
-    // 폴링 재설정(답변만)
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const latest = (await apiGetAnswers(String(id))) as QnaAnswer[];
-        if (Array.isArray(latest)) {
-          setAnswers(latest);
-          scrollToBottom();
-        }
-      } catch {
-        /* ignore */
+    await reloadThread(String(id));
+    startPolling(String(id));
+  };
+
+  // 🔹 학부모: 부모/자녀 이름 라벨 세팅
+  async function initParentChildLabel(session: any) {
+    try {
+      const parentName =
+        (session?.name && String(session.name)) ||
+        (session?.username && String(session.username)) ||
+        "parent";
+
+      const childId = session?.childStudentId || null;
+      if (!childId) {
+        setParentChildLabel(`${parentName}(학부모)`);
+        return;
       }
-    }, 5000);
+      const profile = await apiGet<any>(`${API_BASE}/api/students/${encodeURIComponent(childId)}`, session?.token);
+      const childName =
+        (typeof profile?.name === "string" && profile.name) ||
+        (typeof profile?.studentName === "string" && profile.studentName) ||
+        childId;
+
+      setParentChildLabel(`${parentName}(학부모) · ${childName}(자녀)`);
+    } catch {
+      // 실패해도 부모 이름만이라도 표기
+      const s = getSavedSession();
+      const parentName =
+        (s?.name && String(s.name)) ||
+        (s?.username && String(s.username)) ||
+        "parent";
+      setParentChildLabel(`${parentName}(학부모)`);
+    }
+  }
+
+  // ====== 🔴 “최근 QnA 바로가기” 기준: 미확인(unread) 우선, 없으면 최신 ======
+  type RoomSummary = {
+    academyNumber: number;
+    id: string;
+    unreadCount: number;
+    updatedAt: number; // ms (updatedAt || createdAt)
+  };
+
+  const fetchRoomSummary = async (academyNo: number): Promise<RoomSummary | null> => {
+    try {
+      const session: any = getSavedSession();
+      const rawRole = String(role ?? session?.role ?? "student").toLowerCase();
+      const er: "student" | "parent" = rawRole === "parent" || rawRole === "parents" ? "parent" : "student";
+      const room: any =
+        er === "parent"
+          ? await getOrCreateParentRoom(academyNo)
+          : await getOrCreateStudentRoom(academyNo);
+
+      const id: string | undefined = room?._id || room?.id;
+      if (!id) return null;
+
+      const t =
+        (typeof room?.updatedAt === "string" && +new Date(room.updatedAt)) ||
+        (typeof room?.createdAt === "string" && +new Date(room.createdAt)) ||
+        0;
+
+      const unread = typeof room?.unreadCount === "number" ? room.unreadCount : 0;
+
+      return {
+        academyNumber: academyNo,
+        id,
+        unreadCount: unread,
+        updatedAt: t,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const pickBestRoom = (items: RoomSummary[]): RoomSummary | null => {
+    if (!items.length) return null;
+    const unread = items.filter(i => (i.unreadCount ?? 0) > 0);
+    const base = unread.length ? unread : items;
+    return [...base].sort((a, b) => (b.updatedAt - a.updatedAt))[0];
   };
 
   // 최초 부팅
@@ -145,24 +262,73 @@ export default function QnaPanel({
           "student"
       );
 
-      const list: number[] =
-        Number.isFinite(academyNumber as number) ? [Number(academyNumber)] : [];
-      const merged = Array.from(
-        new Set([...(session?.academyNumbers || []), ...list].filter((n: any) => Number.isFinite(n)))
-      ) as number[];
+      // 🔹 학부모 라벨 준비
+      const rawRole = String(role ?? session?.role ?? "student").toLowerCase();
+      const er: "student" | "parent" = rawRole === "parent" || rawRole === "parents" ? "parent" : "student";
+      setEffectiveRole(er);
+      if (er === "parent") {
+        initParentChildLabel(session);
+      } else {
+        setParentChildLabel(null);
+      }
 
+      // 사용자 보유 학원 + props로 받은 academyNumber를 병합(문자/숫자 혼용 대비)
+      const extraList: number[] = Number.isFinite(academyNumber as number) ? [Number(academyNumber)] : [];
+      const merged = Array.from(
+        new Set([...(session?.academyNumbers || []), ...extraList]
+          .map((n: any) => Number(n))
+          .filter((n: number) => Number.isFinite(n)))
+      ) as number[];
+      setAcademies(merged);
+
+      // ✅ questionId가 주어진 경우: 해당 스레드 즉시 오픈(권한 오류면 '내 방'으로 폴백)
+      if (questionId) {
+        try {
+          await reloadThread(String(questionId));
+          startPolling(String(questionId));
+          return;
+        } catch (e: any) {
+          const msg = String(e?.message ?? "");
+          if (msg.startsWith("AUTH_401") || msg.startsWith("AUTH_403")) {
+            const raw = String(role ?? session?.role ?? "student").toLowerCase();
+            const erole: "student" | "parent" = raw === "parent" || raw === "parents" ? "parent" : "student";
+            const acad = Number.isFinite(academyNumber as number)
+              ? Number(academyNumber)
+              : (merged[0] ?? 0);
+            const room: any =
+              erole === "parent"
+                ? await getOrCreateParentRoom(acad)
+                : await getOrCreateStudentRoom(acad);
+            const id = String(room?._id || room?.id || "");
+            if (id) {
+              await reloadThread(id);
+              startPolling(id);
+              return;
+            }
+          }
+          // 그 외 오류는 아래 공통 흐름으로
+        }
+      }
+
+      // ✅ “최근 QnA 바로가기” 기준: 미확인 우선 → 없으면 최신
       if (merged.length === 0) {
         setError("접근 가능한 학원이 없습니다.");
         return;
       }
-      setAcademies(merged);
 
-      const initial = academyNumber && Number.isFinite(academyNumber)
-        ? Number(academyNumber)
-        : merged[0];
-      setSelectedAcademy(initial);
+      // 각 학원별 요약을 병렬 수집
+      const settled = await Promise.allSettled(merged.map(n => fetchRoomSummary(n)));
+      const summaries: RoomSummary[] = settled
+        .map(x => (x.status === "fulfilled" ? x.value : null))
+        .filter(Boolean) as RoomSummary[];
 
-      await openRoomForAcademy(initial);
+      // 최적 타겟 선정
+      const best = pickBestRoom(summaries);
+      const initialAcademy = best?.academyNumber ?? merged[0];
+      setSelectedAcademy(initialAcademy);
+
+      // 선정된 학원의 방 열기
+      await openRoomForAcademy(initialAcademy);
     } catch (e: any) {
       const msg = String(e?.message ?? "");
       if (msg.startsWith("AUTH_401") || msg.startsWith("AUTH_403")) {
@@ -182,6 +348,41 @@ export default function QnaPanel({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ✅ 최근 QnA 바로가기 등으로 questionId가 바뀔 때도 스레드/학원 동기화 (권한 오류 시 내 방 폴백)
+  useEffect(() => {
+    if (!questionId) return;
+    (async () => {
+      try {
+        await reloadThread(String(questionId));
+        startPolling(String(questionId));
+      } catch (e: any) {
+        const msg = String(e?.message ?? "");
+        if (msg.startsWith("AUTH_401") || msg.startsWith("AUTH_403")) {
+          const session: any = getSavedSession();
+          const raw = String(role ?? session?.role ?? "student").toLowerCase();
+          const erole: "student" | "parent" = raw === "parent" || raw === "parents" ? "parent" : "student";
+          const acad = Number.isFinite(academyNumber as number)
+            ? Number(academyNumber)
+            : (Array.isArray(session?.academyNumbers) && session.academyNumbers.length
+                ? Number(session.academyNumbers[0])
+                : 0);
+          const room: any =
+            erole === "parent"
+              ? await getOrCreateParentRoom(acad)
+              : await getOrCreateStudentRoom(acad);
+          const id = String(room?._id || room?.id || "");
+          if (id) {
+            await reloadThread(id);
+            startPolling(id);
+          }
+        } else {
+          setError(e?.message ?? "스레드를 불러오지 못했습니다.");
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionId]);
 
   // 학원 전환 핸들러
   const switchAcademy = async (next: number) => {
@@ -273,14 +474,15 @@ export default function QnaPanel({
 
   // ✅ 전송
   async function handleSend() {
-    if (!canSend || !selectedAcademy) return;
+    if (!canSend) return;
     try {
       const text = input.trim();
       setInput("");
       if (!qid) return;
 
       if (effectiveRole === "student" || effectiveRole === "parent") {
-        await postFollowupFlexible(String(qid), text, Number(selectedAcademy));
+        // 학원번호는 백엔드가 필요 시만 사용하므로 optional로 전달
+        await postFollowupFlexible(String(qid), text, selectedAcademy ?? undefined);
         await reloadThread(String(qid));
       } else {
         await apiPostAnswer(String(qid), text);
@@ -289,7 +491,6 @@ export default function QnaPanel({
         await apiMarkQuestionRead(String(qid));
       }
 
-      // 내가 보낸 직후에도 하단 고정
       scrollToBottom();
     } catch (e: any) {
       const msg = String(e?.message ?? "");
@@ -317,15 +518,31 @@ export default function QnaPanel({
   const hasPrev = idx > 0;
   const hasNext = idx >= 0 && idx < academies.length - 1;
 
+  // 🔹 헤더 왼쪽 정보 영역
+  const leftInfo = (() => {
+    const academyTag =
+      typeof selectedAcademy === "number"
+        ? `학원 #${selectedAcademy}`
+        : (typeof (question as any)?.academyNumber === "number"
+            ? `학원 #${(question as any).academyNumber}`
+            : "");
+
+    if (effectiveRole === "parent") {
+      return [academyTag, parentChildLabel].filter(Boolean).join(" · ");
+    }
+    // student
+    return academyTag;
+  })();
+
   return (
     <div className="rounded-2xl p-0 border shadow-sm overflow-hidden relative">
       {/* 상단 바 */}
       <div className="px-5 py-4 border-b bg-gray-50 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {/* ▶ 제목 더 진하게 */}
-          <div className="text-lg font-semibold text-gray-900">Q&amp;A</div>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="text-lg font-semibold text-gray-900 shrink-0">Q&amp;A</div>
+
           {/* 학원 스피너 + 셀렉터 */}
-          <div className="flex items-center gap-2 ml-3">
+          <div className="flex items-center gap-2">
             <button
               className={`h-8 w-8 rounded-full border flex items-center justify-center text-base
     ${
@@ -342,17 +559,21 @@ export default function QnaPanel({
             </button>
             <select
               className="h-8 rounded-lg border px-2 text-sm bg-white text-gray-900"
-              value={selectedAcademy ?? ""}
+              value={selectedAcademy != null ? String(selectedAcademy) : ""}
               onChange={(e) => {
-                const next = Number(e.target.value);
+                const next = parseInt(e.target.value, 10);
                 if (Number.isFinite(next)) switchAcademy(next);
               }}
             >
-              {academies.map((n) => (
-                <option key={n} value={n}>
-                  학원 #{n}
-                </option>
-              ))}
+              {academies.length === 0 ? (
+                <option value="">학원 없음</option>
+              ) : (
+                academies.map((n) => (
+                  <option key={n} value={String(n)}>
+                    학원 #{n}
+                  </option>
+                ))
+              )}
             </select>
             <button
               className={`h-8 w-8 rounded-full border flex items-center justify-center text-base
@@ -369,15 +590,21 @@ export default function QnaPanel({
               ›
             </button>
           </div>
+
+          {/* 역할별 추가 정보 뱃지 */}
+          {leftInfo && (
+            <span className="ml-1 inline-flex max-w-[50vw] items-center truncate gap-2 rounded-md px-2 py-1 text-xs font-semibold bg-white border border-gray-300 text-gray-900">
+              {leftInfo}
+            </span>
+          )}
         </div>
 
-        {/* ▶ 항상 표시: 작은 배지, 진하게 */}
         <div className="px-2 py-1 rounded-md border border-gray-300 bg-gray-100 text-[11px] font-semibold text-gray-900">
           미확인 답변: {typeof question?.unreadCount === "number" ? question.unreadCount : 0}
         </div>
       </div>
 
-      {/* ▶ 전환 스피너 오버레이(더 진하게) */}
+      {/* 전환 스피너 오버레이 */}
       {switching && (
         <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10">
           <div className="flex items-center gap-2 text-sm text-black">
@@ -403,7 +630,6 @@ export default function QnaPanel({
           <div className="text-sm text-gray-500">표시할 메시지가 없습니다.</div>
         ) : (
           (() => {
-            // 교사/원장, 본인(학생/학부모) 메시지 분리
             const teacherMsgs = chatMessages.filter(x => x.side === "teacher");
             const myMsgs = chatMessages.filter(x => x.side === "student");
 
@@ -413,7 +639,6 @@ export default function QnaPanel({
             const unreadCount =
               typeof question?.unreadCount === "number" ? question.unreadCount : 0;
 
-            // 폴백: 내 마지막 발화 시각
             const myLastMsgAt = (() => {
               const ts = myMsgs
                 .map(m => (m.createdAt ? new Date(m.createdAt).getTime() : 0))
@@ -422,14 +647,12 @@ export default function QnaPanel({
             })();
 
             return chatMessages.map((m) => {
-              // 1) 기준시각 이후(정상 케이스)
               const byTime =
                 !!lastSeen &&
                 m.side === "teacher" &&
                 !!m.createdAt &&
                 new Date(m.createdAt).getTime() > new Date(lastSeen).getTime();
 
-              // 2) 폴백 A: lastSeen 없고 unreadCount만 있을 때 → 최신 unreadCount개의 교사 메시지
               const idxInTeacher = teacherMsgs.findIndex(x => x._id === m._id);
               const byCount =
                 !lastSeen &&
@@ -438,7 +661,6 @@ export default function QnaPanel({
                 idxInTeacher >= 0 &&
                 idxInTeacher >= teacherMsgs.length - unreadCount;
 
-              // 3) 폴백 B: 둘 다 없으면 화면 진입 이후 도착분
               const byEnterTime =
                 !lastSeen &&
                 unreadCount === 0 &&
@@ -446,7 +668,6 @@ export default function QnaPanel({
                 !!m.createdAt &&
                 new Date(m.createdAt).getTime() > new Date(pageEnterAtRef.current).getTime();
 
-              // 4) 폴백 C: 내 마지막 발화 이후 도착한 교사/원장 메시지
               const byMyLast =
                 !lastSeen &&
                 unreadCount === 0 &&
@@ -467,8 +688,6 @@ export default function QnaPanel({
                   }`}
                 >
                   <div className="text-gray-800">{m.text}</div>
-
-                  {/* 시간 줄 (이름 앞에 빨간점) */}
                   <div className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
                     {isUnread && (
                       <span
@@ -488,7 +707,7 @@ export default function QnaPanel({
         )}
       </div>
 
-      {/* 입력창 (더 진하게) */}
+      {/* 입력창 */}
       <div className="p-4 border-t bg-white">
         <div className="flex gap-2">
           <input

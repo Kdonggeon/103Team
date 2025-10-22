@@ -14,4 +14,6 @@ public interface QuestionRepository extends MongoRepository<Question, String> {
     Question findRoomByAcademyAndStudent(int academyNumber, String roomStudentId);
     @Query("{ 'room': true, 'academyNumber': ?0, 'roomParentId': ?1 }")
     Question findRoomByAcademyAndParent(int academyNumber, String roomParentId);
+    List<Question> findByAuthorAndAuthorRoleOrderByCreatedAtDesc(String author, String authorRole);
+    Question findTopByOrderByCreatedAtDesc();
 }

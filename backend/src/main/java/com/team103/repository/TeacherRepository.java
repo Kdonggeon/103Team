@@ -14,7 +14,7 @@ public interface TeacherRepository extends MongoRepository<Teacher, String> {
     @Query("{ 'academyNumbers': ?0 }")
     List<Teacher> findByAcademyNumber(int academyNumber);
     Teacher findByTeacherNameAndTeacherPhoneNumber(String name, String phone);
-    
+    List<Teacher> findByTeacherIdIn(List<String> ids);
     
 
 }

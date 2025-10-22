@@ -2,7 +2,7 @@ package com.team103.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;      // ✅ 추가
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
@@ -11,24 +11,29 @@ import java.util.Date;
 public class FollowUp {
 
     @Id
-    @JsonProperty("id")
     private String id;
 
     private String questionId;
     private String content;
-    private String author;      // userId
-    private String authorRole;  // "student" or "parent"
+    private String author;       // userId
+    private String authorRole;   // "student" or "parent"
     private Date createdAt;
     private boolean deleted;
 
-    // ✅ 응답 전용 필드 (DB 저장 안 함)
-    @JsonProperty("학생이름")
+    // 표시용 필드: DB 저장 안 함
+    @Transient
     private String studentName;
 
-    @JsonProperty("학부모이름")
+    @Transient
     private String parentName;
 
     public FollowUp() {}
+
+    // === JSON에 _id도 함께 내려가도록 별칭 게터 ===
+    @JsonProperty("_id")
+    public String get_id() {
+        return this.id;
+    }
 
     // getters / setters
     public String getId() { return id; }
@@ -52,9 +57,11 @@ public class FollowUp {
     public boolean isDeleted() { return deleted; }
     public void setDeleted(boolean deleted) { this.deleted = deleted; }
 
+    @JsonProperty("studentName")
     public String getStudentName() { return studentName; }
     public void setStudentName(String studentName) { this.studentName = studentName; }
 
+    @JsonProperty("parentName")
     public String getParentName() { return parentName; }
     public void setParentName(String parentName) { this.parentName = parentName; }
 }

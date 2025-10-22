@@ -1,10 +1,11 @@
+// C:\project\103Team-sub\web\greenacademy_web\src\app\page.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { getRecentQna } from "@/lib/qna"; // 최근 QnA 선택(미확인 우선 → 최신)
 
-/** 👉 추가: QnA 패널 import (경로는 app/page.tsx 기준) */
 import QnaPanel from "./qna/QnaPanel";
 import TeacherQnaPanel from "./qna/TeacherQnaPanel";
 
@@ -128,7 +129,6 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // 바깥 클릭/ESC 닫기
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (!ref.current) return;
@@ -150,7 +150,6 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
 
   return (
     <div className="relative" ref={ref}>
-      {/* 원형 버튼 */}
       <button
         onClick={() => setOpen((p) => !p)}
         className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
@@ -161,15 +160,12 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
         {initial}
       </button>
 
-      {/* 드롭다운 */}
       {open && (
         <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
-          {/* 사용자 이름 */}
           <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
             {user?.name || user?.username}
           </div>
 
-          {/* 메뉴 항목 */}
           <button
             onClick={() => {
               setOpen(false);
@@ -203,10 +199,11 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
   );
 }
 
-/** 사이드 프로필 — 가독성↑ 요소 정리 + 라우팅 연결 */
+/** 사이드 프로필 */
 function SidebarProfile({
   user,
   onLogout,
+  onOpenRecentQna,
 }: {
   user: {
     role?: "student" | "teacher" | "parent" | "director" | string;
@@ -215,6 +212,7 @@ function SidebarProfile({
     academyNumbers?: (number | string)[];
   } | null;
   onLogout: () => void;
+  onOpenRecentQna?: () => void;
 }) {
   const router = useRouter();
 
@@ -237,7 +235,6 @@ function SidebarProfile({
   return (
     <aside className="w-[260px] shrink-0">
       <div className="rounded-2xl overflow-hidden ring-1 ring-black/5 shadow-sm bg-white">
-        {/* 상단: 이름만 크게 + 역할칩 */}
         <div className="p-5 bg-gradient-to-br from-[#CFF9D6] via-[#B7F2C0] to-[#8CF39B]">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -257,9 +254,7 @@ function SidebarProfile({
           </div>
         </div>
 
-        {/* 본문 정보 */}
         <div className="p-4 space-y-3">
-          {/* 아이디 */}
           <div className="flex items-start justify-between gap-3">
             <div className="text-xs text-gray-700 leading-6">아이디</div>
             <div className="flex-1 text-right">
@@ -269,7 +264,6 @@ function SidebarProfile({
             </div>
           </div>
 
-          {/* 학원번호 칩 */}
           <div className="flex items-start justify-between gap-3">
             <div className="text-xs text-gray-700 leading-6">학원번호</div>
             <div className="flex-1 text-right">
@@ -290,10 +284,8 @@ function SidebarProfile({
             </div>
           </div>
 
-          {/* 구분선 */}
           <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-2" />
 
-          {/* 액션 버튼들 — 라우팅 연결 */}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => router.push("/settings/profile")}
@@ -309,7 +301,6 @@ function SidebarProfile({
             </button>
           </div>
 
-          {/* 로그아웃 */}
           <button
             onClick={onLogout}
             className="w-full rounded-xl py-3 text-white font-semibold mt-1 active:scale-[0.99] transition"
@@ -320,7 +311,6 @@ function SidebarProfile({
         </div>
       </div>
 
-      {/* 하단 퀵 액션 */}
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4 space-y-3 mt-4">
         <div className="text-sm font-semibold text-gray-900">빠른 실행</div>
         <div className="grid gap-2">
@@ -331,7 +321,7 @@ function SidebarProfile({
             환경 설정
           </button>
           <button
-            onClick={() => router.push("/qna/recent")}
+            onClick={onOpenRecentQna}
             className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
           >
             최근 QnA 바로가기
@@ -419,29 +409,24 @@ function SeatGrid({ seats }: { seats: SeatCell[] | null }) {
 export default function GreenAcademyDashboard() {
   const router = useRouter();
 
-  // 가드
   const [user, setUser] = useState<LoginSession | null>(null);
   const [ready, setReady] = useState(false);
 
-  // 탭
   const [activeTab, setActiveTab] = useState<string>("종합정보");
 
-  // 데이터 상태
+  // QnA 특정 스레드 강제 오픈
+  const [forcedQnaId, setForcedQnaId] = useState<string | null>(null);
+
+  // 통계/리스트/좌석
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  // 통계
   const [present, setPresent] = useState(0);
   const [late, setLate] = useState(0);
   const [absent, setAbsent] = useState(0);
-
-  // 왼쪽 리스트
   const [list, setList] = useState<Array<{ label: string; sub?: string }>>([]);
-
-  // 좌석
   const [seats, setSeats] = useState<SeatCell[] | null>(null);
 
-  /** 👉 추가: 학생/학부모 QnA용 학원번호 상태 */
+  // 학생/학부모 QnA용 학원번호
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
 
   /** 세션 로드 & 가드 */
@@ -463,7 +448,7 @@ export default function GreenAcademyDashboard() {
     }
   }, [router]);
 
-  /** 👉 추가: 학원번호 초기화 (학생/학부모 전용) */
+  /** 학원번호 초기화 (학생/학부모 전용) */
   useEffect(() => {
     if (!user) return;
     if (
@@ -477,7 +462,7 @@ export default function GreenAcademyDashboard() {
     }
   }, [user]);
 
-  /** 역할별 데이터 로딩 (종합정보 탭일 때만 호출) */
+  /** 역할별 데이터 로딩 (종합정보 탭) */
   useEffect(() => {
     if (!ready || !user) return;
     if (activeTab !== "종합정보") return;
@@ -490,7 +475,6 @@ export default function GreenAcademyDashboard() {
         setList([]);
         setSeats(null);
 
-        // Teacher: 오늘 수업 목록 + 각 수업 출석 합산
         if (user.role === "teacher") {
           const classes = await apiGet<TeacherClass[]>(
             `${API_BASE}/api/teachers/${encodeURIComponent(user.username)}/classes`,
@@ -523,18 +507,10 @@ export default function GreenAcademyDashboard() {
           setPresent(sum.present);
           setLate(sum.late);
           setAbsent(sum.absent);
-
-          // 좌석 API가 있다면 여기에서 setSeats
-          // const seatsData = await apiGet<SeatCell[]>(
-          //   `${API_BASE}/api/classes/${encodeURIComponent(todayClasses[0].classId)}/seats`,
-          //   user.token
-          // );
-          // setSeats(seatsData);
-
           return;
         }
 
-        // Student/Parent: 본인(또는 자녀) 오늘 출석
+        // Student/Parent
         const targetStudentId =
           user.role === "parent"
             ? user.childStudentId || user.username
@@ -557,9 +533,6 @@ export default function GreenAcademyDashboard() {
             sub: `${r.status} • ${r.date}`,
           }))
         );
-
-        // 좌석 API 연동 시:
-        // setSeats(await apiGet<SeatCell[]>(`${API_BASE}/api/classes/${someClassId}/seats`, user.token));
       } catch (e: any) {
         setErr(e?.message ?? "데이터를 불러오지 못했습니다.");
       } finally {
@@ -567,6 +540,42 @@ export default function GreenAcademyDashboard() {
       }
     })();
   }, [ready, user, activeTab]);
+
+  /** 최근 QnA 버튼: 탭 전환 + 미확인 우선 최신 스레드 강제 오픈 */
+  const handleOpenRecentQna = async () => {
+    try {
+      const recent = await getRecentQna();
+      if (recent?.questionId) {
+        setForcedQnaId(recent.questionId);
+        setActiveTab("Q&A");
+      } else {
+        alert("최근 QnA가 없습니다.");
+      }
+    } catch {
+      alert("최근 QnA 정보를 불러오지 못했습니다.");
+    }
+  };
+
+  /** 사용자가 Q&A 탭으로 들어갔을 때 자동으로 최근 스레드 열기(미지정 시) */
+  useEffect(() => {
+    if (activeTab !== "Q&A") return;
+    if (forcedQnaId) return;
+
+    let aborted = false;
+    (async () => {
+      try {
+        const recent = await getRecentQna();
+        if (aborted) return;
+        if (recent?.questionId) setForcedQnaId(recent.questionId);
+      } catch {
+        /* ignore */
+      }
+    })();
+
+    return () => {
+      aborted = true;
+    };
+  }, [activeTab, forcedQnaId]);
 
   const handleLogout = () => {
     localStorage.removeItem("login");
@@ -582,7 +591,6 @@ export default function GreenAcademyDashboard() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-1 ring-black/5 overflow-hidden">
-              {/* 헤더 로고 아이콘 */}
               <Image
                 src="/logo.png"
                 alt="Logo"
@@ -600,16 +608,19 @@ export default function GreenAcademyDashboard() {
 
           <NavTabs active={activeTab} onChange={setActiveTab} />
 
-          {/* 프로필 드롭다운 메뉴 */}
           <ProfileMenu user={user} />
         </div>
       </header>
 
       {/* 본문 */}
       <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        <SidebarProfile user={user} onLogout={handleLogout} />
+        <SidebarProfile
+          user={user}
+          onLogout={handleLogout}
+          onOpenRecentQna={handleOpenRecentQna}
+        />
 
-        {/* 탭별 콘텐츠 분기 */}
+        {/* 탭별 콘텐츠 */}
         {activeTab === "종합정보" && (
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -659,15 +670,15 @@ export default function GreenAcademyDashboard() {
           </div>
         )}
 
-        {/* 👉 교체된 Q&A 탭 */}
+        {/* Q&A 탭 */}
         {activeTab === "Q&A" && (
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&amp;A</h2>
 
-              {/* 역할별 패널 분기 (family-portal과 동일) */}
+              {/* 역할별 패널 분기 */}
               {user?.role === "teacher" || user?.role === "director" ? (
-                <TeacherQnaPanel />
+                <TeacherQnaPanel questionId={forcedQnaId ?? undefined} />
               ) : academyNumber == null ? (
                 <p className="text-sm text-gray-700">
                   학원번호를 확인할 수 없습니다. 프로필 또는 로그인 정보를 확인해 주세요.
@@ -676,6 +687,7 @@ export default function GreenAcademyDashboard() {
                 <QnaPanel
                   academyNumber={academyNumber}
                   role={user?.role === "parent" ? "parent" : "student"}
+                  questionId={forcedQnaId ?? undefined}
                 />
               )}
             </div>
@@ -693,7 +705,7 @@ export default function GreenAcademyDashboard() {
 
         {activeTab === "가이드" && (
           <div className="space-y-4">
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow_sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">가이드</h2>
               <p className="text-sm text-gray-700">
                 사용 설명서/튜토리얼 문서를 표시합니다.

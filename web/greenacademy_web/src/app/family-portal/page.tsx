@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getRecentQna } from "@/lib/qna";
 
 import QnaPanel from "../qna/QnaPanel";
 import TeacherQnaPanel from "../qna/TeacherQnaPanel";
@@ -186,9 +187,11 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
 function SidebarProfile({
   user,
   onLogout,
+  onOpenRecentQna,
 }: {
   user: LoginSession | null;
   onLogout: () => void;
+  onOpenRecentQna?: () => void;
 }) {
   const router = useRouter();
 
@@ -227,7 +230,7 @@ function SidebarProfile({
             </div>
             {user?.role && (
               <span
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ring-1 ${roleColor}`}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${roleColor}`}
               >
                 <span className="inline-block w-2 h-2 rounded-full bg-current opacity-70" />
                 {roleLabel}
@@ -303,7 +306,7 @@ function SidebarProfile({
             환경 설정
           </button>
           <button
-            onClick={() => router.push("/qna/recent")}
+            onClick={onOpenRecentQna}
             className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
           >
             최근 QnA 바로가기
@@ -397,10 +400,13 @@ function NoticeCard({ notices }: { notices: Notice[] }) {
 /** 메인 페이지 */
 export default function FamilyPortalPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [user, setUser] = useState<LoginSession | null>(null);
   const [ready, setReady] = useState(false);
 
   const [activeTab, setActiveTab] = useState("종합정보");
+  const [forcedQnaId, setForcedQnaId] = useState<string | null>(null);
 
   // 데이터 상태
   const [loading, setLoading] = useState(false);
@@ -416,7 +422,7 @@ export default function FamilyPortalPage() {
   // 학원번호 상태(학생/학부모의 Q&A 패널에만 사용)
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
 
-  // 세션 로딩 (+ role 정규화)
+  // 세션 로딩 (+ role/academyNumbers 정규화)
   useEffect(() => {
     const raw = localStorage.getItem("login");
     if (!raw) {
@@ -425,13 +431,19 @@ export default function FamilyPortalPage() {
     }
     try {
       const parsed: any = JSON.parse(raw);
+      const nums =
+        Array.isArray(parsed?.academyNumbers)
+          ? parsed.academyNumbers
+              .map((n: any) => Number(n))
+              .filter((n: number) => Number.isFinite(n))
+          : [];
       const normalized: LoginSession = {
         role: normalizeRole(parsed?.role),
         username: parsed?.username ?? "",
         name: parsed?.name ?? undefined,
         token: parsed?.token ?? undefined,
         childStudentId: parsed?.childStudentId ?? null,
-        academyNumbers: Array.isArray(parsed?.academyNumbers) ? parsed.academyNumbers : [],
+        academyNumbers: nums,
       };
       setUser(normalized);
     } catch {
@@ -457,13 +469,21 @@ export default function FamilyPortalPage() {
     }
   }, [user]);
 
+  // URL 쿼리로 탭 전환 + 특정 QnA 열기
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const qid = searchParams.get("qnaId");
+    if (tab === "qna") setActiveTab("Q&A");
+    if (qid) setForcedQnaId(qid);
+  }, [searchParams]);
+
   // 종합정보 탭 데이터(학생/학부모만 의미 있음)
   useEffect(() => {
     if (!ready || !user) return;
     if (activeTab !== "종합정보") return;
 
     (async () => {
-      // 교사/원장은 해당 섹션 비움
+      // 교사/원장: 공란(안내만)
       if (user.role === "teacher" || user.role === "director") {
         setLoading(false);
         setErr(null);
@@ -522,6 +542,76 @@ export default function FamilyPortalPage() {
     router.replace("/login");
   };
 
+  // 최근 QnA 바로가기 → 탭 전환 + 해당 스레드 강제 오픈(미확인 우선)
+  const handleOpenRecentQna = async () => {
+    try {
+      const recent = await getRecentQna();
+      if (recent?.questionId) {
+        setActiveTab("Q&A");
+        setForcedQnaId(recent.questionId);
+
+        // URL 동기화(얕은 replace)
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("tab", "qna");
+        params.set("qnaId", recent.questionId);
+        router.replace(`?${params.toString()}`);
+      } else {
+        alert("최근 QnA가 없습니다.");
+      }
+    } catch {
+      alert("최근 QnA 정보를 불러오지 못했습니다.");
+    }
+  };
+
+  // Q&A 탭 수동 진입 시에도 자동으로 “최근 스레드” 열기(강제 id 없을 때만)
+  useEffect(() => {
+    if (activeTab !== "Q&A") return;
+    if (forcedQnaId) return;
+
+    let aborted = false;
+    (async () => {
+      try {
+        const recent = await getRecentQna();
+        if (aborted) return;
+        if (recent?.questionId) {
+          setForcedQnaId(recent.questionId);
+
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("tab", "qna");
+          params.set("qnaId", recent.questionId);
+          router.replace(`?${params.toString()}`);
+        }
+      } catch {
+        // 무시
+      }
+    })();
+
+    return () => {
+      aborted = true;
+    };
+  }, [activeTab, forcedQnaId, searchParams, router]);
+
+  // 탭 클릭 시: Q&A로 전환하는 경우 최근 스레드 자동 로드 트리거(중복 방지)
+  const onChangeTab = async (tab: string) => {
+    setActiveTab(tab);
+    if (tab !== "Q&A") return;
+
+    if (!forcedQnaId) {
+      try {
+        const recent = await getRecentQna();
+        if (recent?.questionId) {
+          setForcedQnaId(recent.questionId);
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("tab", "qna");
+          params.set("qnaId", recent.questionId);
+          router.replace(`?${params.toString()}`);
+        }
+      } catch {
+        // 무시
+      }
+    }
+  };
+
   if (!ready) return null;
 
   const subtitle =
@@ -551,7 +641,7 @@ export default function FamilyPortalPage() {
             </div>
           </div>
 
-          <NavTabs active={activeTab} onChange={setActiveTab} />
+          <NavTabs active={activeTab} onChange={onChangeTab} />
 
           <ProfileMenu user={user} />
         </div>
@@ -559,7 +649,11 @@ export default function FamilyPortalPage() {
 
       {/* 본문 */}
       <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        <SidebarProfile user={user} onLogout={handleLogout} />
+        <SidebarProfile
+          user={user}
+          onLogout={handleLogout}
+          onOpenRecentQna={handleOpenRecentQna}
+        />
 
         {activeTab === "종합정보" && (
           <div className="space-y-6">
@@ -609,9 +703,9 @@ export default function FamilyPortalPage() {
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&amp;A</h2>
 
-              {/* 역할별 패널 분기 */}
+              {/* 역할별 패널 분기 + 최근 질문 강제 오픈 */}
               {user?.role === "teacher" || user?.role === "director" ? (
-                <TeacherQnaPanel />
+                <TeacherQnaPanel questionId={forcedQnaId ?? undefined} />
               ) : academyNumber == null ? (
                 <p className="text-sm text-gray-700">
                   학원번호를 확인할 수 없습니다. 프로필 또는 로그인 정보를 확인해 주세요.
@@ -620,6 +714,7 @@ export default function FamilyPortalPage() {
                 <QnaPanel
                   academyNumber={academyNumber}
                   role={user?.role === "parent" ? "parent" : "student"}
+                  questionId={forcedQnaId ?? undefined}
                 />
               )}
             </div>

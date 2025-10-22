@@ -11,10 +11,20 @@ public class Parent {
 
     @Id
     private String id;
+
     private String fcmToken;
+
+    // 소문자 필드 (신규 규칙)
     private String parentsId;
     private String parentsPw;
     private String parentsName;
+
+    // ✅ 레거시 대문자 키도 함께 매핑 (읽기용 폴백)
+    @Field("Parents_ID")
+    private String parentsIdLegacy;
+
+    @Field("Parents_Name")
+    private String parentsNameLegacy;
 
     @Field("Parents_Phone_Number")
     private String parentsPhoneNumber;
@@ -22,15 +32,15 @@ public class Parent {
     @Field("Parents_Number")
     private String parentsNumber;
 
-    // ✅ 여러 자녀 ID 등록 가능
+    // 여러 자녀 ID
     @Field("Student_ID_List")
     private List<String> studentIds;
 
-    // ✅ 여러 학원 등록 가능
+    // 여러 학원 번호
     @Field("Academy_Numbers")
     private List<Integer> academyNumbers;
 
-    // ✅ 1. 회원가입 시 사용 (studentIds, academyNumbers 없이)
+    // --- 생성자들 ---
     public Parent(String parentsId, String parentsPw, String parentsName,
                   String parentsPhoneNumber, String parentsNumber, int academyNumber) {
         this.parentsId = parentsId;
@@ -41,7 +51,6 @@ public class Parent {
         this.academyNumbers = Collections.singletonList(academyNumber);
     }
 
-    // ✅ 2. 전체 필드 초기화용 (studentIds, academyNumbers 포함)
     public Parent(String parentsId, String parentsPw, String parentsName,
                   String parentsPhoneNumber, String parentsNumber,
                   List<String> studentIds, List<Integer> academyNumbers) {
@@ -54,75 +63,55 @@ public class Parent {
         this.academyNumbers = academyNumbers;
     }
 
-    // ✅ 3. 기본 생성자
     public Parent() {}
 
-    // ✅ Getter/Setter
-    public String getId() {
-        return id;
-    }
+    // --- Getter/Setter ---
 
+    public String getId() { return id; }
+
+    /** ✅ ID 폴백: parentsId → Parents_ID(레거시) */
     public String getParentsId() {
-        return parentsId;
+        String v = trimOrNull(parentsId);
+        if (v != null) return v;
+        return trimOrNull(parentsIdLegacy);
     }
 
-    public void setParentsId(String parentsId) {
-        this.parentsId = parentsId;
-    }
+    public void setParentsId(String parentsId) { this.parentsId = parentsId; }
 
-    public String getParentsPw() {
-        return parentsPw;
-    }
+    public String getParentsPw() { return parentsPw; }
+    public void setParentsPw(String parentsPw) { this.parentsPw = parentsPw; }
 
-    public void setParentsPw(String parentsPw) {
-        this.parentsPw = parentsPw;
-    }
-
+    /** ✅ 이름 폴백: parentsName(소문자) → Parents_Name(대문자) → parentsId */
     public String getParentsName() {
-        return parentsName;
+        String v = trimOrNull(parentsName);
+        if (v != null) return v;
+        v = trimOrNull(parentsNameLegacy);
+        if (v != null) return v;
+        // 최후 폴백: ID
+        return getParentsId();
     }
 
-    public void setParentsName(String parentsName) {
-        this.parentsName = parentsName;
-    }
+    public void setParentsName(String parentsName) { this.parentsName = parentsName; }
 
-    public String getParentsPhoneNumber() {
-        return parentsPhoneNumber;
-    }
+    public String getParentsPhoneNumber() { return parentsPhoneNumber; }
+    public void setParentsPhoneNumber(String parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
 
-    public void setParentsPhoneNumber(String parentsPhoneNumber) {
-        this.parentsPhoneNumber = parentsPhoneNumber;
-    }
+    public String getParentsNumber() { return parentsNumber; }
+    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
 
-    public String getParentsNumber() {
-        return parentsNumber;
-    }
+    public List<String> getStudentIds() { return studentIds; }
+    public void setStudentIds(List<String> studentIds) { this.studentIds = studentIds; }
 
-    public void setParentsNumber(String parentsNumber) {
-        this.parentsNumber = parentsNumber;
-    }
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 
-    public List<String> getStudentIds() {
-        return studentIds;
-    }
+    public List<Integer> getAcademyNumbers() { return academyNumbers; }
+    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
 
-    public void setStudentIds(List<String> studentIds) {
-        this.studentIds = studentIds;
+    // --- 내부 유틸 ---
+    private static String trimOrNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
-
-    public String getFcmToken() {
-        return fcmToken;
-    }
-
-    public void setFcmToken(String fcmToken) {
-        this.fcmToken = fcmToken;
-    }
-
-    public List<Integer> getAcademyNumbers() {
-        return academyNumbers;
-    }
-
-    public void setAcademyNumbers(List<Integer> academyNumbers) {
-        this.academyNumbers = academyNumbers;
-    }
-} 
+}
