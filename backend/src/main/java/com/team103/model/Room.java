@@ -28,10 +28,10 @@ public class Room {
     private List<SeatCell> layout;
 
     @Field("Current_Class")
-    private CurrentClass currentClass;
+    private CurrentClass currentClass;  // 현재 진행 중인 수업 정보
 
     @Field("Seats")
-    private List<Seat> seats;
+    private List<Seat> seats;  // 좌석 배열
 
     // --- Getters & Setters ---
     public String getId() { return id; }
@@ -90,6 +90,7 @@ public class Room {
         public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
         public String getStartTime() { return startTime; }
         public void setStartTime(String startTime) { this.startTime = startTime; }
+
         public String getEndTime() { return endTime; }
         public void setEndTime(String endTime) { this.endTime = endTime; }
     }

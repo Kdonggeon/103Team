@@ -18,6 +18,7 @@ export default function TeacherTopPage() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <TeacherManagePanel teacherId={teacherId} defaultAcademy={defaultAcademy} />
+
     </div>
   );
 }

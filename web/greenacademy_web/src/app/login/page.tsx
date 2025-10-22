@@ -27,11 +27,32 @@ export default function LoginPage() {
       const body: LoginRequest = { username: id, password: pw };
       const data: LoginResponse = await api.login(body);
 
-      // ✅ 세션 저장: session + (레거시) login 동시 저장됨
-      setSession(data);
+// 1) 토큰 필수 확인
+if (!data?.token || typeof data.token !== "string" || data.token.length === 0) {
+  setLoading(false);
+  return setMsg("로그인 토큰이 없습니다. 관리자에게 문의하세요.");
+}
 
-      // 옵션은 별도 키로 저장(선택)
-      localStorage.setItem("client_prefs", JSON.stringify({ keepLogin, ipSecure }));
+// 2) 세션 저장: 상태(Session) 반영
+setSession(data);
+
+// 3) 로컬 영구 저장(localStorage)
+//    - 호환성 위해 keepLogin, ipSecure도 함께 저장(기존 sub1 코드 유지)
+localStorage.setItem(
+  "login",
+  JSON.stringify({
+    token: data.token,
+    role: data.role,
+    username: data.username,
+    name: data.name ?? null,
+    academyNumbers: Array.isArray(data.academyNumbers) ? data.academyNumbers : [],
+    keepLogin,
+    ipSecure,
+  })
+);
+
+// 4) 옵션은 별도 키로도 저장(기존 HEAD 동작 유지)
+localStorage.setItem("client_prefs", JSON.stringify({ keepLogin, ipSecure }));
 
       // 역할별 라우팅
       let next = "/";

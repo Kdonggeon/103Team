@@ -12,8 +12,10 @@ import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
 import com.team103.security.JwtUtil;
 import com.team103.service.FcmService;
+
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -73,6 +75,7 @@ public class AnswerController {
     @GetMapping("/api/questions/{qId}/answers")
     public List<Answer> listAnswers(@PathVariable("qId") String questionId) {
         List<Answer> list = answerRepository.findActiveByQuestionId(questionId);
+        // 표시용 교사명 세팅
         for (Answer a : list) {
             a.setTeacherName(resolveTeacherName(a.getAuthor()));
         }

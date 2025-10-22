@@ -6,12 +6,13 @@ import com.team103.model.Parent;
 import com.team103.repository.FollowUpRepository;
 import com.team103.repository.StudentRepository;
 import com.team103.repository.ParentRepository;
+import com.team103.security.JwtUtil;
 
 import jakarta.servlet.http.HttpSession;
 
+import io.jsonwebtoken.Claims;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.*;
@@ -27,10 +28,38 @@ public class FollowUpController {
 
     @Autowired
     private ParentRepository parentRepository;
-    
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    private static final String BEARER = "Bearer ";
 
     public FollowUpController(FollowUpRepository followUpRepository) {
         this.followUpRepository = followUpRepository;
+    }
+
+    // ★ JWT → 세션 브릿지 (이 컨트롤러로 들어오는 모든 요청에 대해 세션 보강)
+    @ModelAttribute
+    public void ensureSessionFromJwt(
+            @RequestHeader(value = "Authorization", required = false) String auth,
+            HttpSession session
+    ) {
+        if (auth == null || !auth.startsWith(BEARER)) return;
+        try {
+            String token = auth.substring(BEARER.length());
+            Claims claims = jwtUtil.validateToken(token);
+            String userId = claims.getSubject();
+            String role = claims.get("role", String.class);
+
+            if (userId != null && session.getAttribute("username") == null) {
+                session.setAttribute("username", userId);
+            }
+            if (role != null && session.getAttribute("role") == null) {
+                session.setAttribute("role", role);
+            }
+        } catch (Exception ignore) {
+            // 유효하지 않은 토큰이면 세션 미변경
+        }
     }
 
     // 목록
@@ -40,7 +69,7 @@ public class FollowUpController {
         // createdAt 오름차순 정렬
         list.sort(Comparator.comparing(FollowUp::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
 
-        // ✅ 역할별 이름 세팅
+        // 역할별 이름 세팅
         for (FollowUp f : list) {
             String role = f.getAuthorRole();
             if ("student".equalsIgnoreCase(role)) {
@@ -48,7 +77,6 @@ public class FollowUpController {
             } else if ("parent".equalsIgnoreCase(role)) {
                 f.setParentName(resolveParentName(f.getAuthor()));
             } else {
-                // 모호한 경우엔 식별자 fallback
                 String fallback = f.getAuthor() == null ? "" : f.getAuthor();
                 f.setStudentName(fallback);
                 f.setParentName(fallback);
@@ -79,7 +107,7 @@ public class FollowUpController {
 
         FollowUp saved = followUpRepository.save(fu);
 
-        // ✅ 응답에도 역할별 이름 세팅
+        // 응답에도 역할별 이름 세팅
         if ("student".equalsIgnoreCase(role)) {
             saved.setStudentName(resolveStudentName(userId));
         } else if ("parent".equalsIgnoreCase(role)) {
@@ -112,7 +140,7 @@ public class FollowUpController {
         fu.setContent(req.getContent());
         FollowUp saved = followUpRepository.save(fu);
 
-        // ✅ 응답에도 역할별 이름 세팅
+        // 응답에도 역할별 이름 세팅
         String fuRole = saved.getAuthorRole();
         if ("student".equalsIgnoreCase(fuRole)) {
             saved.setStudentName(resolveStudentName(saved.getAuthor()));
@@ -161,7 +189,7 @@ public class FollowUpController {
     private String resolveParentName(String parentId) {
         if (parentId == null) return "";
         Parent p = parentRepository.findByParentsId(parentId);
-        String name = (p != null) ? p.getParentsName() : null;  // ✅ 여기 변경
+        String name = (p != null) ? p.getParentsName() : null;
         return (name != null && !name.isEmpty()) ? name : parentId;
     }
 }

@@ -1,19 +1,26 @@
+// C:\project\103Team-sub\web\greenacademy_web\src\app\page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
 import { getSession, clearSession } from "@/app/lib/session";
 import api, { type LoginResponse, type CourseLite } from "@/app/lib/api";
+
 // 강의실 API + 에디터
 import { roomsApi, type Room } from "@/app/lib/rooms";
 import RoomGridEditor, { type SeatCell as EditorSeat } from "@/components/rooms/RoomGridEditor";
 
-
 // 시간표 UI
 import Panel, { PanelGrid } from "@/components/ui/Panel";
 import WeekCalendar, { type CalendarEvent } from "@/components/ui/calendar/week-calendar";
+
+// QnA
+import { getRecentQna } from "@/lib/qna"; // 최근 QnA 선택(미확인 우선 → 최신)
+import QnaPanel from "./qna/QnaPanel";
+import TeacherQnaPanel from "./qna/TeacherQnaPanel";
 
 /** 색상 토큰 */
 const colors = { green: "#65E478", grayBg: "#F2F4F7" };
@@ -111,7 +118,8 @@ function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
     };
   }, []);
 
-  const initial = user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
+  const initial =
+    user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
 
   return (
     <div className="relative" ref={ref}>
@@ -136,7 +144,21 @@ function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
 }
 
 /** 사이드 프로필 */
-function SidebarProfile({ user, onLogout }: { user: NonNullable<LoginResponse> | null; onLogout: () => void }) {
+
+function SidebarProfile({
+  user,
+  onLogout,
+  onOpenRecentQna,
+}: {
+  user: {
+    role?: "student" | "teacher" | "parent" | "director" | string;
+    username?: string;
+    name?: string | null;            // ← 여기: null 허용
+    academyNumbers?: (number | string)[];
+  } | null;
+  onLogout: () => void;
+  onOpenRecentQna?: () => void;
+}) {
   const router = useRouter();
   const role = user?.role;
   const roleColor =
@@ -195,7 +217,12 @@ function SidebarProfile({ user, onLogout }: { user: NonNullable<LoginResponse> |
             <button onClick={() => router.push("/account/delete")} className="rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-xs font-medium text-gray-800">계정탈퇴</button>
           </div>
 
-          <button onClick={onLogout} className="w-full rounded-xl py-3 text-white font-semibold mt-1 active:scale-[0.99] transition" style={{ backgroundColor: colors.green }}>
+
+          <button
+            onClick={onLogout}
+            className="w-full rounded-xl py-3 text-white font-semibold mt-1 active:scale-[0.99] transition"
+            style={{ backgroundColor: colors.green }}
+          >
             로그아웃
           </button>
         </div>
@@ -204,8 +231,19 @@ function SidebarProfile({ user, onLogout }: { user: NonNullable<LoginResponse> |
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4 space-y-3 mt-4">
         <div className="text-sm font-semibold text-gray-900">빠른 실행</div>
         <div className="grid gap-2">
-          <button onClick={() => router.push("/settings")} className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800">환경 설정</button>
-          <button onClick={() => router.push("/qna/recent")} className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800">최근 QnA 바로가기</button>
+
+          <button
+            onClick={() => router.push("/settings")}
+            className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
+          >
+            환경 설정
+          </button>
+          <button
+            onClick={onOpenRecentQna}
+            className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
+          >
+            최근 QnA 바로가기
+          </button>
         </div>
       </div>
     </aside>
@@ -563,22 +601,32 @@ function TeacherSchedulePanelInline({ user }: { user: NonNullable<LoginResponse>
 /** 메인 대시보드 */
 export default function GreenAcademyDashboard() {
   const router = useRouter();
+  const handleTab = (tab: string) => {
+  setActiveTab(tab);
+  if (tab !== "Q&A") setForcedQnaId(null);
+};
 
   const [user, setUser] = useState<LoginResponse | null>(null);
+
   const [ready, setReady] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string>("종합정보");
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
   const [present, setPresent] = useState(0);
   const [late, setLate] = useState(0);
   const [absent, setAbsent] = useState(0);
-
   const [list, setList] = useState<Array<{ label: string; sub?: string }>>([]);
-
   const [seats] = useState<SeatCell[] | null>(null);
+
+  // QnA 특정 스레드 강제 오픈
+  const [forcedQnaId, setForcedQnaId] = useState<string | null>(null);
+
+
+
+  // 학생/학부모 QnA용 학원번호
+  const [academyNumber, setAcademyNumber] = useState<number | null>(null);
 
   /** 세션 로드 & 가드 */
   useEffect(() => {
@@ -588,7 +636,22 @@ export default function GreenAcademyDashboard() {
     setReady(true);
   }, [router]);
 
-  /** 역할별 데이터 로딩 (종합정보) */
+  /** 학원번호 초기화 (학생/학부모 전용) */
+  useEffect(() => {
+    if (!user) return;
+    if (
+      (user.role === "student" || user.role === "parent") &&
+      Array.isArray(user.academyNumbers) &&
+      user.academyNumbers.length > 0
+    ) {
+      setAcademyNumber(user.academyNumbers[0]);
+    } else {
+      setAcademyNumber(null);
+    }
+  }, [user]);
+
+  /** 역할별 데이터 로딩 (종합정보 탭) */
+
   useEffect(() => {
     if (!ready || !user) return;
     if (activeTab !== "종합정보") return;
@@ -600,6 +663,7 @@ export default function GreenAcademyDashboard() {
         setList([]);
 
         if (user.role === "teacher") {
+
           const classes = await api.listMyClasses(user.username);
           setList((classes || []).map((c) => ({ label: c.className, sub: c.classId })));
           setPresent(0); setLate(0); setAbsent(0);
@@ -630,8 +694,48 @@ export default function GreenAcademyDashboard() {
     })();
   }, [ready, user, activeTab]);
 
-  const handleLogout = () => { clearSession(); router.replace("/login"); };
-  const handleTab = (t: string) => setActiveTab(t);
+
+  /** 최근 QnA 버튼: 탭 전환 + 미확인 우선 최신 스레드 강제 오픈 */
+  const handleOpenRecentQna = async () => {
+    try {
+      const recent = await getRecentQna();
+      if (recent?.questionId) {
+        setForcedQnaId(recent.questionId);
+        setActiveTab("Q&A");
+      } else {
+        alert("최근 QnA가 없습니다.");
+      }
+    } catch {
+      alert("최근 QnA 정보를 불러오지 못했습니다.");
+    }
+  };
+
+  /** 사용자가 Q&A 탭으로 들어갔을 때 자동으로 최근 스레드 열기(미지정 시) */
+  useEffect(() => {
+    if (activeTab !== "Q&A") return;
+    if (forcedQnaId) return;
+
+    let aborted = false;
+    (async () => {
+      try {
+        const recent = await getRecentQna();
+        if (aborted) return;
+        if (recent?.questionId) setForcedQnaId(recent.questionId);
+      } catch {
+        /* ignore */
+      }
+    })();
+
+    return () => {
+      aborted = true;
+    };
+  }, [activeTab, forcedQnaId]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("login");
+    router.replace("/login");
+  };
+
 
   if (!ready) return null;
 
@@ -642,7 +746,15 @@ export default function GreenAcademyDashboard() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-1 ring-black/5 overflow-hidden">
-              <Image src="/logo.png" alt="Logo" width={40} height={40} className="object-contain" priority />
+
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={40}
+                height={40}
+                className="object-contain"
+                priority
+              />
             </div>
             <div className="leading-tight">
               <div className="text-lg font-semibold text-gray-900">Green Academy</div>
@@ -658,7 +770,11 @@ export default function GreenAcademyDashboard() {
 
       {/* 본문 */}
       <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        <SidebarProfile user={user} onLogout={handleLogout} />
+        <SidebarProfile
+          user={user}
+          onLogout={handleLogout}
+          onOpenRecentQna={handleOpenRecentQna}
+        />
 
         {/* 탭별 콘텐츠 */}
         {activeTab === "종합정보" && (
@@ -711,11 +827,26 @@ export default function GreenAcademyDashboard() {
           </>
         )}
 
+        {/* Q&A 탭 */}
         {activeTab === "Q&A" && (
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&A</h2>
-              <p className="text-sm text-gray-700">Q&A 게시판을 연결하세요.</p>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&amp;A</h2>
+
+              {/* 역할별 패널 분기 */}
+              {user?.role === "teacher" || user?.role === "director" ? (
+                <TeacherQnaPanel questionId={forcedQnaId ?? undefined} />
+              ) : academyNumber == null ? (
+                <p className="text-sm text-gray-700">
+                  학원번호를 확인할 수 없습니다. 프로필 또는 로그인 정보를 확인해 주세요.
+                </p>
+              ) : (
+                <QnaPanel
+                  academyNumber={academyNumber}
+                  role={user?.role === "parent" ? "parent" : "student"}
+                  questionId={forcedQnaId ?? undefined}
+                />
+              )}
             </div>
           </div>
         )}
@@ -731,7 +862,7 @@ export default function GreenAcademyDashboard() {
 
         {activeTab === "가이드" && (
           <div className="space-y-4">
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow_sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">가이드</h2>
               <p className="text-sm text-gray-700">사용 설명서/튜토리얼 문서를 표시합니다.</p>
             </div>
