@@ -58,7 +58,7 @@ public class AttendanceController {
         for (Attendance att : attends) {
             String status = resolveStatus(att, studentId);
 
-            Course course = courseRepository.findByClassId(att.getClassId());
+            Course course = courseRepository.findByClassId(att.getClassId()).orElse(null);
             String className = (course != null && course.getClassName() != null) ? course.getClassName() : "";
 
             String academyName = academyNameForStudent;

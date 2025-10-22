@@ -2,6 +2,9 @@ package com.team103.config;
 
 import com.team103.security.JwtAuthFilter;
 import com.team103.security.JwtUtil;
+
+import jakarta.servlet.DispatcherType;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -26,7 +29,7 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    /** JwtAuthFilter 빈 */
+    /** JwtAuthFilter 빈 등록 */
     @Bean
     public JwtAuthFilter jwtAuthFilter(JwtUtil jwtUtil) {
         return new JwtAuthFilter(jwtUtil);
@@ -34,52 +37,57 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter) throws Exception {
-        http
-            .cors(Customizer.withDefaults())
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // 공개
-                .requestMatchers("/actuator/health/**", "/actuator/info", "/ping").permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+    	http
+    	  .cors(Customizer.withDefaults())
+    	  .csrf(csrf -> csrf.disable())
+    	  .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+    	  .authorizeHttpRequests(auth -> auth
+    	      // ✅ 에러 페이지/디스패처는 항상 허용
+    	      .requestMatchers("/error", "/error/**").permitAll()
+    	      .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
 
-                .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/*/find_id").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/directors/signup").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/signup/director").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/students").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/teachers").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/manage/**").permitAll()
-                
+    	      /* ====== 공개 엔드포인트 ====== */
+    	      .requestMatchers("/actuator/health/**", "/actuator/info", "/ping").permitAll()
+    	      .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/*/find_id").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/directors/signup").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/signup/director").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/students").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/teachers").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
+    	      .requestMatchers(HttpMethod.POST, "/api/teacher").permitAll()
 
-                // 계정 탈퇴
-                .requestMatchers(HttpMethod.POST, "/api/account/delete").permitAll()
+    	      /* ====== 보호 엔드포인트 ====== */
+    	      .requestMatchers("/api/manage/teachers/**").hasAnyRole("TEACHER","DIRECTOR")
+    	      .requestMatchers("/api/teachers/**").hasAnyRole("TEACHER","DIRECTOR")
+    	      .requestMatchers("/api/calendar/**").hasAnyRole("TEACHER","DIRECTOR")
 
-                // 그 외 보호
-                .anyRequest().authenticated()
-            )
-            // JWT 필터 체인에 연결
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
+    	      .anyRequest().authenticated()
+    	  )
+    	  .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
-    /** CORS (개발용) */
+    /** CORS */
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowCredentials(true);
-        config.setAllowedOriginPatterns(List.of(
-                "http://localhost:3000",
-                "http://127.0.0.1:3000"
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedOriginPatterns(List.of(
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://192.168.*:*",
+            "https://your-web-domain.com"
         ));
-        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        cfg.setAllowedMethods(List.of("GET","POST","PATCH","PUT","DELETE","OPTIONS"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setExposedHeaders(List.of("Authorization"));
+        cfg.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        source.registerCorsConfiguration("/**", cfg);
         return source;
     }
 }

@@ -11,7 +11,6 @@ import com.team103.repository.AttendanceRepository;
 import com.team103.repository.CourseRepository;
 import com.team103.repository.ParentRepository;
 import com.team103.repository.StudentRepository;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +51,7 @@ public class ParentController {
         return parentRepo.findAll();
     }
 
+    /** FCM 토큰 업데이트 */
     @PutMapping("/{id}/fcm-token")
     public ResponseEntity<Void> updateFcmToken(@PathVariable("id") String parentsId,
                                                @RequestParam("token") String token) {
@@ -93,9 +93,7 @@ public class ParentController {
         if (currentChildren == null) currentChildren = new ArrayList<>();
 
         for (String studentId : request.getStudentIds()) {
-            if (!currentChildren.contains(studentId)) {
-                currentChildren.add(studentId);
-            }
+            if (!currentChildren.contains(studentId)) currentChildren.add(studentId);
         }
 
         parent.setStudentIds(currentChildren);
@@ -156,7 +154,7 @@ public class ParentController {
         }
 
         // 2) 없거나 비면 parentsNumber 대체
-        String parentNumber = parent.getParentsNumber(); // 타입이 String이면 그대로
+        String parentNumber = parent.getParentsNumber();
         if (parentNumber != null && !parentNumber.isBlank()) {
             List<Student> s = studentRepo.findByParentsNumber(parentNumber);
             if (s != null) return s;
@@ -164,7 +162,7 @@ public class ParentController {
         return new ArrayList<>();
     }
 
-    /** 학부모의 자녀 이름 목록 조회 (보강: studentIds → parentsNumber 폴백) */
+    /** 학부모의 자녀 이름 목록 조회 */
     @GetMapping("/{parentId}/children/names")
     public ResponseEntity<?> getChildNames(@PathVariable String parentId) {
         Parent parent = parentRepo.findByParentsId(parentId);
@@ -174,13 +172,10 @@ public class ParentController {
 
         List<Student> students = new ArrayList<>();
 
-        // 1) studentIds 우선
         List<String> studentIds = parent.getStudentIds();
         if (studentIds != null && !studentIds.isEmpty()) {
             students = studentRepo.findByStudentIdIn(studentIds);
         }
-
-        // 2) 없거나 비면 parentsNumber 대체
         if (students == null || students.isEmpty()) {
             String parentNumber = parent.getParentsNumber();
             if (parentNumber != null && !parentNumber.isBlank()) {
@@ -194,7 +189,6 @@ public class ParentController {
                 studentNames.add(s.getStudentName());
             }
         }
-
         return ResponseEntity.ok(studentNames);
     }
 

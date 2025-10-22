@@ -56,11 +56,12 @@ public class AttendanceCheckInController {
         int dow = now.getDayOfWeek().getValue(); // 1=월..7=일
 
         // (2) 수업 조회
-        Course course = courseRepository.findByClassId(req.getClassId());
+        Course course = courseRepository.findByClassId(req.getClassId())
+                .orElse(null);
         if (course == null) {
             return ResponseEntity.badRequest().body("수업을 찾을 수 없음");
         }
-        List<Integer> daysOfWeek = course.getDaysOfWeek();
+        List<Integer> daysOfWeek = course.getDaysOfWeekInt();
         if (daysOfWeek == null || !daysOfWeek.contains(dow)) {
             return ResponseEntity.status(409).body("오늘은 해당 수업이 없음");
         }

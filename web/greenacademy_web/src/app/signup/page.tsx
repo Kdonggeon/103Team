@@ -1,57 +1,49 @@
 "use client";
+
 import React from "react";
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import type { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation"; // ✅ App Router 환경에서는 next/navigation 사용
+import { useRouter } from "next/navigation";
 
 /**
- * ✅ 역할별(학생/학부모/교사/원장) 동적 회원가입 폼 (반응형)
- * - DTO를 서버 요청 스키마에 맞게 정확히 매핑
- * - 제출 성공 시 "회원가입이 완료되었습니다." 메시지 후 /login 이동
- * - Tailwind 기반 UI
+ * 역할별 회원가입 (학생/학부모/교사/원장)
+ * - 백엔드 DTO/엔드포인트와 1:1 매핑
+ * - 성공 시 /login 이동
  */
- // ✅ FIX: next/navigation → next/router
 
-/**
- * ✅ 역할별(학생/학부모/교사/원장) 동적 회원가입 폼 (반응형)
- * - DTO를 서버 요청 스키마에 맞게 정확히 매핑
- * - 제출 성공 시 "회원가입이 완료되었습니다." 메시지 후 /login 이동
- * - Tailwind 기반 UI
- */
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 
 type Role = "student" | "parent" | "teacher" | "director";
 
-// Type helper (optional). If you need it later, keep FieldValues constraint.
-// import type { FieldValues } from "react-hook-form";
-// type RHF<T extends FieldValues = FieldValues> = UseFormReturn<T>;
-
+// 공통 유틸
 const baseRequired = (label: string) =>
-  // Older zod versions may not support `required_error`. Use `.min(1)` for required.
   z.string().min(1, { message: `${label}을(를) 입력하세요.` });
 
-const phoneString = (label: string) => baseRequired(label)
-  .regex(/^[0-9\-+() ]{7,20}$/i, { message: `${label} 형식이 올바르지 않습니다.` });
+const phoneString = (label: string) =>
+  baseRequired(label).regex(/^[0-9\-+() ]{7,20}$/i, {
+    message: `${label} 형식이 올바르지 않습니다.`,
+  });
 
+// Director 다중 번호
 const academyNumbersArray = z
   .array(z.coerce.number().int().nonnegative({ message: "0 이상의 정수여야 합니다." }))
   .min(1, { message: "학원 번호를 1개 이상 입력하세요." })
   .optional();
 
-// ▼ 역할별 스키마 — 서버 DTO에 맞춤
+// ===== 역할별 스키마 (백엔드 DTO 네이밍 맞춤) =====
 const studentSchema = z.object({
   role: z.literal("student"),
   studentId: baseRequired("아이디"),
   studentPw: baseRequired("비밀번호").min(4, { message: "비밀번호는 최소 4자 이상" }),
   studentName: baseRequired("이름"),
   address: z.string().optional(),
-  phoneNumber: phoneString("전화번호"), // ✅ Student DTO 키는 phoneNumber
+  studentPhoneNumber: phoneString("전화번호"), // 통일
   school: z.string().optional(),
   grade: z.coerce.number().int().min(0).max(99).optional(),
-  parentsNumber: z.string().optional(), // ✅ 문자열
+  parentsNumber: z.string().optional(),
   gender: z.enum(["M", "F", "Other"]).optional(),
-  // seatNumber/checkedIn은 회원가입 시 입력 생략 (서버 기본값 사용 가정)
 });
 
 const parentSchema = z.object({
@@ -75,11 +67,11 @@ const teacherSchema = z.object({
 
 const directorSchema = z.object({
   role: z.literal("director"),
-  username: baseRequired("아이디"),
-  password: baseRequired("비밀번호").min(4),
-  name: baseRequired("이름"),
-  phone: phoneString("전화번호"),
-  academyNumbers: academyNumbersArray, // 리스트 유지
+  directorId: baseRequired("아이디"),
+  directorPw: baseRequired("비밀번호").min(4),
+  directorName: baseRequired("이름"),
+  directorPhoneNumber: phoneString("전화번호"),
+  academyNumbers: academyNumbersArray, // [number]
 });
 
 const unionSchema = z.discriminatedUnion("role", [
@@ -93,19 +85,18 @@ type FormValues = z.infer<typeof unionSchema>;
 
 const defaultValues: FormValues = {
   role: "student",
-  // 학생 기본값 예시
   studentId: "",
   studentPw: "",
   studentName: "",
   address: "",
-  phoneNumber: "",
+  studentPhoneNumber: "",
   school: "",
   grade: 0,
   parentsNumber: undefined,
   gender: undefined,
 } as FormValues;
 
-// 서버에서 요구하는 payload로 변환
+// 서버로 보낼 payload (이미 스키마가 서버 DTO에 맞춰져 있으므로 얕은 복사)
 export function payloadMapper(values: FormValues) {
   switch (values.role) {
     case "student":
@@ -114,12 +105,11 @@ export function payloadMapper(values: FormValues) {
         studentPw: values.studentPw,
         studentName: values.studentName,
         address: values.address ?? null,
-        phoneNumber: values.phoneNumber, // ✅ DTO 키 맞춤
+        studentPhoneNumber: values.studentPhoneNumber,
         school: values.school ?? null,
         grade: values.grade ?? 0,
         parentsNumber: values.parentsNumber ?? null,
         gender: values.gender ?? null,
-        // seatNumber/checkedIn은 서버 기본값 사용
       };
     case "parent":
       return {
@@ -128,7 +118,7 @@ export function payloadMapper(values: FormValues) {
         parentsName: values.parentsName,
         parentsPhoneNumber: values.parentsPhoneNumber,
         parentsNumber: values.parentsNumber ?? null,
-        academyNumber: values.academyNumber ?? 0, // 단일 숫자
+        academyNumber: values.academyNumber ?? 0,
       };
     case "teacher":
       return {
@@ -136,30 +126,43 @@ export function payloadMapper(values: FormValues) {
         teacherPw: values.teacherPw,
         teacherName: values.teacherName,
         teacherPhoneNumber: values.teacherPhoneNumber,
-        academyNumber: values.academyNumber ?? 0, // 단일 숫자
+        academyNumber: values.academyNumber ?? 0,
       };
     case "director":
       return {
-        username: values.username,
-        password: values.password,
-        name: values.name,
-        phone: values.phone,
+        directorId: values.directorId,
+        directorPw: values.directorPw,
+        directorName: values.directorName,
+        directorPhoneNumber: values.directorPhoneNumber,
         academyNumbers: values.academyNumbers ?? [],
       };
   }
 }
 
-// 역할별 제출 URL (Next API 프록시 경로 가정)
+// 역할별 제출 URL (백엔드 직접 호출)
 const submitUrlByRole: Record<Role, string> = {
-  student: "/api/signup/student",
-  parent: "/api/signup/parent",
-  teacher: "/api/signup/teacher",
-  director: "/api/signup/director",
+  student: `${API_BASE}/api/students`,
+  parent: `${API_BASE}/api/parents`,
+  teacher: `${API_BASE}/api/teachers`,
+  director: `${API_BASE}/api/directors`,
 };
 
-// 간단한 필드 컴포넌트
-function Field({ name, label, type = "text", placeholder }: { name: string; label: string; type?: string; placeholder?: string; }) {
-  const { register, formState: { errors } } = useFormContext<FormValues>();
+// ===== 공용 필드 컴포넌트 =====
+function Field({
+  name,
+  label,
+  type = "text",
+  placeholder,
+}: {
+  name: keyof FormValues | string;
+  label: string;
+  type?: string;
+  placeholder?: string;
+}) {
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext<FormValues>();
   const err = (errors as any)[name]?.message as string | undefined;
   return (
     <div className="flex flex-col gap-1">
@@ -168,14 +171,24 @@ function Field({ name, label, type = "text", placeholder }: { name: string; labe
         {...register(name as any)}
         type={type}
         placeholder={placeholder}
-        className={`w-full rounded-xl px-3 py-2 bg-gray-800 text-gray-100 outline-none ring-1 ring-gray-700 focus:ring-2 focus:ring-green-400 ${err ? "ring-red-500" : ""}`}
+        className={`w-full rounded-xl px-3 py-2 bg-gray-800 text-gray-100 outline-none ring-1 ring-gray-700 focus:ring-2 focus:ring-green-400 ${
+          err ? "ring-red-500" : ""
+        }`}
       />
       {err && <p className="text-xs text-red-400">{err}</p>}
     </div>
   );
 }
 
-function ChipsNumberArray({ name, label, placeholder }: { name: "academyNumbers"; label: string; placeholder?: string; }) {
+function ChipsNumberArray({
+  name,
+  label,
+  placeholder,
+}: {
+  name: "academyNumbers";
+  label: string;
+  placeholder?: string;
+}) {
   const { setValue, watch } = useFormContext<FormValues>();
   const arr = (watch(name) as number[] | undefined) ?? [];
   const [chip, setChip] = React.useState("");
@@ -200,22 +213,42 @@ function ChipsNumberArray({ name, label, placeholder }: { name: "academyNumbers"
         <input
           value={chip}
           onChange={(e) => setChip(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addChip(); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addChip();
+            }
+          }}
           placeholder={placeholder}
           className="flex-1 rounded-xl px-3 py-2 bg-gray-800 text-gray-100 outline-none ring-1 ring-gray-700 focus:ring-2 focus:ring-green-400"
         />
-        <button type="button" onClick={addChip} className="rounded-xl px-3 py-2 bg-green-500 text-black font-medium">
+        <button
+          type="button"
+          onClick={addChip}
+          className="rounded-xl px-3 py-2 bg-green-500 text-black font-medium"
+        >
           추가
         </button>
       </div>
       <div className="flex flex-wrap gap-2">
         {arr.map((n, i) => (
-          <span key={i} className="rounded-full px-3 py-1 bg-gray-700 text-gray-100 text-sm inline-flex items-center gap-2">
+          <span
+            key={i}
+            className="rounded-full px-3 py-1 bg-gray-700 text-gray-100 text-sm inline-flex items-center gap-2"
+          >
             {n}
-            <button type="button" onClick={() => removeChip(i)} className="text-gray-300 hover:text-white">×</button>
+            <button
+              type="button"
+              onClick={() => removeChip(i)}
+              className="text-gray-300 hover:text-white"
+            >
+              ×
+            </button>
           </span>
         ))}
-        {arr.length === 0 && <span className="text-xs text-gray-400">아직 추가된 번호가 없습니다.</span>}
+        {arr.length === 0 && (
+          <span className="text-xs text-gray-400">아직 추가된 번호가 없습니다.</span>
+        )}
       </div>
     </div>
   );
@@ -231,14 +264,17 @@ function RoleFields() {
         <Field name="studentId" label="아이디" />
         <Field name="studentPw" label="비밀번호" type="password" />
         <Field name="studentName" label="이름" />
-        <Field name="phoneNumber" label="전화번호" placeholder="010-1234-5678" />
+        <Field name="studentPhoneNumber" label="전화번호" placeholder="010-1234-5678" />
         <Field name="address" label="주소" />
         <Field name="school" label="학교" />
         <Field name="grade" label="학년" type="number" />
         <Field name="parentsNumber" label="학부모 번호(선택)" />
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-200">성별</label>
-          <select {...register("gender")} className="w-full rounded-xl px-3 py-2 bg-gray-800 text-gray-100 ring-1 ring-gray-700 focus:ring-2 focus:ring-green-400">
+          <select
+            {...register("gender")}
+            className="w-full rounded-xl px-3 py-2 bg-gray-800 text-gray-100 ring-1 ring-gray-700 focus:ring-2 focus:ring-green-400"
+          >
             <option value="">선택 안 함</option>
             <option value="M">남</option>
             <option value="F">여</option>
@@ -277,12 +313,16 @@ function RoleFields() {
   // director
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <Field name="username" label="아이디" />
-      <Field name="password" label="비밀번호" type="password" />
-      <Field name="name" label="이름" />
-      <Field name="phone" label="전화번호" placeholder="010-1234-5678" />
+      <Field name="directorId" label="아이디" />
+      <Field name="directorPw" label="비밀번호" type="password" />
+      <Field name="directorName" label="이름" />
+      <Field name="directorPhoneNumber" label="전화번호" placeholder="010-1234-5678" />
       <div className="md:col-span-2">
-        <ChipsNumberArray name={"academyNumbers" as any} label="학원 번호(들)" placeholder="예: 1, 2, 3 각각 추가" />
+        <ChipsNumberArray
+          name={"academyNumbers"}
+          label="학원 번호(들)"
+          placeholder="예: 1, 2, 3 각각 추가"
+        />
       </div>
     </div>
   );
@@ -296,10 +336,14 @@ export default function RoleBasedSignupPage() {
 
   const schemaForRole = React.useMemo(() => {
     switch (role) {
-      case "student": return studentSchema;
-      case "parent": return parentSchema;
-      case "teacher": return teacherSchema;
-      case "director": return directorSchema;
+      case "student":
+        return studentSchema;
+      case "parent":
+        return parentSchema;
+      case "teacher":
+        return teacherSchema;
+      case "director":
+        return directorSchema;
     }
   }, [role]);
 
@@ -311,6 +355,7 @@ export default function RoleBasedSignupPage() {
 
   React.useEffect(() => {
     methods.reset({ ...(defaultValues as any), role });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 
   async function onSubmit(values: FormValues) {
@@ -327,67 +372,69 @@ export default function RoleBasedSignupPage() {
       });
       const text = await res.text();
       if (!res.ok) throw new Error(text || "회원가입 실패");
+
       setMsg("회원가입이 완료되었습니다.");
       router.replace("/login");
     } catch (e: any) {
-      setMsg(e.message || "오류가 발생했습니다");
+      setMsg(e?.message || "오류가 발생했습니다");
     } finally {
       setLoading(false);
     }
   }
 
- return (
-  <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center p-4">
-    <div className="w-full max-w-3xl bg-gray-850/60 backdrop-blur rounded-2xl shadow-2xl p-6 md:p-8 ring-1 ring-gray-800">
-      <h1 className="text-2xl md:text-3xl font-bold mb-4">역할별 회원가입</h1>
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-3xl bg-gray-850/60 backdrop-blur rounded-2xl shadow-2xl p-6 md:p-8 ring-1 ring-gray-800">
+        <h1 className="text-2xl md:text-3xl font-bold mb-4">역할별 회원가입</h1>
 
-      {/* 역할 토글 */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {["student", "parent", "teacher", "director"].map((r) => (
-          <button
-            key={r}
-            onClick={() => setRole(r as Role)}
-            className={`px-4 py-2 rounded-full text-sm font-medium ring-1 ring-gray-700 hover:ring-green-400 ${
-              role === r ? "bg-green-500 text-black" : "bg-gray-800"
-            }`}
-          >
-            {r === "student" ? "학생" : r === "parent" ? "학부모" : r === "teacher" ? "교사" : "원장"}
-          </button>
-        ))}
-      </div>
-
-      <FormProvider {...methods}>
-        <form onSubmit={methods.handleSubmit(onSubmit)} className="flex flex-col gap-6">
-          <input type="hidden" {...methods.register("role")} value={role} readOnly />
-          <RoleFields />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full md:w-auto self-end bg-green-500 text-black font-semibold px-6 py-3 rounded-xl hover:brightness-110 disabled:opacity-60"
-          >
-            {loading ? "처리 중..." : "회원가입"}
-          </button>
-        </form>
-      </FormProvider>
-
-      {msg && (
-        <div className="mt-4 text-sm rounded-lg p-3 bg-gray-800 ring-1 ring-gray-700">
-          {msg}
+        {/* 역할 토글 */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {(["student", "parent", "teacher", "director"] as Role[]).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRole(r)}
+              className={`px-4 py-2 rounded-full text-sm font-medium ring-1 ring-gray-700 hover:ring-green-400 ${
+                role === r ? "bg-green-500 text-black" : "bg-gray-800"
+              }`}
+            >
+              {r === "student"
+                ? "학생"
+                : r === "parent"
+                ? "학부모"
+                : r === "teacher"
+                ? "교사"
+                : "원장"}
+            </button>
+          ))}
         </div>
-      )}
 
-      <p className="mt-6 text-xs text-gray-400">
-       
-      </p>
+        <FormProvider {...methods}>
+          <form onSubmit={methods.handleSubmit(onSubmit)} className="flex flex-col gap-6">
+            <input type="hidden" {...methods.register("role")} value={role} readOnly />
+            <RoleFields />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full md:w-auto self-end bg-green-500 text-black font-semibold px-6 py-3 rounded-xl hover:brightness-110 disabled:opacity-60"
+            >
+              {loading ? "처리 중..." : "회원가입"}
+            </button>
+          </form>
+        </FormProvider>
+
+        {msg && (
+          <div className="mt-4 text-sm rounded-lg p-3 bg-gray-800 ring-1 ring-gray-700">
+            {msg}
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+}
 
-/**
- * ──────────────────────────────────────────────────────────────
- * Lightweight Dev Tests (won't run in production)
- * ──────────────────────────────────────────────────────────────
- */
+// ──────────────────────────────────────────────────────────────
+// Lightweight Dev Tests (won't run in production)
+// ──────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== "production") {
   try {
     const s = payloadMapper({
@@ -396,13 +443,13 @@ if (process.env.NODE_ENV !== "production") {
       studentPw: "pw",
       studentName: "홍길동",
       address: "서울",
-      phoneNumber: "010-1111-2222",
+      studentPhoneNumber: "010-1111-2222",
       school: "GA",
       grade: 1,
       parentsNumber: "P-1",
       gender: "M",
     } as any);
-    console.assert("studentId" in s && "phoneNumber" in s, "student payload shape ok");
+    console.assert("studentId" in s && "studentPhoneNumber" in s, "student payload shape ok");
 
     const p = payloadMapper({
       role: "parent",
@@ -427,19 +474,14 @@ if (process.env.NODE_ENV !== "production") {
 
     const d = payloadMapper({
       role: "director",
-      username: "d1",
-      password: "pw",
-      name: "원장",
-      phone: "010-7777-8888",
+      directorId: "d1",
+      directorPw: "pw",
+      directorName: "원장",
+      directorPhoneNumber: "010-7777-8888",
       academyNumbers: [1, 2, 3],
     } as any);
-   console.assert(
-  Array.isArray(d.academyNumbers) && (d.academyNumbers?.length ?? 0) === 3,
-  "director payload shape ok"
-);
-
+    console.assert(Array.isArray(d.academyNumbers) && (d.academyNumbers?.length ?? 0) === 3, "director payload shape ok");
   } catch (e) {
     console.warn("[dev-tests] payloadMapper tests failed:", e);
   }
-}
 }

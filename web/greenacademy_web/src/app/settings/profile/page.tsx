@@ -60,11 +60,14 @@ export default function ProfileSettingsPage() {
     }
   }, [router]);
 
+  // 항상 true 로직은 유지(원하면 isDirty 로 대체 가능)
   const dirty = useMemo(() => true, [form, stuExtra, tchExtra, dirExtra]);
 
   const onSave = async () => {
     if (!session) return;
-    setSaving(true); setErr(null); setMsg(null);
+    setSaving(true);
+    setErr(null);
+    setMsg(null);
     try {
       const headers: HeadersInit = {
         "Content-Type": "application/json",
@@ -75,15 +78,16 @@ export default function ProfileSettingsPage() {
         const payload = {
           studentId: session.username,
           studentName: form.name,
-          studentPhoneNumber: form.phone,
+          studentPhoneNumber: form.phone, // 통일
           address: stuExtra.address ?? "",
           school: stuExtra.school ?? "",
           grade: Number(stuExtra.grade ?? 0) || 0,
           gender: stuExtra.gender ?? "",
         };
-        const res = await fetch(`${API_BASE}/api/students/${encodeURIComponent(session.username)}`, {
-          method: "PUT", headers, body: JSON.stringify(payload),
-        });
+        const res = await fetch(
+          `${API_BASE}/api/students/${encodeURIComponent(session.username)}`,
+          { method: "PUT", headers, body: JSON.stringify(payload) }
+        );
         if (!res.ok) throw new Error(await res.text());
       }
 
@@ -93,43 +97,56 @@ export default function ProfileSettingsPage() {
           parentsName: form.name,
           parentsPhoneNumber: form.phone,
         };
-        const res = await fetch(`${API_BASE}/api/parents/${encodeURIComponent(session.username)}`, {
-          method: "PUT", headers, body: JSON.stringify(payload),
-        });
+        const res = await fetch(
+          `${API_BASE}/api/parents/${encodeURIComponent(session.username)}`,
+          { method: "PUT", headers, body: JSON.stringify(payload) }
+        );
         if (!res.ok) throw new Error(await res.text());
       }
 
       if (session.role === "teacher") {
+        const n = Number(tchExtra.academyNumber);
+        const academyNumber = Number.isFinite(n) && n > 0 ? n : undefined;
+
         const payload = {
           teacherId: session.username,
           teacherName: form.name,
           teacherPhoneNumber: form.phone,
-          academyNumber: Number(tchExtra.academyNumber ?? 0) || 0,
+          ...(academyNumber != null ? { academyNumber } : {}),
         };
-        const res = await fetch(`${API_BASE}/api/teachers/${encodeURIComponent(session.username)}`, {
-          method: "PUT", headers, body: JSON.stringify(payload),
-        });
+        const res = await fetch(
+          `${API_BASE}/api/teachers/${encodeURIComponent(session.username)}`,
+          { method: "PUT", headers, body: JSON.stringify(payload) }
+        );
         if (!res.ok) throw new Error(await res.text());
       }
 
       if (session.role === "director") {
+        const nums = toNums(dirExtra.academyNumbersText);
         const payload = {
           directorId: session.username,
           directorName: form.name,
           directorPhoneNumber: form.phone,
-          academyNumbers: toNums(dirExtra.academyNumbersText),
+          academyNumbers: nums,
         };
-        const res = await fetch(`${API_BASE}/api/directors/${encodeURIComponent(session.username)}`, {
-          method: "PUT", headers, body: JSON.stringify(payload),
-        });
+        const res = await fetch(
+          `${API_BASE}/api/directors/${encodeURIComponent(session.username)}`,
+          { method: "PUT", headers, body: JSON.stringify(payload) }
+        );
         if (!res.ok) throw new Error(await res.text());
       }
 
+      // 로컬 세션 업데이트
       const next = {
         ...session,
         name: form.name,
         phone: form.phone,
-        ...(session.role === "teacher" ? { academyNumbers: [Number(tchExtra.academyNumber ?? 0) || 0] } : {}),
+        ...(session.role === "teacher"
+          ? { academyNumbers: (() => {
+              const n = Number(tchExtra.academyNumber);
+              return Number.isFinite(n) && n > 0 ? [n] : [];
+            })() }
+          : {}),
         ...(session.role === "director" ? { academyNumbers: toNums(dirExtra.academyNumbersText) } : {}),
       };
       localStorage.setItem("login", JSON.stringify(next));
@@ -147,9 +164,13 @@ export default function ProfileSettingsPage() {
   if (loading || !session) return null;
 
   const roleLabel =
-    session.role === "student" ? "학생" :
-    session.role === "parent" ? "학부모" :
-    session.role === "teacher" ? "교사" : "원장";
+    session.role === "student"
+      ? "학생"
+      : session.role === "parent"
+      ? "학부모"
+      : session.role === "teacher"
+      ? "교사"
+      : "원장";
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
@@ -163,18 +184,35 @@ export default function ProfileSettingsPage() {
         </div>
       </div>
 
-      {msg && <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">{msg}</div>}
-      {err && <div className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{err}</div>}
+      {msg && (
+        <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">
+          {msg}
+        </div>
+      )}
+      {err && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
+          {err}
+        </div>
+      )}
 
       {/* 기본 정보 */}
       <section className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">기본 정보</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="이름" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} />
+          <Field
+            label="이름"
+            value={form.name}
+            onChange={(v) => setForm((p) => ({ ...p, name: v }))}
+          />
           <ReadOnly label="아이디(수정불가)" value={session.username} />
 
-          <Field label="연락처" value={form.phone} onChange={(v) => setForm((p) => ({ ...p, phone: v }))} placeholder="010-0000-0000" />
+          <Field
+            label="연락처"
+            value={form.phone}
+            onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
+            placeholder="010-0000-0000"
+          />
           <ReadOnly label="역할" value={roleLabel} />
         </div>
       </section>
@@ -184,10 +222,27 @@ export default function ProfileSettingsPage() {
         <section className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">학생 정보</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="주소" value={stuExtra.address ?? ""} onChange={(v) => setStuExtra((p) => ({ ...p, address: v }))} />
-            <Field label="학교" value={stuExtra.school ?? ""} onChange={(v) => setStuExtra((p) => ({ ...p, school: v }))} />
-            <Field type="number" label="학년" value={String(stuExtra.grade ?? "")} onChange={(v) => setStuExtra((p) => ({ ...p, grade: v }))} />
-            <Field label="성별" value={stuExtra.gender ?? ""} onChange={(v) => setStuExtra((p) => ({ ...p, gender: v }))} />
+            <Field
+              label="주소"
+              value={stuExtra.address ?? ""}
+              onChange={(v) => setStuExtra((p) => ({ ...p, address: v }))}
+            />
+            <Field
+              label="학교"
+              value={stuExtra.school ?? ""}
+              onChange={(v) => setStuExtra((p) => ({ ...p, school: v }))}
+            />
+            <Field
+              type="number"
+              label="학년"
+              value={String(stuExtra.grade ?? "")}
+              onChange={(v) => setStuExtra((p) => ({ ...p, grade: v }))}
+            />
+            <Field
+              label="성별"
+              value={stuExtra.gender ?? ""}
+              onChange={(v) => setStuExtra((p) => ({ ...p, gender: v }))}
+            />
           </div>
         </section>
       )}
@@ -196,7 +251,12 @@ export default function ProfileSettingsPage() {
         <section className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">교사 정보</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field type="number" label="학원 번호" value={String(tchExtra.academyNumber ?? "")} onChange={(v) => setTchExtra((p) => ({ ...p, academyNumber: v }))} />
+            <Field
+              type="number"
+              label="학원 번호"
+              value={String(tchExtra.academyNumber ?? "")}
+              onChange={(v) => setTchExtra((p) => ({ ...p, academyNumber: v }))}
+            />
           </div>
         </section>
       )}
@@ -205,7 +265,12 @@ export default function ProfileSettingsPage() {
         <section className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">원장 정보</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="학원 번호들" value={dirExtra.academyNumbersText ?? ""} onChange={(v) => setDirExtra((p) => ({ ...p, academyNumbersText: v }))} placeholder="예: 101,202" />
+            <Field
+              label="학원 번호들"
+              value={dirExtra.academyNumbersText ?? ""}
+              onChange={(v) => setDirExtra((p) => ({ ...p, academyNumbersText: v }))}
+              placeholder="예: 101,202"
+            />
           </div>
         </section>
       )}
@@ -220,13 +285,13 @@ export default function ProfileSettingsPage() {
           {saving ? "저장 중…" : "변경사항 저장"}
         </button>
         <Link
-        href="/settings/delete"
-        className="inline-flex w-32 h-11 items-center justify-center rounded-xl
+          href="/account/delete"
+          className="inline-flex w-32 h-11 items-center justify-center rounded-xl
                   border-2 border-red-600 text-red-600 font-semibold
                   hover:bg-red-600 hover:text-white transition"
-      >
-        계정탈퇴
-      </Link>
+        >
+          계정탈퇴
+        </Link>
       </div>
     </main>
   );
@@ -234,8 +299,18 @@ export default function ProfileSettingsPage() {
 
 /* 재사용 필드 */
 function Field({
-  label, value, onChange, placeholder, type = "text",
-}: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: "text" | "number"; }) {
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: "text" | "number";
+}) {
   return (
     <label className="block">
       <span className="block text-sm text-gray-900 mb-1">{label}</span>

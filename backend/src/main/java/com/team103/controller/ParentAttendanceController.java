@@ -58,7 +58,10 @@ public class ParentAttendanceController {
         for (Attendance att : attends) {
             String status = resolveStatus(att, studentId);
 
-            Course course = courseRepository.findByClassId(att.getClassId());
+            // ✅ Optional 대응
+            Course course = courseRepository.findByClassId(att.getClassId()).orElse(null);
+            // 또는: Course course = courseRepository.getByClassIdOrNull(att.getClassId());
+
             String className = (course != null && course.getClassName() != null) ? course.getClassName() : "";
 
             String academyName = academyNameForStudent;
@@ -85,7 +88,6 @@ public class ParentAttendanceController {
         for (Object e : att.getAttendanceList()) {
             if (e == null) continue;
 
-            // 1) 우리가 정의한 내부 클래스 Item
             if (e instanceof Attendance.Item item) {
                 if (studentId.equals(item.getStudentId())) {
                     return (item.getStatus() != null) ? item.getStatus() : "정보 없음";
@@ -93,7 +95,6 @@ public class ParentAttendanceController {
                 continue;
             }
 
-            // 2) Map 형태(업서트 등으로 들어온 경우)
             if (e instanceof Map<?, ?> m) {
                 Object sid = m.get("Student_ID");
                 if (sid != null && studentId.equals(String.valueOf(sid))) {
@@ -103,7 +104,6 @@ public class ParentAttendanceController {
                 continue;
             }
 
-            // 3) 다른 POJO (getStudentId/getStatus 리플렉션)
             try {
                 Object sid = e.getClass().getMethod("getStudentId").invoke(e);
                 if (sid != null && studentId.equals(String.valueOf(sid))) {

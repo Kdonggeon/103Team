@@ -11,7 +11,10 @@ export default function TeacherTopPage() {
     if (!raw) return;
     const s = JSON.parse(raw);
     setTeacherId(s?.username ?? "");
-    const first = Array.isArray(s?.academyNumbers) && s.academyNumbers.length > 0 ? Number(s.academyNumbers[0]) : null;
+    const first =
+      Array.isArray(s?.academyNumbers) && s.academyNumbers.length > 0
+        ? Number(s.academyNumbers[0])
+        : null;
     setDefaultAcademy(Number.isFinite(first) ? first : null);
   }, []);
 
