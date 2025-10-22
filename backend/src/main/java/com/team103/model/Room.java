@@ -1,15 +1,21 @@
+// src/main/java/com/team103/model/Room.java
 package com.team103.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import java.util.List;
 
 @Document(collection = "rooms")
+@CompoundIndexes({
+    @CompoundIndex(name = "academy_room_unique", def = "{'Academy_Number': 1, 'Room_Number': 1}", unique = true)
+})
 public class Room {
 
     @Id
-    private int id; // = _id (Integer)
+    private String id;  // ✅ MongoDB ObjectId 자동 생성
 
     @Field("Room_Number")
     private int roomNumber;
@@ -17,42 +23,47 @@ public class Room {
     @Field("Academy_Number")
     private int academyNumber;
 
-    // 좌석 레이아웃(관리 탭 편집용)
-    private Integer rows;                 // 전체 행
-    private Integer cols;                 // 전체 열
-    private List<SeatCell> layout;        // 좌표/비활성 정보
+    private Integer rows;
+    private Integer cols;
+    private List<SeatCell> layout;
 
     @Field("Current_Class")
     private CurrentClass currentClass;
 
-    // 수업-좌석 배정(교사용 보드용)
     @Field("Seats")
     private List<Seat> seats;
 
-    // --- Getter & Setter ---
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
+    // --- Getters & Setters ---
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
     public int getRoomNumber() { return roomNumber; }
     public void setRoomNumber(int roomNumber) { this.roomNumber = roomNumber; }
+
     public int getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+
     public Integer getRows() { return rows; }
     public void setRows(Integer rows) { this.rows = rows; }
+
     public Integer getCols() { return cols; }
     public void setCols(Integer cols) { this.cols = cols; }
+
     public List<SeatCell> getLayout() { return layout; }
     public void setLayout(List<SeatCell> layout) { this.layout = layout; }
+
     public CurrentClass getCurrentClass() { return currentClass; }
     public void setCurrentClass(CurrentClass currentClass) { this.currentClass = currentClass; }
+
     public List<Seat> getSeats() { return seats; }
     public void setSeats(List<Seat> seats) { this.seats = seats; }
 
-    // --- 내부 클래스들 ---
+    // --- 내부 클래스 ---
     public static class SeatCell {
-        private Integer seatNumber;  // 1..N
-        private Integer row;         // 1..rows
-        private Integer col;         // 1..cols
-        private Boolean disabled;    // 통로/기둥 등
+        private Integer seatNumber;
+        private Integer row;
+        private Integer col;
+        private Boolean disabled;
 
         public Integer getSeatNumber() { return seatNumber; }
         public void setSeatNumber(Integer seatNumber) { this.seatNumber = seatNumber; }

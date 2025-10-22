@@ -1,9 +1,11 @@
 package com.team103.controller;
 
 import com.team103.dto.RoomLayoutRequest;
+import com.team103.dto.RoomUpdateRequest;
 import com.team103.model.Room;
 import com.team103.repository.RoomRepository;
 import com.team103.service.RoomService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,29 +17,41 @@ public class RoomAdminController {
     private final RoomRepository roomRepo;
     private final RoomService roomService;
 
-    // 명시적 생성자 주입
     public RoomAdminController(RoomRepository roomRepo, RoomService roomService) {
         this.roomRepo = roomRepo;
         this.roomService = roomService;
     }
 
-    // 학원 번호로 방 목록 조회
     @GetMapping
     public List<Room> list(@RequestParam Integer academyNumber) {
         return roomRepo.findByAcademyNumber(academyNumber);
     }
 
-    // 방 상세(없으면 생성)
     @GetMapping("/{roomNumber}")
     public Room detail(@PathVariable Integer roomNumber,
                        @RequestParam Integer academyNumber) {
         return roomService.getOrCreate(roomNumber, academyNumber);
     }
 
-    // 레이아웃 저장
     @PutMapping("/{roomNumber}/layout")
     public Room saveLayout(@PathVariable Integer roomNumber,
                            @RequestBody RoomLayoutRequest req) {
         return roomService.saveLayout(roomNumber, req);
+    }
+
+    @DeleteMapping("/{roomNumber}")
+    public ResponseEntity<?> deleteRoom(@PathVariable Integer roomNumber,
+                                        @RequestParam Integer academyNumber) {
+        var opt = roomRepo.findByRoomNumberAndAcademyNumber(roomNumber, academyNumber);
+        if (opt.isEmpty()) return ResponseEntity.status(404).body("해당 강의실을 찾을 수 없습니다.");
+        roomRepo.delete(opt.get());
+        return ResponseEntity.ok("Room #" + roomNumber + " 삭제 완료");
+    }
+
+    /** ✅ 부분 수정: rows/cols/layout/currentClass/seats 중 전달된 필드만 반영 */
+    @PatchMapping("/{roomNumber}")
+    public Room patchRoom(@PathVariable Integer roomNumber,
+                          @RequestBody RoomUpdateRequest req) {
+        return roomService.patchRoom(roomNumber, req);
     }
 }

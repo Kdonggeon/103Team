@@ -1,4 +1,5 @@
-import { request } from "@/lib/api";
+import { request } from "@/app/lib/api"; 
+
 
 export type SeatCell = {
   seatNumber: number;   // 1..N

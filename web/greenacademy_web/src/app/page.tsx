@@ -807,13 +807,6 @@ function DirectorRoomsPanel({ user }: { user: NonNullable<LoginResponse> }) {
         layout: toBackend(preview),
       });
       await load();
-            await roomsApi.saveRoomLayout(roomNumber, {
-              academyNumber,
-              rows: rowsN,
-              cols: colsN,
-              layout: toBackend(preview),
-            });
-            await load();
     } catch (e: any) { setErr(e.message); }
   };
 

@@ -1,4 +1,5 @@
 // src/app/lib/api.ts
+import { getSession } from "@/app/lib/session";
 export type Role = "student" | "teacher" | "parent" | "director";
 
 export interface LoginRequest {
@@ -200,13 +201,45 @@ function resolveUrl(path: string): string {
   return `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+function getAuthToken(): string | null {
+  try {
+    const s = getSession(); // 세션 스토리지/쿠키 등 당신 구현
+    let t = s?.token ?? null;
+    if (t && typeof t === "string") {
+      t = t.trim();
+      if (!t || t.toLowerCase() === "null" || t.toLowerCase() === "undefined") t = null;
+      if (t && t.toLowerCase().startsWith("bearer ")) t = t.slice(7).trim();
+      if (t) return t;
+    }
+  } catch { /* ignore */ }
+
+  // fallback: localStorage
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("session") ??
+                localStorage.getItem("login") ??
+                localStorage.getItem("auth") ?? null;
+    if (!raw) return null;
+    let s = raw;
+    try {
+      const parsed = JSON.parse(raw) as { token?: string };
+      s = (parsed?.token ?? raw) as string;
+    } catch { /* raw is token */ }
+    s = String(s).trim();
+    if (!s || s.toLowerCase() === "null" || s.toLowerCase() === "undefined") return null;
+    if (s.toLowerCase().startsWith("bearer ")) s = s.slice(7).trim();
+    return s;
+  } catch { return null; }
+}
+
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as any) };
+
   if (init.body && !(init.body instanceof FormData) && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
 
-  const token = getTokenFromLocalStorage();
+  const token = getAuthToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const url = resolveUrl(path);
@@ -215,13 +248,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     let body: any = undefined;
-    try { body = text ? JSON.parse(text) : undefined; } catch { /* ignore */ }
-    // 상태코드 포함해서 던지기
+    try { body = text ? JSON.parse(text) : undefined; } catch {}
     throw new ApiError(res.status, body?.message || `${res.status} ${res.statusText}`, body);
   }
   return text ? (JSON.parse(text) as T) : ({} as T);
 }
-
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 
 /* =============================================================================
@@ -351,5 +382,7 @@ export const api = {
 
     
 };
+
+
 
 export default api;
