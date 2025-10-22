@@ -40,13 +40,14 @@ public class RoomAdminController {
     }
 
     @DeleteMapping("/{roomNumber}")
-    public ResponseEntity<?> deleteRoom(@PathVariable Integer roomNumber,
-                                        @RequestParam Integer academyNumber) {
+    public ResponseEntity<Void> deleteRoom(@PathVariable Integer roomNumber,
+                                           @RequestParam Integer academyNumber) {
         var opt = roomRepo.findByRoomNumberAndAcademyNumber(roomNumber, academyNumber);
-        if (opt.isEmpty()) return ResponseEntity.status(404).body("해당 강의실을 찾을 수 없습니다.");
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
         roomRepo.delete(opt.get());
-        return ResponseEntity.ok("Room #" + roomNumber + " 삭제 완료");
+        return ResponseEntity.noContent().build(); 
     }
+
 
     /** ✅ 부분 수정: rows/cols/layout/currentClass/seats 중 전달된 필드만 반영 */
     @PatchMapping("/{roomNumber}")
