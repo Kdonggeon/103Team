@@ -3,7 +3,6 @@ package com.team103.controller;
 import com.team103.dto.AttendanceResponse;
 import com.team103.model.Academy;
 import com.team103.model.Attendance;
-import com.team103.model.AttendanceEntry;
 import com.team103.model.Course;
 import com.team103.model.Student;
 import com.team103.model.Teacher;
@@ -12,8 +11,6 @@ import com.team103.repository.AttendanceRepository;
 import com.team103.repository.CourseRepository;
 import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,11 +23,23 @@ import java.util.*;
 @RequestMapping("/api/parents")
 public class ParentAttendanceController {
 
-    @Autowired private AttendanceRepository attendanceRepository;
-    @Autowired private CourseRepository courseRepository;
-    @Autowired private AcademyRepository academyRepository;
-    @Autowired private StudentRepository studentRepository;
-    @Autowired private TeacherRepository teacherRepository;
+    private final AttendanceRepository attendanceRepository;
+    private final CourseRepository courseRepository;
+    private final AcademyRepository academyRepository;
+    private final StudentRepository studentRepository;
+    private final TeacherRepository teacherRepository;
+
+    public ParentAttendanceController(AttendanceRepository attendanceRepository,
+                                      CourseRepository courseRepository,
+                                      AcademyRepository academyRepository,
+                                      StudentRepository studentRepository,
+                                      TeacherRepository teacherRepository) {
+        this.attendanceRepository = attendanceRepository;
+        this.courseRepository = courseRepository;
+        this.academyRepository = academyRepository;
+        this.studentRepository = studentRepository;
+        this.teacherRepository = teacherRepository;
+    }
 
     private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -49,7 +58,10 @@ public class ParentAttendanceController {
         for (Attendance att : attends) {
             String status = resolveStatus(att, studentId);
 
-            Course course = courseRepository.findByClassId(att.getClassId());
+            // ✅ Optional 대응
+            Course course = courseRepository.findByClassId(att.getClassId()).orElse(null);
+            // 또는: Course course = courseRepository.getByClassIdOrNull(att.getClassId());
+
             String className = (course != null && course.getClassName() != null) ? course.getClassName() : "";
 
             String academyName = academyNameForStudent;
@@ -70,12 +82,35 @@ public class ParentAttendanceController {
         return new ResponseEntity<>(out, HttpStatus.OK);
     }
 
+    /** 출석 문서에서 해당 학생의 상태 찾기 — Map/POJO 혼재까지 안전 */
     private String resolveStatus(Attendance att, String studentId) {
         if (att == null || att.getAttendanceList() == null) return "정보 없음";
-        for (AttendanceEntry e : att.getAttendanceList()) {
-            if (e != null && studentId.equals(e.getStudentId())) {
-                return (e.getStatus() != null) ? e.getStatus() : "정보 없음";
+        for (Object e : att.getAttendanceList()) {
+            if (e == null) continue;
+
+            if (e instanceof Attendance.Item item) {
+                if (studentId.equals(item.getStudentId())) {
+                    return (item.getStatus() != null) ? item.getStatus() : "정보 없음";
+                }
+                continue;
             }
+
+            if (e instanceof Map<?, ?> m) {
+                Object sid = m.get("Student_ID");
+                if (sid != null && studentId.equals(String.valueOf(sid))) {
+                    Object st = m.get("Status");
+                    return (st != null) ? String.valueOf(st) : "정보 없음";
+                }
+                continue;
+            }
+
+            try {
+                Object sid = e.getClass().getMethod("getStudentId").invoke(e);
+                if (sid != null && studentId.equals(String.valueOf(sid))) {
+                    Object st = e.getClass().getMethod("getStatus").invoke(e);
+                    return (st != null) ? String.valueOf(st) : "정보 없음";
+                }
+            } catch (Exception ignore) {}
         }
         return "정보 없음";
     }
