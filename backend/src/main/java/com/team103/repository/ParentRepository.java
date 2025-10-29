@@ -21,4 +21,14 @@ public interface ParentRepository extends MongoRepository<Parent, String> {
     @Query(value = "{ 'Student_ID_List': ?0 }")
     @Update(value = "{ '$pull': { 'Student_ID_List': ?0 } }")
     void pullStudentIdFromAll(String studentId);
+    
+    @Query("{'$or':[" +
+            "{'Student_ID_List': ?0}," +
+            "{'studentIdList': ?0}," +
+            "{'students.Student_ID': ?0}," +
+            "{'students.studentId': ?0}," +
+            "{'children.Student_ID': ?0}," +
+            "{'children.studentId': ?0}" +
+            "]}")
+    List<Parent> findByLinkedStudentId(String studentId);
 }

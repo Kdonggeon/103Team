@@ -2,6 +2,7 @@ package com.team103.controller;
 
 import com.team103.dto.FindIdRequest;
 import com.team103.dto.StudentSignupRequest;
+import com.team103.model.Parent;
 import com.team103.model.Student;
 import com.team103.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+// ★ B방식: MongoTemplate 사용
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +29,10 @@ public class StudentController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    // ★ B방식 주입
+    @Autowired
+    private MongoTemplate mongoTemplate;
 
     public StudentController(StudentRepository repo) {
         this.repo = repo;
@@ -63,6 +73,31 @@ public class StudentController {
     @GetMapping("/{id}")
     public Student getStudentByStudentId(@PathVariable("id") String studentId) {
         return repo.findByStudentId(studentId);
+    }
+
+    /** ★ 학생의 학부모 목록 조회 (B방식: MongoTemplate 쿼리) */
+    @GetMapping("/{id}/parents")
+    public ResponseEntity<List<Parent>> getParentsOfStudent(@PathVariable("id") String studentId) {
+        // 다양한 구조를 모두 커버: 배열 필드/중첩 배열 필드 등
+        Criteria criteria = new Criteria().orOperator(
+                Criteria.where("Student_ID_List").is(studentId),
+                Criteria.where("studentIdList").is(studentId),
+
+                Criteria.where("students.Student_ID").is(studentId),
+                Criteria.where("students.studentId").is(studentId),
+
+                Criteria.where("children.Student_ID").is(studentId),
+                Criteria.where("children.studentId").is(studentId),
+
+                // 혹시 사용할 수도 있는 별칭들까지 보강
+                Criteria.where("linkedStudents.Student_ID").is(studentId),
+                Criteria.where("linkedStudents.studentId").is(studentId),
+                Criteria.where("linkedStudents.id").is(studentId)
+        );
+
+        Query q = new Query(criteria);
+        List<Parent> parents = mongoTemplate.find(q, Parent.class);
+        return ResponseEntity.ok(parents);
     }
 
     /** FCM 토큰 업데이트 */

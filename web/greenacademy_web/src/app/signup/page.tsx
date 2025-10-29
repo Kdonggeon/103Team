@@ -13,7 +13,10 @@ import { useRouter } from "next/navigation";
  * - 성공 시 /login 이동
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
+const API_BASE = RAW_BASE.length > 0 ? RAW_BASE : "/backend";
+
+console.log('[signup] API_BASE =', API_BASE);
 
 type Role = "student" | "parent" | "teacher" | "director";
 

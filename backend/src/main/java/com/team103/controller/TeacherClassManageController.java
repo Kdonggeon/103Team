@@ -10,6 +10,10 @@ import com.team103.model.Teacher;
 import com.team103.repository.CourseRepository;
 import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -29,13 +33,16 @@ public class TeacherClassManageController {
     private final CourseRepository courseRepo;
     private final StudentRepository studentRepo;
     private final TeacherRepository teacherRepo;
+    private final MongoTemplate mongo;
 
     public TeacherClassManageController(CourseRepository courseRepo,
                                         StudentRepository studentRepo,
-                                        TeacherRepository teacherRepo) {
+                                        TeacherRepository teacherRepo,
+                                        MongoTemplate mongo) {
         this.courseRepo = courseRepo;
         this.studentRepo = studentRepo;
         this.teacherRepo = teacherRepo;
+        this.mongo = mongo;
     }
 
     /* ===================== 공통 가드 ===================== */
@@ -82,7 +89,7 @@ public class TeacherClassManageController {
         // 로그인 교사 본인만 생성 가능(또는 원장)
         guardTeacherId(req.getTeacherId(), auth);
 
-        // 교사-학원 번호 권한 체크 (단일/복수 겸용)
+        // 교사-학원 번호 권한 체크
         Teacher t = teacherRepo.findByTeacherId(req.getTeacherId());
         if (t == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("교사 없음");
@@ -104,7 +111,7 @@ public class TeacherClassManageController {
         c.setRoomNumber(req.getRoomNumber());
         c.setStudents(new ArrayList<>());
 
-        // 기본 시간표 필드(있으면 저장)
+        // 시간표
         c.setStartTime(req.getStartTime());
         c.setEndTime(req.getEndTime());
         if (req.getDaysOfWeek() != null) c.setDaysOfWeek(new ArrayList<>(req.getDaysOfWeek()));
@@ -132,20 +139,14 @@ public class TeacherClassManageController {
         return courseRepo.findByClassId(classId).map(c -> {
             guardCourseOwner(c, auth);
 
-            // 기본 정보
             if (req.getClassName() != null) c.setClassName(req.getClassName());
             if (req.getRoomNumber() != null) c.setRoomNumber(req.getRoomNumber());
             if (req.getAcademyNumber() != null) c.setAcademyNumber(req.getAcademyNumber());
 
-            // 시간표 필드
             if (req.getStartTime() != null) c.setStartTime(req.getStartTime());
             if (req.getEndTime() != null) c.setEndTime(req.getEndTime());
             if (req.getDaysOfWeek() != null) c.setDaysOfWeek(new ArrayList<>(req.getDaysOfWeek()));
             if (req.getSchedule() != null) c.setSchedule(req.getSchedule());
-
-//            // 추가/취소 날짜(옵션)
-//            if (req.getExtraDates() != null) c.setExtraDates(req.getExtraDates());
-//            if (req.getCancelledDates() != null) c.setCancelledDates(req.getCancelledDates());
 
             courseRepo.save(c);
             return ResponseEntity.ok().build();
@@ -162,7 +163,7 @@ public class TeacherClassManageController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    /* ===================== 반에 학생 추가 ===================== */
+    /* ===================== 반에 학생 추가/제거 ===================== */
     @PostMapping("/classes/{classId}/students")
     public ResponseEntity<?> addStudent(@PathVariable String classId,
                                         @RequestParam String studentId,
@@ -177,7 +178,6 @@ public class TeacherClassManageController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    /* ===================== 반에서 학생 제거 ===================== */
     @DeleteMapping("/classes/{classId}/students/{studentId}")
     public ResponseEntity<?> removeStudent(@PathVariable String classId,
                                            @PathVariable String studentId,
@@ -197,12 +197,14 @@ public class TeacherClassManageController {
     /* ===================== 학생 검색 (프론트 사용) ===================== */
     @GetMapping("/students/search")
     public List<StudentSearchResponse> searchStudents(@RequestParam Integer academyNumber,
-                                                      @RequestParam String q,
+                                                      @RequestParam(required = false, defaultValue = "") String q,
                                                       @RequestParam(required = false) Integer grade) {
-        String regex = (q == null || q.isBlank()) ? ".*" : q;
-        List<Student> list = (grade == null)
-                ? studentRepo.findByAcademyAndNameLike(academyNumber, regex)
-                : studentRepo.findByAcademyAndGradeAndNameLike(academyNumber, grade, regex);
+        final String regex = (q == null || q.isBlank()) ? ".*" : q;
+        final String academyNumberStr = String.valueOf(academyNumber);
+
+        final List<Student> list = (grade == null)
+                ? studentRepo.findByAcademyLooseAndNameLike(academyNumber, academyNumberStr, regex)
+                : studentRepo.findByAcademyLooseAndGradeAndNameLike(academyNumber, academyNumberStr, grade, regex);
 
         return list.stream().map(s -> {
             StudentSearchResponse r = new StudentSearchResponse();
@@ -214,6 +216,183 @@ public class TeacherClassManageController {
             r.setAcademyNumber(academy);
             return r;
         }).collect(Collectors.toList());
+    }
+
+    /* ===================== 교사용: 학생 정보 수정 ===================== */
+    @PatchMapping("/students/{studentId}")
+    public ResponseEntity<?> updateStudentByTeacher(@PathVariable String studentId,
+                                                    @RequestBody Map<String, Object> body,
+                                                    Authentication auth) {
+        // 인증 체크
+        if (auth == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("UNAUTHORIZED");
+
+        // 1) 학생 조회
+        Student st = studentRepo.findByStudentId(studentId);
+        if (st == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("student not found");
+
+        // 2) 권한 체크: 교사 또는 원장 + 학원번호 교집합
+        Teacher me = teacherRepo.findByTeacherId(auth.getName());
+        boolean director = hasRole(auth, "DIRECTOR");
+        if (!director) {
+            if (me == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("NO_PERMISSION");
+            List<Integer> mine = Optional.ofNullable(me.getAcademyNumbers()).orElse(List.of());
+            List<Integer> students = Optional.ofNullable(st.getAcademyNumbers()).orElse(List.of());
+            boolean ok = false;
+            for (Integer n : students) if (mine.contains(n)) { ok = true; break; }
+            if (!ok) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("NO_PERMISSION");
+        }
+
+        // 3) 기본 필드 적용
+        if (body.containsKey("studentName")) st.setStudentName(Objects.toString(body.get("studentName"), st.getStudentName()));
+        if (body.containsKey("Student_Name")) st.setStudentName(Objects.toString(body.get("Student_Name"), st.getStudentName()));
+        if (body.containsKey("school")) st.setSchool(Objects.toString(body.get("school"), st.getSchool()));
+        if (body.containsKey("School")) st.setSchool(Objects.toString(body.get("School"), st.getSchool()));
+        if (body.containsKey("grade")) st.setGrade(body.get("grade") == null ? null : Integer.valueOf(body.get("grade").toString()));
+        if (body.containsKey("Grade")) st.setGrade(body.get("Grade") == null ? null : Integer.valueOf(body.get("Grade").toString()));
+        if (body.containsKey("gender")) st.setGender(Objects.toString(body.get("gender"), st.getGender()));
+        if (body.containsKey("Gender")) st.setGender(Objects.toString(body.get("Gender"), st.getGender()));
+
+        // 4) 아이디 변경 처리
+        String newId = null;
+        if (body.containsKey("studentId")) newId = Objects.toString(body.get("studentId"), null);
+        if (body.containsKey("Student_ID")) newId = Objects.toString(body.get("Student_ID"), newId);
+
+        if (newId != null && !newId.isBlank() && !newId.equals(studentId)) {
+            if (studentRepo.existsByStudentId(newId)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("DUPLICATE_STUDENT_ID");
+            }
+
+            // 4-1) 학생 문서 저장(아이디 변경)
+            st.setStudentId(newId);
+            studentRepo.save(st);
+
+            // 4-2) 수업 students 배열 값 교체
+            List<Course> courses = courseRepo.findByStudentsContaining(studentId);
+            for (Course c : courses) {
+                List<String> arr = new ArrayList<>(Optional.ofNullable(c.getStudents()).orElse(List.of()));
+                for (int i = 0; i < arr.size(); i++) if (studentId.equals(arr.get(i))) arr.set(i, newId);
+                c.setStudents(arr);
+                courseRepo.save(c);
+            }
+
+            // 4-3) 부모 문서의 관련 필드 교체 — 위치 연산자($) 사용 (배열 매치 조건은 is)
+            mongo.updateMulti(
+                    new Query(Criteria.where("Student_ID_List").is(studentId)),
+                    new Update().set("Student_ID_List.$", newId),
+                    "parents"
+            );
+            mongo.updateMulti(
+                    new Query(Criteria.where("studentIdList").is(studentId)),
+                    new Update().set("studentIdList.$", newId),
+                    "parents"
+            );
+            mongo.updateMulti(
+                    new Query(Criteria.where("children.Student_ID").is(studentId)),
+                    new Update().set("children.$.Student_ID", newId),
+                    "parents"
+            );
+            mongo.updateMulti(
+                    new Query(Criteria.where("children.studentId").is(studentId)),
+                    new Update().set("children.$.studentId", newId),
+                    "parents"
+            );
+            mongo.updateMulti(
+                    new Query(Criteria.where("students.Student_ID").is(studentId)),
+                    new Update().set("students.$.Student_ID", newId),
+                    "parents"
+            );
+            mongo.updateMulti(
+                    new Query(Criteria.where("students.studentId").is(studentId)),
+                    new Update().set("students.$.studentId", newId),
+                    "parents"
+            );
+
+            return ResponseEntity.ok(Map.of("studentId", newId));
+        } else {
+            // 일반 필드만 저장
+            studentRepo.save(st);
+            return ResponseEntity.ok().build();
+        }
+    }
+
+    /* ===================== 교사용: 학부모 정보 수정 ===================== */
+    @PatchMapping("/parents/{parentId}")
+    public ResponseEntity<?> updateParentByTeacher(@PathVariable String parentId,
+                                                   @RequestBody Map<String, Object> body,
+                                                   Authentication auth) {
+        if (auth == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("UNAUTHORIZED");
+
+        // Parent 문서 조회(Parent_ID / parentsId / parentId 아무거나)
+        Query findQ = new Query(new Criteria().orOperator(
+                Criteria.where("Parent_ID").is(parentId),
+                Criteria.where("parentsId").is(parentId),
+                Criteria.where("parentId").is(parentId)
+        ));
+        Map parentDoc = mongo.findOne(findQ, Map.class, "parents");
+        if (parentDoc == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("parent not found");
+
+        // 권한 체크: 교사 소속 학원번호 ∩ 자녀들의 학원번호
+        Teacher me = teacherRepo.findByTeacherId(auth.getName());
+        boolean director = hasRole(auth, "DIRECTOR");
+        if (!director) {
+            if (me == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("NO_PERMISSION");
+            List<Integer> mine = Optional.ofNullable(me.getAcademyNumbers()).orElse(List.of());
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> children = (List<Map<String, Object>>) (
+                    parentDoc.getOrDefault("children",
+                            parentDoc.getOrDefault("students", List.of()))
+            );
+
+            boolean ok = false;
+            for (var ch : children) {
+                Object raw = Optional.ofNullable(ch.get("Academy_Numbers"))
+                        .orElse(Optional.ofNullable(ch.get("Academy_Number"))
+                                .orElse(ch.get("academyNumbers")));
+                List<Integer> nums = new ArrayList<>();
+                if (raw instanceof List<?> l) {
+                    for (Object v : l) try { nums.add(Integer.valueOf(v.toString())); } catch (Exception ignore) {}
+                } else if (raw != null) {
+                    try { nums.add(Integer.valueOf(raw.toString())); } catch (Exception ignore) {}
+                }
+                for (Integer n : nums) if (mine.contains(n)) { ok = true; break; }
+                if (ok) break;
+            }
+            if (!ok) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("NO_PERMISSION");
+        }
+
+        // 업데이트 빌드
+        Update up = new Update();
+        if (body.containsKey("parentsName")) up.set("parentsName", body.get("parentsName"));
+        if (body.containsKey("Parent_Name")) up.set("Parent_Name", body.get("Parent_Name"));
+        if (body.containsKey("parentName"))  up.set("parentName",  body.get("parentName"));
+
+        // 폰번호 다양한 키 대응 → 여러 필드 동시 세팅
+        Object phone = null;
+        for (String k : List.of("Parent_Phone_Number","Parents_Phone_Number","parentsPhoneNumber","ParentPhoneNumber","phone","mobile","phoneNumber")) {
+            if (body.containsKey(k)) { phone = body.get(k); break; }
+        }
+        if (phone != null) {
+            up.set("Parent_Phone_Number", phone);
+            up.set("parentsPhoneNumber", phone);
+            up.set("phone", phone);
+            up.set("mobile", phone);
+            up.set("phoneNumber", phone);
+        }
+
+        // 아이디 변경(선택)
+        String newPid = null;
+        for (String k : List.of("parentsId","Parent_ID","parentId")) {
+            if (body.containsKey(k)) { newPid = Objects.toString(body.get(k), null); break; }
+        }
+        if (newPid != null && !newPid.isBlank() && !newPid.equals(parentId)) {
+            up.set("Parent_ID", newPid);
+            up.set("parentsId", newPid);
+            up.set("parentId", newPid);
+        }
+
+        mongo.updateFirst(findQ, up, "parents");
+        return ResponseEntity.ok(newPid != null ? Map.of("parentId", newPid) : Map.of("ok", true));
     }
 
     /* ======================================================================
@@ -300,7 +479,6 @@ public class TeacherClassManageController {
 
         guardCourseOwner(c, auth);
 
-        // 정규요일 여부
         int dow = LocalDate.parse(date).getDayOfWeek().getValue(); // 1~7
         boolean regular = c.getDaysOfWeekInt().contains(dow);
 

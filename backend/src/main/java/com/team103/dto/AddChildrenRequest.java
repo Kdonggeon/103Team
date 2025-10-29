@@ -1,16 +1,35 @@
+// src/main/java/com/team103/dto/AddChildrenRequest.java
 package com.team103.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
 import java.util.List;
 
+@Data
+@NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AddChildrenRequest {
-	//부모에서 자녀 추가 기능
-    private List<String> studentIds; // 자녀(Student) ID 리스트
+    // 단일 등록용
+    @JsonProperty("studentId")
+    private String studentId;
 
-    public List<String> getStudentIds() {
-        return studentIds;
-    }
+    // 복수 등록용
+    @JsonProperty("studentIds")
+    private List<String> studentIds;
 
-    public void setStudentIds(List<String> studentIds) {
-        this.studentIds = studentIds;
+    /** 단일/복수 입력을 하나의 리스트로 정규화 */
+    public List<String> normalizedIds() {
+        List<String> out = new ArrayList<>();
+        if (studentId != null && !studentId.trim().isEmpty()) out.add(studentId.trim());
+        if (studentIds != null) {
+            for (String s : studentIds) {
+                if (s != null && !s.trim().isEmpty()) out.add(s.trim());
+            }
+        }
+        return out;
     }
 }
