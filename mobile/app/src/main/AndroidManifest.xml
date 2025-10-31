@@ -17,7 +17,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GreenAcademyPartner"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:name=".ui.qna.MyApplication">
+        android:name=".ui.qna.MyApplication"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".ui.start.SplashActivity"
