@@ -40,4 +40,6 @@ public interface StudentRepository extends MongoRepository<Student, String> {
 
     @Query(value = "{ 'Academy_Numbers': ?0, 'Grade': ?1, 'Student_Name': { $regex: ?2, $options: 'i' } }")
     Page<Student> pageByAcademyAndGradeAndNameLike(Integer academyNumber, Integer grade, String nameLike, Pageable pageable);
+    
+    void deleteByStudentId(String studentId);
 }

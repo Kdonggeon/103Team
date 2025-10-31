@@ -1,210 +1,268 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import dayjs from "dayjs";
-import MonthCalendar from "@/components/ui/calendar/month-calendar";
-import { fetchMonth, toggleDate } from "@/app/lib/calendar";
-import api, { type CourseLite, type CreateClassReq } from "@/app/lib/api";
+import { useEffect, useState } from "react";
+import { api, type CourseLite, type LoginResponse } from "@/app/lib/api";
+import { roomsApi, type Room } from "@/app/lib/rooms";
 
-const DAYS = [
-  { n: 1, label: "월" }, { n: 2, label: "화" }, { n: 3, label: "수" },
-  { n: 4, label: "목" }, { n: 5, label: "금" }, { n: 6, label: "토" }, { n: 7, label: "일" },
-];
+export default function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
+  const teacherId = user.username;
+  const academyNumber = user.academyNumbers?.[0] ?? 0;
 
-
-
-export default function TeacherManagePanel({
-  teacherId,
-  defaultAcademy,
-}: {
-  teacherId: string;
-  defaultAcademy: number | null;
-}) {
-  // -------- 내 반 목록 --------
-  const [classes, setClasses] = useState<CourseLite[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<CourseLite[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [className, setClassName] = useState("");
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
+  const [q, setQ] = useState("");
+  const [grade, setGrade] = useState("");
+  const [hits, setHits] = useState<any[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  
+  // ✅ 강의실 목록 불러오기
+  useEffect(() => {
+    (async () => {
+      try {
+        const list = await roomsApi.listRooms(academyNumber);
+        setRooms(list || []);
+      } catch (e: any) {
+        setErr("강의실 목록 불러오기 실패: " + e.message);
+      }
+    })();
+  }, [academyNumber]);
 
-  const loadClasses = async () => {
-    if (!teacherId) return;
-    setErr(null);
+  // ✅ 반 목록 불러오기
+  const load = async () => {
     try {
-      const list = await api.listMyClasses(teacherId);
-      setClasses(list || []);
+      setLoading(true);
+      const res = await api.listMyClasses(teacherId);
+      setItems(res || []);
     } catch (e: any) {
-      setErr(e.message ?? "반 목록을 불러오지 못했습니다.");
+      setErr(e.message);
+    } finally {
+      setLoading(false);
     }
   };
-  useEffect(() => { loadClasses(); /* eslint-disable-next-line */ }, [teacherId]);
 
-  // -------- 반 생성 폼 --------
-  const [name, setName] = useState("");
-  const [room, setRoom] = useState<string>("");
-  const [startTime, setStart] = useState("10:00");
-  const [endTime, setEnd] = useState("12:00");
-  const [days, setDays] = useState<number[]>([1, 3, 5]);
-  const [schedule, setSchedule] = useState("월수금 10:00~12:00");
+  useEffect(() => { load(); }, []);
 
-  const toggleDay = (n: number) =>
-    setDays((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n].sort((a, b) => a - b)));
-
-  const canCreate = name.trim().length > 0 && defaultAcademy != null && /^\d{2}:\d{2}$/.test(startTime) && /^\d{2}:\d{2}$/.test(endTime) && days.length > 0;
-
-  const createClass = async () => {
-    if (!canCreate) return;
-    setLoading(true); setErr(null);
+  // ✅ 학생 검색
+  const search = async () => {
     try {
-      const body: CreateClassReq = {
-        className: name.trim(),
-        teacherId,
-        academyNumber: defaultAcademy as number,
-        roomNumber: room ? Number(room) : undefined,
-        startTime, endTime, daysOfWeek: days, schedule,
-      } as any;
-      await api.createClass(body);
-      setName(""); setRoom(""); setSchedule("월수금 10:00~12:00"); setDays([1,3,5]); setStart("10:00"); setEnd("12:00");
-      await loadClasses();
+      const res = await api.searchStudents(
+        academyNumber,
+        q,
+        grade ? Number(grade) : undefined
+      );
+      setHits(res);
     } catch (e: any) {
-      setErr(e.message ?? "반 생성 실패");
-    } finally { setLoading(false); }
+      setErr(e.message);
+    }
   };
 
-  // -------- 월간 미리보기 --------
-  const [yyyymm, setYYYMM] = useState(dayjs().format("YYYYMM"));
-  const [monthRows, setMonthRows] = useState<{ date: string; items: { classId: string; className: string }[] }[]>([]);
-  const [pickedDates, setPickedDates] = useState<string[]>([]);
-  useEffect(() => { fetchMonth(yyyymm).then(setMonthRows).catch((e)=>setErr(String(e))); }, [yyyymm]);
+  // ✅ 학생 선택/해제
+  const toggleStudent = (sid: string) => {
+    setSelectedStudents(prev =>
+      prev.includes(sid) ? prev.filter(x => x !== sid) : [...prev, sid]
+    );
+  };
 
-  const countMap = useMemo(() => {
-    const m: Record<string, number> = {};
-    monthRows.forEach((r) => (m[r.date] = r.items.length));
-    return m;
-  }, [monthRows]);
+  // ✅ 방 선택/해제
+  const toggleRoom = (roomNumber: string) => {
+    setSelectedRooms(prev =>
+      prev.includes(roomNumber)
+        ? prev.filter(r => r !== roomNumber)
+        : [...prev, roomNumber]
+    );
+  };
 
-  const year = Number(yyyymm.slice(0, 4));
-  const month = Number(yyyymm.slice(4));
+  // ✅ 반 만들기 (여러 방에 생성)
+  const createClass = async () => {
+    if (!className.trim()) {
+      setErr("반 이름을 입력하세요.");
+      return;
+    }
+    if (selectedRooms.length === 0) {
+      setErr("하나 이상의 강의실을 선택하세요.");
+      return;
+    }
+
+    try {
+      setErr(null);
+      setMsg(null);
+
+      for (const rnStr of selectedRooms) {
+        const rn = Number(rnStr);
+        const created = await api.createClass({
+          className,
+          teacherId,
+          academyNumber,
+          roomNumber: rn,
+        });
+
+        // 선택된 학생도 자동 추가
+        if (created?.classId && selectedStudents.length > 0) {
+          for (const sid of selectedStudents) {
+            await api.addStudentToClass(created.classId, sid);
+          }
+        }
+      }
+
+      setMsg("반이 성공적으로 생성되었습니다!");
+      setClassName("");
+      setSelectedRooms([]);
+      setSelectedStudents([]);
+      setHits([]);
+      setQ("");
+      setGrade("");
+      await load();
+    } catch (e: any) {
+      setErr("반 생성 실패: " + e.message);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">관리 패널</h1>
-        <div className="text-sm text-gray-500">교사: <b>{teacherId}</b> · 학원번호: <b>{defaultAcademy ?? "-"}</b></div>
-      </div>
+    <div className="p-8 bg-gray-50 min-h-screen">
+      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-6">
+        <h1 className="text-2xl font-bold text-black">반 관리</h1>
 
-      {err && <div className="border border-red-200 bg-red-50 text-red-700 px-4 py-2 rounded">{err}</div>}
+        {/* === 반 생성 섹션 === */}
+        <div className="border border-gray-200 rounded-xl p-5 space-y-4 bg-white">
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* 반 이름 */}
+            <div>
+              <label className="block text-sm font-semibold text-black mb-1">반 이름</label>
+              <input
+                value={className}
+                onChange={(e) => setClassName(e.target.value)}
+                placeholder="예) 3학년 수학 A반"
+                className="border border-gray-300 rounded px-3 py-2 w-full text-black focus:ring-emerald-500 focus:ring-2"
+              />
+            </div>
 
-      {/* ====== 반 생성 ====== */}
-      <section className="rounded-xl border bg-white p-4 space-y-3">
-        <div className="font-semibold">반 생성</div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <label className="text-sm">
-            <div className="text-gray-600 mb-1">반 이름</div>
-            <input value={name} onChange={(e)=>setName(e.target.value)} className="w-full border rounded px-2 py-1" />
-          </label>
-          <label className="text-sm">
-            <div className="text-gray-600 mb-1">강의실(선택)</div>
-            <input value={room} onChange={(e)=>setRoom(e.target.value)} className="w-full border rounded px-2 py-1" />
-          </label>
-
-          <label className="text-sm">
-            <div className="text-gray-600 mb-1">시작</div>
-            <input type="time" value={startTime} onChange={(e)=>setStart(e.target.value)} className="w-full border rounded px-2 py-1" />
-          </label>
-          <label className="text-sm">
-            <div className="text-gray-600 mb-1">종료</div>
-            <input type="time" value={endTime} onChange={(e)=>setEnd(e.target.value)} className="w-full border rounded px-2 py-1" />
-          </label>
-
-          <div className="sm:col-span-2">
-            <div className="text-sm text-gray-600 mb-1">요일</div>
-            <div className="flex flex-wrap gap-2">
-              {DAYS.map((d) => (
-                <button
-                  key={d.n}
-                  type="button"
-                  onClick={()=>toggleDay(d.n)}
-                  className={`px-3 py-1 rounded-full border ${days.includes(d.n) ? "bg-emerald-100 border-emerald-300" : "bg-white"}`}
-                >
-                  {d.label}
-                </button>
-              ))}
+            {/* 강의실 선택 */}
+            <div>
+              <label className="block text-sm font-semibold text-black mb-1">
+                강의실 선택 (여러 개)
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {rooms.map((r) => {
+                  const rn = String((r as any).roomNumber ?? (r as any).Room_Number);
+                  const selected = selectedRooms.includes(rn);
+                  return (
+                    <button
+                      key={rn}
+                      onClick={() => toggleRoom(rn)}
+                      className={`px-4 py-1 rounded-full border transition ${
+                        selected
+                          ? "bg-emerald-100 border-emerald-400 text-emerald-700"
+                          : "bg-white border-gray-400 text-black hover:bg-gray-50"
+                      }`}
+                    >
+                      Room {rn}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-xs text-black mt-1">방 {rooms.length}개</div>
             </div>
           </div>
 
-          <label className="text-sm sm:col-span-2">
-            <div className="text-gray-600 mb-1">표시 메모(선택)</div>
-            <input value={schedule} onChange={(e)=>setSchedule(e.target.value)} className="w-full border rounded px-2 py-1" placeholder="월수금 10:00~12:00" />
-          </label>
-        </div>
+          {/* 학생 검색 */}
+          <div>
+            <label className="block text-sm font-semibold text-black mb-1">
+              학생 추가 (선택)
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="이름 검색"
+                className="border border-gray-300 rounded px-3 py-1 text-black"
+              />
+              <input
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                placeholder="학년(선택)"
+                className="border border-gray-300 rounded px-3 py-1 text-black w-28"
+              />
+              <button
+                onClick={search}
+                className="bg-emerald-600 text-white px-4 py-1 rounded hover:bg-emerald-700"
+              >
+                검색
+              </button>
+            </div>
 
-        <div className="flex items-center gap-2">
+            {/* 검색 결과 */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {hits.map((h) => {
+                const picked = selectedStudents.includes(h.studentId);
+                return (
+                  <button
+                    key={h.studentId}
+                    onClick={() => toggleStudent(h.studentId)}
+                    className={`text-left border rounded px-3 py-2 ${
+                      picked
+                        ? "bg-emerald-50 border-emerald-400"
+                        : "bg-white border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="font-medium text-black">
+                      {h.studentName ?? h.studentId}
+                      {picked && (
+                        <span className="ml-2 text-emerald-600 text-xs">선택됨</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-black">
+                      ID: {h.studentId} · 학년: {h.grade ?? "-"}
+                    </div>
+                  </button>
+                );
+              })}
+              {hits.length === 0 && (
+                <div className="text-gray-500">검색 결과 없음</div>
+              )}
+            </div>
+          </div>
+
           <button
             onClick={createClass}
-            disabled={!canCreate || loading}
-            className="px-4 py-2 rounded bg-emerald-600 text-white disabled:opacity-50"
+            className="bg-emerald-600 text-white px-5 py-2 rounded hover:bg-emerald-700"
           >
-            {loading ? "생성 중…" : "반 생성"}
+            반 만들기
           </button>
-          <span className="text-xs text-gray-500">학생 추가/수정은 생성 후 반 상세에서 진행합니다.</span>
+
+          {msg && <div className="text-emerald-600 font-medium">{msg}</div>}
+          {err && <div className="text-red-600 font-medium">{err}</div>}
         </div>
-      </section>
 
-      {/* ====== 내 반 목록 ====== */}
-      <section className="rounded-xl border bg-white p-4 space-y-3">
-        <div className="font-semibold">내 반 목록</div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {classes.map((c)=>(
-            <div key={c.classId} className="border rounded-lg p-3">
-              <div className="font-medium">{c.className}</div>
-              <div className="text-xs text-gray-500 mt-1">ID: {c.classId}</div>
-              {c.roomNumber != null && <div className="text-xs text-gray-600 mt-1">강의실: {c.roomNumber}</div>}
-              <div className="flex gap-3 mt-2 text-sm">
-                <Link className="text-blue-600 underline" href={`/teacher/classes/${c.classId}`}>상세/학생관리</Link>
-                <Link className="text-blue-600 underline" href={`/seats/${c.classId}`}>좌석</Link>
-              </div>
-            </div>
-          ))}
-          {classes.length === 0 && <div className="text-gray-500">아직 생성된 반이 없습니다.</div>}
+        {/* === 반 목록 === */}
+        <div>
+          <h2 className="text-lg font-semibold text-black mb-2">내 반 목록</h2>
+          {loading && <div className="text-sm text-gray-500">불러오는 중…</div>}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {items.map((c) => (
+              <a
+                key={c.classId}
+                href={`/teacher/classes/${encodeURIComponent(c.classId)}`}
+                className="bg-white border border-gray-300 rounded-xl p-3 hover:shadow transition"
+              >
+                <div className="font-semibold text-black">{c.className}</div>
+                <div className="text-sm text-black">Room #{c.roomNumber ?? "-"}</div>
+                <div className="text-sm text-black">
+                  학생 수: {c.students?.length ?? 0}
+                </div>
+                <div className="text-emerald-600 text-sm mt-1">학생 관리 · 시간표</div>
+              </a>
+            ))}
+            {items.length === 0 && (
+              <div className="text-gray-600 text-sm">아직 생성된 반이 없습니다.</div>
+            )}
+          </div>
         </div>
-      </section>
-
-      {/* ====== 월간 미리보기 + 날짜 토글 ====== */}
-      <section className="rounded-xl border bg-white p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="font-semibold">월간 캘린더</div>
-          <button onClick={()=>setYYYMM(dayjs(yyyymm+"01").subtract(1,"month").format("YYYYMM"))} className="px-2 py-1 rounded bg-gray-100">◀</button>
-          <div className="text-sm">{dayjs(yyyymm+"01").format("YYYY.MM")}</div>
-          <button onClick={()=>setYYYMM(dayjs(yyyymm+"01").add(1,"month").format("YYYYMM"))} className="px-2 py-1 rounded bg-gray-100">▶</button>
-        </div>
-        <MonthCalendar
-          year={year}
-          month={month}
-          selectedYmds={pickedDates}
-          eventCountByDate={countMap}
-          onToggle={async (ymd) => {
-            try {
-              // 토글: 이미 있으면 제거, 없으면 추가
-              setPickedDates(prev =>
-                prev.includes(ymd) ? prev.filter(d => d !== ymd) : [...prev, ymd]
-              );
-
-              // 예시: 해당 날짜의 첫 반으로 토글 호출 (현재 로직 유지)
-              const first = monthRows.find((r) => r.date === ymd)?.items?.[0];
-              if (!first) return;
-
-              await toggleDate(first.classId, ymd);
-              const next = await fetchMonth(yyyymm);
-              setMonthRows(next);
-            } catch (e: any) {
-              console.error(e);
-              alert(e?.message ?? "날짜 토글 중 오류가 발생했습니다.");
-            }
-          }}
-        />
-      </section>
+      </div>
     </div>
   );
 }

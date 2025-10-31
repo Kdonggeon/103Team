@@ -12,6 +12,7 @@ import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,8 +23,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/manage/teachers")
+@RequestMapping("/api/teachers") // ★★ 기존 /api/manage/teachers → /api/teachers 로 변경
 @CrossOrigin(origins = "*")
+@PreAuthorize("hasAnyRole('TEACHER','DIRECTOR')") // 클래스 전체 권한
 public class TeacherClassManageController {
 
     private final CourseRepository courseRepo;
@@ -101,8 +103,18 @@ public class TeacherClassManageController {
         c.setClassName(req.getClassName());
         c.setTeacherId(req.getTeacherId());
         c.setAcademyNumber(req.getAcademyNumber());
-        c.setRoomNumber(req.getRoomNumber());
         c.setStudents(new ArrayList<>());
+
+        // ✅ 강의실(여러개) 처리: roomNumbers 우선, 없으면 roomNumber
+        if (req.getRoomNumbers() != null && !req.getRoomNumbers().isEmpty()) {
+            c.setRoomNumbers(new ArrayList<>(req.getRoomNumbers()));
+            c.setRoomNumber(req.getRoomNumbers().get(0)); // 호환 필드도 채움
+        } else {
+            c.setRoomNumber(req.getRoomNumber());
+            if (req.getRoomNumber() != null) {
+                c.setRoomNumbers(List.of(req.getRoomNumber()));
+            }
+        }
 
         // 기본 시간표 필드(있으면 저장)
         c.setStartTime(req.getStartTime());
@@ -134,18 +146,23 @@ public class TeacherClassManageController {
 
             // 기본 정보
             if (req.getClassName() != null) c.setClassName(req.getClassName());
-            if (req.getRoomNumber() != null) c.setRoomNumber(req.getRoomNumber());
             if (req.getAcademyNumber() != null) c.setAcademyNumber(req.getAcademyNumber());
+
+            // ✅ 강의실(여러개) 패치
+            if (req.getRoomNumbers() != null) {
+                List<Integer> copy = (req.getRoomNumbers().isEmpty()) ? null : new ArrayList<>(req.getRoomNumbers());
+                c.setRoomNumbers(copy);
+                c.setRoomNumber((copy == null || copy.isEmpty()) ? null : copy.get(0)); // 호환 필드 동기화
+            } else if (req.getRoomNumber() != null) {
+                c.setRoomNumber(req.getRoomNumber());
+                c.setRoomNumbers((req.getRoomNumber() == null) ? null : List.of(req.getRoomNumber()));
+            }
 
             // 시간표 필드
             if (req.getStartTime() != null) c.setStartTime(req.getStartTime());
             if (req.getEndTime() != null) c.setEndTime(req.getEndTime());
             if (req.getDaysOfWeek() != null) c.setDaysOfWeek(new ArrayList<>(req.getDaysOfWeek()));
             if (req.getSchedule() != null) c.setSchedule(req.getSchedule());
-
-//            // 추가/취소 날짜(옵션)
-//            if (req.getExtraDates() != null) c.setExtraDates(req.getExtraDates());
-//            if (req.getCancelledDates() != null) c.setCancelledDates(req.getCancelledDates());
 
             courseRepo.save(c);
             return ResponseEntity.ok().build();
@@ -194,7 +211,7 @@ public class TeacherClassManageController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    /* ===================== 학생 검색 (프론트 사용) ===================== */
+    /* ===================== 학생 검색 ===================== */
     @GetMapping("/students/search")
     public List<StudentSearchResponse> searchStudents(@RequestParam Integer academyNumber,
                                                       @RequestParam String q,
@@ -216,12 +233,7 @@ public class TeacherClassManageController {
         }).collect(Collectors.toList());
     }
 
-    /* ======================================================================
-     *                           ⬇⬇  스케줄 섹션  ⬇⬇
-     *  schedules 컬렉션 없이 Course만으로 계산해서 내려줌 + 날짜(추가/취소) 토글
-     * ====================================================================== */
-
-    /** 주/월 범위 스케줄 계산 (date 단건 또는 [from,to) 범위) */
+    /* ===================== 스케줄 계산 (Course 기반) ===================== */
     @GetMapping("/{teacherId}/schedules")
     public List<ScheduleItem> listSchedules(@PathVariable String teacherId,
                                             @RequestParam(required = false) String date, // YYYY-MM-DD
@@ -273,7 +285,10 @@ public class TeacherClassManageController {
                     si.setTitle(c.getClassName());
                     si.setStartTime(c.getStartTime());
                     si.setEndTime(c.getEndTime());
-                    si.setRoomNumber(c.getRoomNumber());
+
+                    // ✅ 여러 강의실 중 1순위로 표시
+                    si.setRoomNumber(c.getPrimaryRoomNumber());
+
                     out.add(si);
                 }
             }
@@ -287,7 +302,6 @@ public class TeacherClassManageController {
         return out;
     }
 
-    /** 날짜 토글: 정규요일이면 취소 리스트에 토글, 비정규일이면 추가 리스트에 토글 */
     @PostMapping("/{teacherId}/classes/{classId}/schedule/toggle")
     public ResponseEntity<?> toggleDate(@PathVariable String teacherId,
                                         @PathVariable String classId,
@@ -300,20 +314,13 @@ public class TeacherClassManageController {
 
         guardCourseOwner(c, auth);
 
-        // 정규요일 여부
         int dow = LocalDate.parse(date).getDayOfWeek().getValue(); // 1~7
         boolean regular = c.getDaysOfWeekInt().contains(dow);
 
-        if (regular) {
-            c.toggleCancelledDate(date);
-        } else {
-            c.toggleExtraDate(date);
-        }
+        if (regular) c.toggleCancelledDate(date);
+        else c.toggleExtraDate(date);
 
         courseRepo.save(c);
         return ResponseEntity.ok().build();
     }
-
-    /* ===================== 유틸 ===================== */
-    private String newClassId() { return "class" + System.currentTimeMillis(); }
 }

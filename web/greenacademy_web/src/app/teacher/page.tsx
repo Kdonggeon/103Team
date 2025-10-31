@@ -1,23 +1,22 @@
+// src/app/teacher/page.tsx
 "use client";
-import { useEffect, useState } from "react";
-import TeacherManagePanel from "./TeacherManagePanel";
 
-export default function TeacherTopPage() {
-  const [teacherId, setTeacherId] = useState("");
-  const [defaultAcademy, setDefaultAcademy] = useState<number | null>(null);
+import TeacherManagePanel from "@/components/manage/TeacherManagePanel";
+import { getSession } from "@/app/lib/session";
+import type { LoginResponse } from "@/app/lib/api";
 
-  useEffect(() => {
-    const raw = localStorage.getItem("session") ?? localStorage.getItem("login");
-    if (!raw) return;
-    const s = JSON.parse(raw);
-    setTeacherId(s?.username ?? "");
-    const first = Array.isArray(s?.academyNumbers) && s.academyNumbers.length > 0 ? Number(s.academyNumbers[0]) : null;
-    setDefaultAcademy(Number.isFinite(first) ? first : null);
-  }, []);
+export default function TeacherHomePage() {
+  const me = getSession() as LoginResponse | null;
+
+  // 비로그인 시 로그인 페이지로 이동
+  if (!me) {
+    if (typeof window !== "undefined") location.href = "/login";
+    return null;
+  }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <TeacherManagePanel teacherId={teacherId} defaultAcademy={defaultAcademy} />
+    <div className="max-w-7xl mx-auto px-6 py-6">
+      <TeacherManagePanel user={me} />
     </div>
   );
 }

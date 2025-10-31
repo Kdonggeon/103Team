@@ -1,7 +1,8 @@
-// src/app/lib/api.ts
 import { getSession } from "@/app/lib/session";
+
 export type Role = "student" | "teacher" | "parent" | "director";
 
+/* ---- 로그인 ---- */
 export interface LoginRequest {
   username: string;
   password: string;
@@ -51,6 +52,8 @@ export interface CourseLite {
   classId: string;
   className: string;
   roomNumber?: number;
+  /** ✅ 여러 강의실 지원 (선택) */
+  roomNumbers?: number[];
   students?: string[];
 }
 export interface CourseDetail extends CourseLite {
@@ -67,7 +70,11 @@ export interface CreateClassReq {
   className: string;
   teacherId: string;
   academyNumber: number;
+  /** ✅ 기존 단일 방 (호환) */
   roomNumber?: number;
+  /** ✅ 다중 방(선택) — 백엔드가 받으면 저장, 아니면 무시됨 */
+  roomNumbers?: number[];
+
   startTime?: string | null; // "HH:mm"
   endTime?: string | null;   // "HH:mm"
   daysOfWeek?: (number | string)[] | null; // 1~7
@@ -75,7 +82,11 @@ export interface CreateClassReq {
 }
 export interface PatchClassReq {
   className?: string;
+  /** ✅ 단일 방 (호환) */
   roomNumber?: number;
+  /** ✅ 다중 방(선택) */
+  roomNumbers?: number[];
+
   academyNumber?: number;
   startTime?: string | null;
   endTime?: string | null;
@@ -129,6 +140,8 @@ export type StudentAttendanceRow = {
   date: string;
   status: string;
 };
+
+/* ---- 공통 오류 ---- */
 class ApiError extends Error {
   status: number;
   body?: any;
@@ -138,7 +151,8 @@ class ApiError extends Error {
     this.body = body;
   }
 }
-export { ApiError }; 
+export { ApiError };
+
 /* =============================================================================
  * 내부 유틸
  * ========================================================================== */
@@ -203,7 +217,7 @@ function resolveUrl(path: string): string {
 
 function getAuthToken(): string | null {
   try {
-    const s = getSession(); // 세션 스토리지/쿠키 등 당신 구현
+    const s = getSession();
     let t = s?.token ?? null;
     if (t && typeof t === "string") {
       t = t.trim();
@@ -243,8 +257,10 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const url = resolveUrl(path);
+  console.log("[API] fetch", url, init?.method ?? "GET");
   const res = await fetch(url, { credentials: "include", ...init, headers });
   const text = await res.text();
+  console.log("[API] response", res.status, res.statusText, url);
 
   if (!res.ok) {
     let body: any = undefined;
@@ -253,6 +269,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   }
   return text ? (JSON.parse(text) as T) : ({} as T);
 }
+
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 
 /* =============================================================================
@@ -356,8 +373,12 @@ export const api = {
     request<void>(
       `${TEACHER_PREFIX}/${encodeURIComponent(
         teacherId
-      )}/schedules/${encodeURIComponent(scheduleId)}`,
-      { method: "DELETE" }
+      )}/schedules/${encodeURIComponent(scheduleId)}`
+    ),
+
+  deleteScheduleByClassDate: (teacherId: string, classId: string, date: string) =>
+    request<void>(
+      `${TEACHER_PREFIX}/${encodeURIComponent(teacherId)}/schedules/${encodeURIComponent(`${classId}_${date}`)}`,
     ),
 
   /* ---- 좌석/강의실 ---- */
@@ -368,6 +389,7 @@ export const api = {
       )}/seatboard?date=${encodeURIComponent(date)}`
     ),
 
+  // (관리용) 방 목록/상세/레이아웃 저장
   listRooms: (academyNumber: number) =>
     request<any[]>(`/api/admin/rooms?academyNumber=${academyNumber}`),
 
@@ -379,10 +401,6 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
-
-    
 };
-
-
 
 export default api;
