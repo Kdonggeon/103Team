@@ -13,12 +13,6 @@ export type CalendarEvent = {
   href?: string;                  // 클릭 시 이동
 };
 
-type WeekCalendarProps = {
-  startHour: number;
-  endHour: number;
-  events: CalendarEvent[];
-  slotMinutes?: number;   // ← 추가
-};
 
 
 function timeToMinutes(t: string) {

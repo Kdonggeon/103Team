@@ -1,3 +1,4 @@
+// src/main/java/com/team103/model/Question.java
 package com.team103.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -6,12 +7,30 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 
 import java.util.Date;
 import java.util.List;
 
 @Document(collection = "questions")
 @JsonInclude(JsonInclude.Include.NON_NULL) // null 필드는 생략
+@CompoundIndexes({
+    // ✅ 부모 QnA 방 고유 보장: room=true + academyNumber + roomParentId 조합 유니크
+    // sparse=true → roomParentId가 없는 문서는 인덱스 대상에서 제외(학생 room/일반 질문 안전)
+    @CompoundIndex(
+        name = "uniq_parent_room",
+        def  = "{'room':1,'academyNumber':1,'roomParentId':1}",
+        unique = true,
+        sparse = true
+    )
+     ,@CompoundIndex(
+         name = "uniq_student_room",
+         def  = "{'room':1,'academyNumber':1,'roomStudentId':1}",
+         unique = true,
+         sparse = true
+     )
+})
 public class Question {
 
     @Id
@@ -41,7 +60,6 @@ public class Question {
     // ------- 프론트 표시 보강용(저장 안함) -------
     @Transient
     private List<String> recentResponderNames;
-    
 
     @Transient
     private int unreadCount;
@@ -50,7 +68,7 @@ public class Question {
     @Transient
     private Date lastAnswerAt;
 
-    // ✅ 질문/답변/팔로업 중 가장 최신(정렬/미확인 판단 기준)
+    // ✅ 질문/답변/팔로업 중 가장 최신(정렬/미확인 판단 기준) — 현재 저장 안 함(표시용)
     @Transient
     private Date updatedAt;
 
@@ -103,7 +121,7 @@ public class Question {
 
     public Date getLastAnswerAt(){ return lastAnswerAt; }
     public void setLastAnswerAt(Date v){ this.lastAnswerAt = v; }
-    
+
     public Date getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Date updatedAt) { this.updatedAt = updatedAt; }
 }
