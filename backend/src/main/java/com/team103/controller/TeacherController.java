@@ -1,19 +1,13 @@
 package com.team103.controller;
 
 import com.team103.dto.FindIdRequest;
-import com.team103.model.Attendance;
-import com.team103.model.Course;
 import com.team103.model.Teacher;
-import com.team103.repository.AttendanceRepository;
-import com.team103.repository.CourseRepository;
 import com.team103.repository.TeacherRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +18,7 @@ public class TeacherController {
 
     private final TeacherRepository teacherRepo;
 
+<<<<<<< HEAD
     @Autowired
     private CourseRepository courseRepo;
 
@@ -32,6 +27,8 @@ public class TeacherController {
     
     
 
+=======
+>>>>>>> main-develop/web/feature9
     public TeacherController(TeacherRepository teacherRepo) {
         this.teacherRepo = teacherRepo;
     }
@@ -42,60 +39,22 @@ public class TeacherController {
         return teacherRepo.findAll();
     }
 
-    /** 교사 생성 */
+    /** 교사 생성 (필요 시 SecurityConfig에서 permitAll 유지) */
     @PostMapping
     public Teacher create(@RequestBody Teacher teacher) {
         return teacherRepo.save(teacher);
     }
 
-    /** 수업 생성 */
-    @PostMapping("/classes")
-    public ResponseEntity<?> createClass(@RequestBody Course newCourse) {
-        Course saved = courseRepo.save(newCourse);
-        return ResponseEntity.ok(saved);
-    }
-
-    /** 수업에 학생 추가 */
-    @PostMapping("/classes/{classId}/add-student")
-    public ResponseEntity<?> addStudentToClass(@PathVariable String classId,
-                                               @RequestParam String studentId) {
-        return courseRepo.findByClassId(classId).map(course -> {
-            List<String> students = (course.getStudents() == null)
-                    ? new ArrayList<>()
-                    : new ArrayList<>(course.getStudents());
-            if (!students.contains(studentId)) {
-                students.add(studentId);
-                course.setStudents(students);
-                courseRepo.save(course);
-            }
-            return ResponseEntity.ok("학생 추가 완료");
-        }).orElse(ResponseEntity.notFound().build());
-    }
-
-    /** 출석 등록 */
-    @PostMapping("/attendance")
-    public ResponseEntity<?> registerAttendance(@RequestBody Attendance attendance) {
-        Attendance saved = attendanceRepo.save(attendance);
-        return ResponseEntity.ok(saved);
-    }
-
-    /** 수업별 출석 현황 조회 */
-    @GetMapping("/classes/{classId}/attendance")
-    public ResponseEntity<?> getAttendance(@PathVariable String classId,
-                                           @RequestParam String date) {
-        return ResponseEntity.ok(attendanceRepo.findByClassIdAndDate(classId, date));
-    }
-
-    /** 교사 ID로 수업 목록 조회 */
-    @GetMapping("/{teacherId}/classes")
-    public ResponseEntity<?> getTeacherClasses(@PathVariable String teacherId) {
-        List<Course> classes = courseRepo.findByTeacherId(teacherId);
-        return ResponseEntity.ok(classes);
+    /** 특정 교사 단건 조회 (선택) */
+    @GetMapping("/{teacherId}")
+    public ResponseEntity<Teacher> getOne(@PathVariable String teacherId) {
+        Teacher t = teacherRepo.findByTeacherId(teacherId);
+        return (t == null) ? ResponseEntity.notFound().build() : ResponseEntity.ok(t);
     }
 
     /** FCM 토큰 업데이트 */
-    @PutMapping("/{id}/fcm-token")
-    public ResponseEntity<Void> updateFcmToken(@PathVariable("id") String teacherId,
+    @PutMapping("/{teacherId}/fcm-token")
+    public ResponseEntity<Void> updateFcmToken(@PathVariable String teacherId,
                                                @RequestParam("token") String token) {
         Teacher t = teacherRepo.findByTeacherId(teacherId);
         if (t == null) return ResponseEntity.notFound().build();

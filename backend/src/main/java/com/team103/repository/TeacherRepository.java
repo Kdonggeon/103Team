@@ -16,5 +16,5 @@ public interface TeacherRepository extends MongoRepository<Teacher, String> {
     Teacher findByTeacherNameAndTeacherPhoneNumber(String name, String phone);
     List<Teacher> findByTeacherIdIn(List<String> ids);
     
-
+    void deleteByTeacherId(String teacherId);
 }

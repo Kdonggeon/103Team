@@ -1,8 +1,9 @@
 // C:\project\103Team-sub\web\greenacademy_web\src\app\page.tsx
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+<<<<<<< HEAD
 import { useRouter } from "next/navigation";
 
 import TeacherProfileCard from "@/app/teacher/TeacherProfileCard";
@@ -20,6 +21,16 @@ import RoomGridEditor, { type SeatCell as EditorSeat } from "@/components/rooms/
 // 시간표 UI
 import Panel, { PanelGrid } from "@/components/ui/Panel";
 import WeekCalendar, { type CalendarEvent } from "@/components/ui/calendar/week-calendar";
+=======
+import { useRouter, useSearchParams } from "next/navigation";
+import { getSession, clearSession } from "@/app/lib/session";
+import api, { type LoginResponse } from "@/app/lib/api";
+
+import DirectorRoomsPanel from "@/components/rooms/director/DirectorRoomsPanel";
+import TeacherManagePanel from "@/components/manage/TeacherManagePanel";
+import TeacherSchedulePanelInline from "@/components/manage/TeacherSchedulePanelInline";
+import DirectorPeoplePanel from "@/components/manage/director/DirectorPeoplePanel"; // ✅ 추가
+>>>>>>> main-develop/web/feature9
 
 // QnA
 import { getRecentQna } from "@/lib/qna";
@@ -35,14 +46,31 @@ type LoginSession = LoginResponse | null;
 type StudentAttendanceRow = {
   classId: string;
   className: string;
+<<<<<<< HEAD
   date: string; // "yyyy-MM-dd" or ISO
   status: string; // "PRESENT" | "LATE" | "ABSENT" | ...
+=======
+  date: string;
+  status: string;
+};
+
+type RawClass = {
+  classId: string;
+  className: string;
+  roomNumber?: number | string;
+  days?: string[];
+  dayOfWeek?: string | string[];
+  scheduleText?: string;
+  startTime?: string;
+  endTime?: string;
+>>>>>>> main-develop/web/feature9
 };
 
 type SeatCell = {
   id: number | string;
   name?: string;
-  status?: "end" | "label" | "empty" | "filled";
+  seatNumber?: number | string;
+  attendance?: string; // "PRESENT" | "LATE" | "ABSENT" | ...
 };
 
 /** 날짜 유틸 */
@@ -90,6 +118,7 @@ function StatCard({ title, value }: { title: string; value: number }) {
   );
 }
 
+<<<<<<< HEAD
 /** 상단 탭 (+ 관리 드롭다운) */
 function NavTabs({
   active,
@@ -145,6 +174,22 @@ function NavTabs({
       {t}
     </button>
   );
+=======
+/** 상단 탭 — ✅ 원장일 때만 '시간표' → '출결확인' */
+function NavTabs({
+  active,
+  onChange,
+  role,
+}: {
+  active: string;
+  onChange: (tab: string) => void;
+  role?: string | null;
+}) {
+  const tabs =
+    role === "director"
+      ? ["종합정보", "관리", "출결확인", "Q&A", "공지사항", "가이드"]
+      : ["종합정보", "관리", "시간표", "Q&A", "공지사항", "가이드"];
+>>>>>>> main-develop/web/feature9
 
   return (
     <div className="flex items-center gap-3 md:gap-4">
@@ -286,6 +331,7 @@ function SidebarProfile({
 }) {
   const router = useRouter();
   const role = user?.role;
+<<<<<<< HEAD
 
   const roleColor =
     role === "teacher"
@@ -304,6 +350,21 @@ function SidebarProfile({
     Array.isArray(user?.academyNumbers) && user!.academyNumbers!.length > 0
       ? user!.academyNumbers!
       : [];
+=======
+  const roleColor =
+    role === "teacher"
+      ? "bg-blue-100 text-blue-700 ring-blue-200"
+      : role === "student"
+      ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
+      : role === "parent"
+      ? "bg-amber-100 text-amber-700 ring-amber-200"
+      : role === "director"
+      ? "bg-purple-100 text-purple-700 ring-purple-200"
+      : "bg-gray-100 text-gray-700 ring-gray-200";
+
+  const academies =
+    Array.isArray(user?.academyNumbers) && user!.academyNumbers!.length > 0 ? user!.academyNumbers! : [];
+>>>>>>> main-develop/web/feature9
 
   return (
     <aside className="w-[260px] shrink-0">
@@ -392,7 +453,11 @@ function SidebarProfile({
             환경 설정
           </button>
           <button
+<<<<<<< HEAD
             onClick={onOpenRecentQna}
+=======
+            onClick={() => router.push("/qna/recent")}
+>>>>>>> main-develop/web/feature9
             className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
           >
             최근 QnA 바로가기
@@ -442,21 +507,41 @@ function WaitingList({
   );
 }
 
-/** 좌석 그리드(추후 연동) */
+/** 좌석 그리드: 출석 상태 뱃지 포함 */
 function SeatGrid({ seats }: { seats: SeatCell[] | null }) {
   if (!seats || seats.length === 0) {
     return (
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
-        좌석 데이터가 연결되어 있지 않습니다. (수업 선택 후 좌석 API를 연동해 주세요)
+        현재 시간 수업의 좌석/출석 데이터가 없습니다.
       </div>
     );
   }
+
+  const badge = (att?: string) => {
+    if (!att) return null;
+    const upper = att.toUpperCase();
+    const cls =
+      upper.includes("ABS") || upper.includes("ABSENT")
+        ? "bg-red-100 text-red-700 ring-red-200"
+        : upper.includes("LATE")
+        ? "bg-amber-100 text-amber-700 ring-amber-200"
+        : "bg-emerald-100 text-emerald-700 ring-emerald-200";
+    const label =
+      upper.includes("ABS") || upper.includes("ABSENT")
+        ? "결석"
+        : upper.includes("LATE")
+        ? "지각"
+        : "출석";
+    return <span className={`mt-1 inline-block text-[10px] px-2 py-0.5 rounded ring-1 ${cls}`}>{label}</span>;
+  };
+
   return (
     <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
       <div className="grid grid-cols-5 gap-3">
         {seats.map((s) => (
           <div
             key={s.id}
+<<<<<<< HEAD
             className="h-14 rounded-xl flex items-center justify-center text-sm ring-1 ring-black/5 bg-gray-100 text-gray-900"
             title={s.name}
           >
@@ -590,14 +675,35 @@ function TeacherSchedulePanelInline({ user }: { user: NonNullable<LoginResponse>
           )}
         </Panel>
       </PanelGrid>
+=======
+            className="h-16 rounded-xl flex flex-col items-center justify-center text-sm ring-1 ring-black/5 bg-gray-50 text-gray-900"
+            title={s.name}
+          >
+            <div className="font-medium truncate max-w-[90%]">
+              {s.seatNumber ? `${s.seatNumber}. ` : ""}
+              {s.name || ""}
+            </div>
+            {badge(s.attendance)}
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 text-right text-xs text-gray-500">* 현재 시간 수업의 좌석·출석 현황</div>
+>>>>>>> main-develop/web/feature9
     </div>
   );
 }
 
+<<<<<<< HEAD
 /** ✅ 교사용 ‘반 관리’ 패널 */
 function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
   const teacherId = user.username;
   const defaultAcademy = user.academyNumbers?.[0] ?? null;
+=======
+/** 메인 대시보드 */
+export default function GreenAcademyDashboard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+>>>>>>> main-develop/web/feature9
 
   const [items, setItems] = useState<CourseLite[]>([]);
   const [className, setClassName] = useState("");
@@ -607,6 +713,7 @@ function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+<<<<<<< HEAD
   // 🔎 학생 검색/선택 상태
   const [q, setQ] = useState("");
   const [grade, setGrade] = useState<string>("");
@@ -664,6 +771,159 @@ function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
     setSelected((prev) =>
       prev.includes(sid) ? prev.filter((x) => x !== sid) : [...prev, sid]
     );
+=======
+  // 학생/학부모만 사용
+  const [present, setPresent] = useState(0);
+  const [late, setLate] = useState(0);
+  const [absent, setAbsent] = useState(0);
+
+  const [list, setList] = useState<Array<{ label: string; sub?: string }>>([]);
+
+  // 좌석 상태
+  const [seats, setSeats] = useState<SeatCell[] | null>(null);
+
+  /** 세션 로드 & 가드 */
+  useEffect(() => {
+    const s = getSession();
+    if (!s) {
+      router.replace("/login");
+      return;
+    }
+    setUser(s);
+    setReady(true);
+  }, [router]);
+
+  /** ✅ 쿼리 ?tab=... 이 있으면 초기 1회만 activeTab 설정 */
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (!tab) return;
+    const map: Record<string, string> = {
+      overview: "종합정보",
+      manage: "관리",
+      schedule: "시간표",
+      attendance: "출결확인", // ✅ 원장 북마크/딥링크 대응
+      qna: "Q&A",
+      notice: "공지사항",
+      guide: "가이드",
+    };
+    const label = map[tab.toLowerCase()];
+    if (label) setActiveTab(label);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** 유틸: 요일/시간 포맷 → 부제(subtitle) */
+  const formatSubtitle = (c: Partial<RawClass>) => {
+    if (c.scheduleText) return c.scheduleText;
+    const days = Array.isArray(c.dayOfWeek)
+      ? c.dayOfWeek
+      : Array.isArray(c.days)
+      ? c.days
+      : c.dayOfWeek
+      ? [c.dayOfWeek]
+      : [];
+    const dayLabel =
+      days.length > 0
+        ? days
+            .map(
+              (d) =>
+                (
+                  {
+                    MON: "월",
+                    TUE: "화",
+                    WED: "수",
+                    THU: "목",
+                    FRI: "금",
+                    SAT: "토",
+                    SUN: "일",
+                  } as Record<string, string>
+                )[String(d).toUpperCase()] || d
+            )
+            .join("·")
+        : "";
+    const timeLabel =
+      c.startTime && c.endTime ? `${c.startTime}–${c.endTime}` : c.startTime ? `${c.startTime}~` : "";
+    const room = c.roomNumber != null ? ` · #${c.roomNumber}` : "";
+    const combo = [dayLabel, timeLabel].filter(Boolean).join(" ");
+    return combo ? `${combo}${room}` : room ? String(room).slice(3) : undefined;
+  };
+
+  /** 유틸: 지금 시간에 해당 수업인지 대략 판정(정보 없으면 false) */
+  const isNowIn = (c: Partial<RawClass>) => {
+    if (!c.startTime || !c.endTime) return false;
+    const now = new Date();
+    const [sh, sm] = c.startTime.split(":").map((n) => parseInt(n, 10));
+    const [eh, em] = c.endTime.split(":").map((n) => parseInt(n, 10));
+    const start = new Date(now);
+    start.setHours(sh || 0, sm || 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(eh || 0, em || 0, 0, 0);
+
+    // 요일 필터가 있으면 요일도 맞춰봄
+    const days = Array.isArray(c.dayOfWeek)
+      ? c.dayOfWeek
+      : Array.isArray(c.days)
+      ? c.days
+      : c.dayOfWeek
+      ? [c.dayOfWeek]
+      : [];
+    if (days.length > 0) {
+      const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+      const today = map[new Date().getDay()];
+      if (!days.map((d) => String(d).toUpperCase()).includes(today)) return false;
+    }
+
+    return now >= start && now <= end;
+  };
+
+  /** 현재 수업 좌석/출석 가져오기 */
+  const fetchCurrentClassSeats = async (classes: RawClass[]) => {
+    setSeats(null);
+    if (!classes || classes.length === 0) return;
+
+    const current = classes.find((c) => isNowIn(c)) || classes[0];
+    const today = toYmd(new Date());
+    try {
+      // 1차: 좌석+출석 통합 엔드포인트 가정
+      const seatRows = await apiGet<
+        Array<{ id?: number | string; seatNumber?: number | string; name?: string; attendance?: string }>
+      >(`/teachers/classes/${encodeURIComponent(current.classId)}/seats?date=${encodeURIComponent(today)}`);
+
+      const mapped: SeatCell[] = (seatRows || []).map((s, idx) => ({
+        id: s.id ?? s.seatNumber ?? idx,
+        seatNumber: s.seatNumber ?? idx + 1,
+        name: s.name ?? "",
+        attendance: s.attendance,
+      }));
+      setSeats(mapped);
+      return;
+    } catch {
+      // 2차: 출석만 있을 때 좌석 번호 없이 단순 매핑
+      try {
+        const atts = await apiGet<
+          Array<{ studentId?: string; studentName?: string; seatNumber?: number | string; status?: string }>
+        >(`/teachers/classes/${encodeURIComponent(current.classId)}/attendance?date=${encodeURIComponent(today)}`);
+
+        const mapped: SeatCell[] = (atts || []).map((a, idx) => ({
+          id: a.seatNumber ?? a.studentId ?? idx,
+          seatNumber: a.seatNumber ?? idx + 1,
+          name: a.studentName ?? a.studentId ?? "",
+          attendance: a.status,
+        }));
+        setSeats(mapped);
+      } catch {
+        setSeats([]);
+      }
+    }
+  };
+
+  /** 역할별 데이터 로딩 (종합정보) */
+  useEffect(() => {
+    if (!ready || !user) return;
+    if (activeTab !== "종합정보") return;
+
+    setLoading(true);
+    setErr(null);
+>>>>>>> main-develop/web/feature9
 
   // 반 생성 + 선택 학생 일괄 추가
   const create = async () => {
@@ -679,6 +939,7 @@ function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
       setErr(null);
       setMsg(null);
 
+<<<<<<< HEAD
       // 1) 반 생성
       const created = await api.createClass({
         className: className.trim(),
@@ -692,8 +953,48 @@ function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
         for (const sid of selected) {
           await api.addStudentToClass(created.classId, sid);
         }
+=======
+        if (user.role === "teacher") {
+          const classes: RawClass[] = await api.listMyClasses(user.username);
+          setList((classes || []).map((c) => ({ label: c.className, sub: formatSubtitle(c) })));
+          await fetchCurrentClassSeats(classes || []);
+          return;
+        }
+
+        if (user.role === "parent") {
+          const target = user.childStudentId || user.username;
+          const rows = await apiGet<StudentAttendanceRow[]>(`/parents/${encodeURIComponent(target)}/attendance`);
+          const todayRows = rows.filter((r) => isSameDate(r.date));
+          const sum = summarizeAttendance(todayRows);
+          setPresent(sum.present);
+          setLate(sum.late);
+          setAbsent(sum.absent);
+          setList(todayRows.map((r) => ({ label: r.className, sub: `${r.status} • ${r.date}` })));
+          setSeats(null);
+        } else if (user.role === "student") {
+          const rows = await apiGet<StudentAttendanceRow[]>(`/students/${encodeURIComponent(user.username)}/attendance`);
+          const todayRows = rows.filter((r) => isSameDate(r.date));
+          const sum = summarizeAttendance(todayRows);
+          setPresent(sum.present);
+          setLate(sum.late);
+          setAbsent(sum.absent);
+          setList(todayRows.map((r) => ({ label: r.className, sub: `${r.status} • ${r.date}` })));
+          setSeats(null);
+        } else {
+          setPresent(0);
+          setLate(0);
+          setAbsent(0);
+          setList([]);
+          setSeats(null);
+        }
+      } catch (e: any) {
+        setErr(e?.message ?? "데이터를 불러오지 못했습니다.");
+      } finally {
+        setLoading(false);
+>>>>>>> main-develop/web/feature9
       }
 
+<<<<<<< HEAD
       // 3) 초기화 & 리로드
       setClassName("");
       setRoomNumber("");
@@ -707,6 +1008,17 @@ function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
       setErr(e.message);
     }
   };
+=======
+  const handleLogout = () => {
+    clearSession();
+    router.replace("/login");
+  };
+  const handleTab = (t: string) => setActiveTab(t);
+
+  if (!ready) return null;
+>>>>>>> main-develop/web/feature9
+
+  const showTeacherStats = user?.role !== "teacher"; // 선생이면 숨김
 
   return (
     <div className="space-y-4">
@@ -809,8 +1121,16 @@ function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
             {msg && <span className="text-emerald-600">{msg}</span>}
             {err && <span className="text-red-600">{err}</span>}
           </div>
+<<<<<<< HEAD
+=======
+
+          <NavTabs active={activeTab} onChange={handleTab} role={user?.role} /> {/* ✅ role 전달 */}
+
+          <ProfileMenu user={user} />
+>>>>>>> main-develop/web/feature9
         </div>
 
+<<<<<<< HEAD
         {/* 목록 */}
         {loading && <div className="mt-3 text-sm text-gray-600">불러오는 중…</div>}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">
@@ -836,10 +1156,113 @@ function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
           )}
         </div>
       </div>
+=======
+      {/* 본문 */}
+      <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+        <SidebarProfile user={user} onLogout={handleLogout} />
+
+        {/* 탭별 콘텐츠 */}
+        {activeTab === "종합정보" && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
+                  강의실 찾기 추가 예정
+                </span>
+              </div>
+
+              {showTeacherStats && (
+                <div className="flex gap-3">
+                  <StatCard title="금일 출석 학생 수" value={present} />
+                  <StatCard title="금일 지각 학생 수" value={late} />
+                  <StatCard title="금일 미출석 학생 수" value={absent} />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-6">
+              <WaitingList
+                title={user!.role === "teacher" ? "내 반 목록" : "오늘 일정"}
+                list={list}
+                loading={loading}
+                error={err}
+              />
+
+              {user?.role === "teacher" ? (
+                <SeatGrid seats={seats} />
+              ) : (
+                <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
+                  좌석 데이터가 연결되어 있지 않습니다. (수업 선택 후 좌석 API를 연동해 주세요)
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "관리" && (
+          <>
+            {user?.role === "teacher" && <TeacherManagePanel user={user} />}
+            {user?.role === "director" && <DirectorRoomsPanel user={user} />}
+
+            {(user?.role === "student" || user?.role === "parent") && (
+              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">관리</h2>
+                <p className="text-sm text-gray-700">이 역할에는 관리 메뉴가 없습니다.</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ✅ 원장 전용: 출결확인 탭 */}
+        {user?.role === "director" && activeTab === "출결확인" && <DirectorPeoplePanel />}
+
+        {/* 그 외 역할: 시간표 탭 */}
+        {activeTab === "시간표" && user?.role !== "director" && (
+          <>
+            {user?.role === "teacher" ? (
+              <TeacherSchedulePanelInline user={user} />
+            ) : (
+              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">시간표</h2>
+                <p className="text-sm text-gray-700">현재 역할에는 시간표 기능이 준비 중입니다.</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "Q&A" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&A</h2>
+              <p className="text-sm text-gray-700">Q&A 게시판을 연결하세요.</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "공지사항" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">공지사항</h2>
+              <p className="text-sm text-gray-700">공지 API 또는 CMS를 연결하세요.</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "가이드" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">가이드</h2>
+              <p className="text-sm text-gray-700">사용 설명서/튜토리얼 문서를 표시합니다.</p>
+            </div>
+          </div>
+        )}
+      </main>
+>>>>>>> main-develop/web/feature9
     </div>
   );
 }
 
+<<<<<<< HEAD
 /** ✅ 원장용 강의실 관리 패널 (Panel 스타일) */
 function DirectorRoomsPanel({ user }: { user: NonNullable<LoginResponse> }) {
   // 학원번호
@@ -1030,6 +1453,9 @@ function DirectorRoomsPanel({ user }: { user: NonNullable<LoginResponse> }) {
 }
 
 /** 통계 합산 */
+=======
+/** 통계 합산 (학생/학부모 용) */
+>>>>>>> main-develop/web/feature9
 function summarizeAttendance<T extends { status: string }>(rows: T[]) {
   let present = 0,
     late = 0,
@@ -1042,6 +1468,7 @@ function summarizeAttendance<T extends { status: string }>(rows: T[]) {
   });
   return { present, late, absent };
 }
+<<<<<<< HEAD
 
 /** 메인 대시보드 */
 export default function GreenAcademyDashboard() {
@@ -1374,3 +1801,5 @@ export default function GreenAcademyDashboard() {
     </div>
   );
 }
+=======
+>>>>>>> main-develop/web/feature9

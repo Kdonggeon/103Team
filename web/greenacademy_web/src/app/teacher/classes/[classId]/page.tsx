@@ -1,4 +1,5 @@
-// app/teacher/classes/[classId]/page.tsx
+"use client";
+
 import ClassDetailClient from "./ClassDetailClient";
 
 export default function Page({ params }: { params: { classId: string } }) {

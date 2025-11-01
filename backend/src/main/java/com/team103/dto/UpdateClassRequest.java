@@ -4,27 +4,41 @@ import java.util.List;
 
 public class UpdateClassRequest {
     private String className;
-    private Integer roomNumber;
     private Integer academyNumber;
+
+    /** 호환용(단일) */
+    private Integer roomNumber;
+
+    /** ✅ 신규: 복수 강의실 */
+    private List<Integer> roomNumbers;
 
     private String startTime;        // "HH:mm"
     private String endTime;          // "HH:mm"
     private List<String> daysOfWeek; // ["1","3","5"]
-    private String schedule;         // 자유 텍스트(선택)
+    private String schedule;
 
     // getters / setters
     public String getClassName() { return className; }
     public void setClassName(String className) { this.className = className; }
-    public Integer getRoomNumber() { return roomNumber; }
-    public void setRoomNumber(Integer roomNumber) { this.roomNumber = roomNumber; }
+
     public Integer getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(Integer academyNumber) { this.academyNumber = academyNumber; }
+
+    public Integer getRoomNumber() { return roomNumber; }
+    public void setRoomNumber(Integer roomNumber) { this.roomNumber = roomNumber; }
+
+    public List<Integer> getRoomNumbers() { return roomNumbers; }
+    public void setRoomNumbers(List<Integer> roomNumbers) { this.roomNumbers = roomNumbers; }
+
     public String getStartTime() { return startTime; }
     public void setStartTime(String startTime) { this.startTime = startTime; }
+
     public String getEndTime() { return endTime; }
     public void setEndTime(String endTime) { this.endTime = endTime; }
+
     public List<String> getDaysOfWeek() { return daysOfWeek; }
     public void setDaysOfWeek(List<String> daysOfWeek) { this.daysOfWeek = daysOfWeek; }
+
     public String getSchedule() { return schedule; }
     public void setSchedule(String schedule) { this.schedule = schedule; }
 }

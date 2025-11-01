@@ -1,148 +1,162 @@
-// src/components/ui/calendar/month-calendar.tsx
 "use client";
-import { useMemo } from "react";
 
-/** 한국 양력 고정 공휴일(해마다 동일) */
-export function krFixedSolarHolidays(year: number): Record<string, string> {
-  const make = (m: number, d: number, name: string) =>
-    ({ [`${year}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`]: name });
-  return {
-    ...make(1,1,"신정"), ...make(3,1,"삼일절"), ...make(5,5,"어린이날"),
-    ...make(6,6,"현충일"), ...make(8,15,"광복절"),
-    ...make(10,3,"개천절"), ...make(10,9,"한글날"),
-    ...make(12,25,"성탄절"),
-  };
-}
+import React, { useMemo } from "react";
 
-export default function MonthCalendar({
-  year, month,
-  selectedYmds = [],             // ✅ 다중선택
-  onToggle,                      // ✅ 셀 클릭 시 토글
-  eventCountByDate,
-  holidays,
-  showWeekendColors = true,
-  className,
-}: {
+export type MonthEvent = {
+  id: string;
+  date: string;        // "YYYY-MM-DD"
+  title: string;
+  classId?: string;
+  startTime?: string;
+  endTime?: string;
+  roomNumber?: number;
+  color?: string;      // optional chip bg color
+};
+
+export type Holiday = { date: string; name: string };
+
+export type MonthCalendarProps = {
   year: number;
   month: number; // 1~12
-  selectedYmds?: string[];
-  onToggle?: (ymd: string) => void;
-  eventCountByDate?: Record<string, number>;
-  holidays?: Record<string, string>;
-  showWeekendColors?: boolean;
-  className?: string;
-}) {
-  const { weeks } = useMemo(() => buildCalendar(year, month), [year, month]);
-  const holidaySet = holidays ?? {};
-  const selectedSet = useMemo(() => new Set(selectedYmds), [selectedYmds]);
+  events: MonthEvent[];
+  holidays?: Holiday[];
+  selectedDate?: string;
+  onDayClick?: (date: string) => void;
+  onPrevMonth?: () => void;
+  onNextMonth?: () => void;
+};
+
+// ✅ 로컬 기준으로 안전하게 YYYY-MM-DD 만들기
+const ymd = (d: Date) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const same = (a?: string, b?: string) => !!a && !!b && a === b;
+
+export default function MonthCalendar({
+  year,
+  month,
+  events,
+  holidays = [],
+  selectedDate,
+  onDayClick,
+  onPrevMonth,
+  onNextMonth,
+}: MonthCalendarProps) {
+  const first = new Date(year, month - 1, 1); // ✅ 로컬 생성자 사용
+  const firstDow = first.getDay(); // 0~6
+  const last = new Date(year, month, 0);
+  const daysInMonth = last.getDate();
+
+  // ✅ 로컬 기준으로 6주 그리드(42칸) 구성
+  const cells = useMemo(() => {
+    const arr: { date: string; inMonth: boolean; dow: number }[] = [];
+    // 전월 채우기
+    for (let i = 0; i < firstDow; i++) {
+      const d = new Date(year, month - 1, -(firstDow - i - 1));
+      arr.push({ date: ymd(d), inMonth: false, dow: d.getDay() });
+    }
+    // 이번달
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month - 1, day);
+      arr.push({ date: ymd(d), inMonth: true, dow: d.getDay() });
+    }
+    // 다음달 채우기 (총 42칸)
+    while (arr.length < 42) {
+      const lastDate = new Date(arr[arr.length - 1].date + "T00:00:00"); // ✅ 로컬기준
+      lastDate.setDate(lastDate.getDate() + 1);
+      arr.push({ date: ymd(lastDate), inMonth: false, dow: lastDate.getDay() });
+    }
+    return arr;
+  }, [year, month, daysInMonth, firstDow]);
+
+  const evByDate = useMemo(() => {
+    const m = new Map<string, MonthEvent[]>();
+    for (const e of events) {
+      const a = m.get(e.date) ?? [];
+      a.push(e);
+      m.set(e.date, a);
+    }
+    return m;
+  }, [events]);
+
+  const holidaySet = useMemo(() => new Set(holidays.map((h) => h.date)), [holidays]);
+  const today = ymd(new Date());
 
   return (
-    <div className={["w-full", className].filter(Boolean).join(" ")}>
-      {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 text-center text-sm text-slate-700 px-2">
-        {["월","화","수","목","금","토","일"].map((d, i) => (
-          <div
-            key={d}
-            className={[
-              "py-2 font-semibold",
-              showWeekendColors && i === 5 ? "text-blue-600"
-              : showWeekendColors && i === 6 ? "text-rose-600"
-              : "text-slate-700",
-            ].join(" ")}
-          >
-            {d}
+    <div className="w-full">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          onClick={onPrevMonth}
+          className="px-2 py-1 rounded border border-black bg-white hover:bg-gray-50"
+        >
+          ◀
+        </button>
+        <div className="text-lg font-semibold">{year}년 {month}월</div>
+        <button
+          type="button"
+          onClick={onNextMonth}
+          className="px-2 py-1 rounded border border-black bg-white hover:bg-gray-50"
+        >
+          ▶
+        </button>
+      </div>
+
+      {/* 요일 */}
+      <div className="grid grid-cols-7 text-center text-sm font-semibold mb-1">
+        {["일","월","화","수","목","금","토"].map((w, i) => (
+          <div key={w} className={i===0 ? "text-red-600" : i===6 ? "text-blue-600" : "text-gray-900"}>
+            {w}
           </div>
         ))}
       </div>
 
-      {/* 날짜 그리드 */}
-      <div className="grid grid-rows-6 gap-px bg-slate-200 rounded-2xl overflow-hidden ring-1 ring-black/5">
-        {weeks.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7 gap-px bg-slate-200">
-            {week.map((cell, di) => {
-              const ymd = cell.ymd;
-              const isCurrentMonth = cell.inMonth;
-              const isSelected = selectedSet.has(ymd);
-              const cnt = eventCountByDate?.[ymd] ?? 0;
+      {/* 캘린더 */}
+      <div className="grid grid-cols-7 gap-2">
+        {cells.map((c) => {
+          const d = new Date(c.date + "T00:00:00");
+          const n = d.getDate();
+          const isHoliday = holidaySet.has(c.date) || c.dow === 0;
+          const isSat = c.dow === 6;
+          const numberColor = isHoliday ? "text-red-600" : isSat ? "text-blue-600" : "text-gray-900";
+          const isToday = same(c.date, today);
+          const isSel = same(c.date, selectedDate);
 
-              const isHoliday = !!holidaySet[ymd];
-              const weekendClass =
-                showWeekendColors && (di === 5 || di === 6)
-                  ? (di === 6 ? "text-rose-600" : "text-blue-600")
-                  : "";
-              const colorClass = isHoliday ? "text-rose-600" : weekendClass;
-              const isToday = ymd === toYmd(new Date());
+          const evs = evByDate.get(c.date) ?? [];
 
-              return (
-                <button
-                  key={di}
-                  type="button"
-                  onClick={() => onToggle?.(ymd)}
-                  title={ymd}
-                  className={[
-                    "relative text-left bg-white p-2 h-[96px] focus:outline-none",
-                    isCurrentMonth ? "text-slate-900" : "text-slate-400",
-                    isSelected ? "ring-2 ring-emerald-500 z-[1]" : "hover:bg-emerald-50",
-                  ].join(" ")}
-                >
-                  <div className="flex items-start justify-between">
-                    <span className={["text-xs leading-none font-medium", colorClass].join(" ")}>{cell.day}</span>
+          return (
+            <button
+              key={c.date}
+              type="button"
+              onClick={() => onDayClick?.(c.date)}
+              className={[
+                "relative min-h-[96px] bg-white rounded-lg p-2 text-left",
+                "border border-gray-400 hover:bg-emerald-50 transition",
+                isSel ? "ring-2 ring-red-500" : isToday ? "ring-2 ring-emerald-500" : "",
+              ].join(" ")}
+            >
+              <div className={`absolute left-2 top-1 text-xs ${numberColor}`}>{n}</div>
+              <div className="mt-5 space-y-1">
+                {evs.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="w-full rounded-md border border-black px-2 py-1 text-xs font-medium truncate"
+                    style={{ background: ev.color ?? "#fee2e2" }}
+                    title={ev.title}
+                  >
+                    {ev.title}
                   </div>
-
-                  {isHoliday && (
-                    <div className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded bg-rose-50 text-[10px] text-rose-600 ring-1 ring-rose-100">
-                      {holidaySet[ymd]}
-                    </div>
-                  )}
-                  {cnt > 0 && (
-                    <div className="absolute bottom-1 right-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                      {cnt}개
-                    </div>
-                  )}
-                  {isToday && !isSelected && (
-                    <div className="absolute inset-0 pointer-events-none outline outline-1 outline-emerald-300 rounded-md" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+                ))}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
-}
-
-/** 6주 셀 계산 (월요일 시작) */
-function buildCalendar(year: number, month1to12: number) {
-  const first = new Date(year, month1to12 - 1, 1);
-  const jsDow = first.getDay();           // 0=Sun
-  const offset = (jsDow + 6) % 7;         // Monday-first
-  const end = new Date(year, month1to12, 0).getDate();
-  const prevEnd = new Date(year, month1to12 - 1, 0).getDate();
-
-  const cells: { ymd: string; inMonth: boolean; day: number }[] = [];
-  for (let i=offset; i>0; i--) {
-    const d = new Date(year, month1to12 - 2, prevEnd - i + 1);
-    cells.push({ ymd: toYmd(d), inMonth: false, day: d.getDate() });
-  }
-  for (let day=1; day<=end; day++) {
-    const d = new Date(year, month1to12 - 1, day);
-    cells.push({ ymd: toYmd(d), inMonth: true, day });
-  }
-  const remain = 42 - cells.length;
-  for (let day=1; day<=remain; day++) {
-    const d = new Date(year, month1to12, day);
-    cells.push({ ymd: toYmd(d), inMonth: false, day });
-  }
-
-  const weeks: typeof cells[] = [];
-  for (let i=0; i<6; i++) weeks.push(cells.slice(i*7, i*7 + 7));
-  return { weeks };
-}
-
-function toYmd(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2,"0");
-  const dd = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${dd}`;
 }

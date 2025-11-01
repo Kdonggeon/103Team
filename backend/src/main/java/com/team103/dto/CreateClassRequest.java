@@ -6,7 +6,12 @@ public class CreateClassRequest {
     private String className;
     private String teacherId;
     private Integer academyNumber;
-    private Integer roomNumber; // optional
+
+    /** 호환용(단일) */
+    private Integer roomNumber;
+
+    /** ✅ 신규: 복수 강의실 */
+    private List<Integer> roomNumbers;
 
     // 기본 시간표(주간 반복)
     private String startTime;        // "HH:mm"
@@ -21,8 +26,12 @@ public class CreateClassRequest {
     public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
     public Integer getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(Integer academyNumber) { this.academyNumber = academyNumber; }
+
     public Integer getRoomNumber() { return roomNumber; }
     public void setRoomNumber(Integer roomNumber) { this.roomNumber = roomNumber; }
+
+    public List<Integer> getRoomNumbers() { return roomNumbers; }
+    public void setRoomNumbers(List<Integer> roomNumbers) { this.roomNumbers = roomNumbers; }
 
     public String getStartTime() { return startTime; }
     public void setStartTime(String startTime) { this.startTime = startTime; }
