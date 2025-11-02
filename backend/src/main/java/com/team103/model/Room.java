@@ -5,13 +5,18 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.annotation.Transient;
 
+import java.time.Instant;
 import java.util.List;
 
 @Document(collection = "rooms")
 @CompoundIndexes({
-    @CompoundIndex(name = "academy_room_unique",
-            def = "{'Academy_Number': 1, 'Room_Number': 1}", unique = true)
+    @CompoundIndex(
+        name = "academy_room_unique",
+        def = "{'Academy_Number': 1, 'Room_Number': 1}",
+        unique = true
+    )
 })
 public class Room {
 
@@ -24,96 +29,50 @@ public class Room {
     @Field("Academy_Number")
     private int academyNumber;
 
-<<<<<<< HEAD
-    // ====== 벡터 버전/캔버스 크기(DB 그대로) ======
-    @Field("vectorVersion")
-    private Integer vectorVersion;
-
-    @Field("vectorCanvasW")
-    private Integer vectorCanvasW;
-
-    @Field("vectorCanvasH")
-    private Integer vectorCanvasH;
-
-    // ====== 기존 필드 유지 ======
+    // ===== 레거시 그리드(필요시만 사용; DB 매핑 X) =====
+    @Transient
     private Integer rows;
-=======
-    // ── (레거시) 그리드 기반 ─────────────────────────────────
-    private Integer rows;                 // nullable
->>>>>>> main-develop/web/feature9
+
+    @Transient
     private Integer cols;
 
-    // ✅ DB의 vectorLayout을 여기에 매핑
-    @Field("vectorLayout")
-    private List<SeatCell> layout;
+    @Transient
+    private List<SeatCell> legacyGridLayout; // DB에 저장하지 않음
 
+    // ===== 현재 수업/기존 Seats =====
     @Field("Current_Class")
     private CurrentClass currentClass;  // 현재 진행 중인 수업 정보
 
     @Field("Seats")
     private List<Seat> seats;  // (기존 구조 유지: null일 수 있음)
 
-    // ── (신규) 벡터 기반 ───────────────────────────────────
+    // ===== 벡터 기반(✅ DB 매핑) =====
+    @Field("vectorVersion")
     private Integer vectorVersion;        // e.g., 1
-    private Double vectorCanvasW;         // 권장 1.0
-    private Double vectorCanvasH;         // 권장 1.0
-    private List<VectorSeat> vectorLayout;
 
-<<<<<<< HEAD
-    public int getRoomNumber() { return roomNumber; }
-    public void setRoomNumber(int roomNumber) { this.roomNumber = roomNumber; }
+    @Field("vectorCanvasW")
+    private Double vectorCanvasW;         // ✅ Double 로 통일
 
-    public int getAcademyNumber() { return academyNumber; }
-    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+    @Field("vectorCanvasH")
+    private Double vectorCanvasH;         // ✅ Double 로 통일
 
-    public Integer getVectorVersion() { return vectorVersion; }
-    public void setVectorVersion(Integer vectorVersion) { this.vectorVersion = vectorVersion; }
+    @Field("vectorLayout")
+    private List<VectorSeat> vectorLayout;  // ✅ 반드시 VectorSeat 로 매핑
 
-    public Integer getVectorCanvasW() { return vectorCanvasW; }
-    public void setVectorCanvasW(Integer vectorCanvasW) { this.vectorCanvasW = vectorCanvasW; }
-
-    public Integer getVectorCanvasH() { return vectorCanvasH; }
-    public void setVectorCanvasH(Integer vectorCanvasH) { this.vectorCanvasH = vectorCanvasH; }
-
-    public Integer getRows() { return rows; }
-    public void setRows(Integer rows) { this.rows = rows; }
-
-    public Integer getCols() { return cols; }
-    public void setCols(Integer cols) { this.cols = cols; }
-
-    // 기존 이름(layout)으로 접근
-    public List<SeatCell> getLayout() { return layout; }
-    public void setLayout(List<SeatCell> layout) { this.layout = layout; }
-
-    public CurrentClass getCurrentClass() { return currentClass; }
-    public void setCurrentClass(CurrentClass currentClass) { this.currentClass = currentClass; }
-
-    public List<Seat> getSeats() { return seats; }
-    public void setSeats(List<Seat> seats) { this.seats = seats; }
-
-    // ====== 💡 alias: 컨트롤러/프론트에서 vectorLayout 이름으로도 접근 가능 ======
-    public List<SeatCell> getVectorLayout() { return layout; }
-    public void setVectorLayout(List<SeatCell> v) { this.layout = v; }
-
-    // (선택) rows/cols가 비어있을 때 vectorCanvas를 폴백으로 쓸 수 있게 헬퍼
-    public Integer getEffectiveRows() { return rows != null ? rows : vectorCanvasH; }
-    public Integer getEffectiveCols() { return cols != null ? cols : vectorCanvasW; }
-
-    // --- 내부 클래스 ---
-=======
-    // ── 내부 타입들 ─────────────────────────────────────────
->>>>>>> main-develop/web/feature9
+    // ---------- 내부 타입 ----------
+    /** 레거시 그리드용(저장 안함) */
     public static class SeatCell {
-        private Integer seatNumber;  private Integer row; private Integer col; private Boolean disabled;
+        private Integer seatNumber;
+        private Integer row;
+        private Integer col;
+        private Boolean disabled;
+
         public Integer getSeatNumber() { return seatNumber; }
         public void setSeatNumber(Integer seatNumber) { this.seatNumber = seatNumber; }
-
         public Integer getRow() { return row; }
         public void setRow(Integer row) { this.row = row; }
-
         public Integer getCol() { return col; }
         public void setCol(Integer col) { this.col = col; }
-
         public Boolean getDisabled() { return disabled; }
         public void setDisabled(Boolean disabled) { this.disabled = disabled; }
     }
@@ -124,18 +83,15 @@ public class Room {
         @Field("Teacher_ID") private String teacherId;
         @Field("Start_Time") private String startTime;
         @Field("End_Time")   private String endTime;
+
         public String getClassId() { return classId; }
         public void setClassId(String classId) { this.classId = classId; }
-
         public String getClassName() { return className; }
         public void setClassName(String className) { this.className = className; }
-
         public String getTeacherId() { return teacherId; }
         public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
-
         public String getStartTime() { return startTime; }
         public void setStartTime(String startTime) { this.startTime = startTime; }
-
         public String getEndTime() { return endTime; }
         public void setEndTime(String endTime) { this.endTime = endTime; }
     }
@@ -144,22 +100,29 @@ public class Room {
         @Field("Seat_Number") private int seatNumber;
         @Field("Checked_In")  private boolean checkedIn;
         @Field("Student_ID")  private String studentId;
+
         public int getSeatNumber() { return seatNumber; }
         public void setSeatNumber(int seatNumber) { this.seatNumber = seatNumber; }
-
         public boolean isCheckedIn() { return checkedIn; }
         public void setCheckedIn(boolean checkedIn) { this.checkedIn = checkedIn; }
-
         public String getStudentId() { return studentId; }
         public void setStudentId(String studentId) { this.studentId = studentId; }
     }
 
+    /** ✅ 벡터 좌석 스키마: DB의 vectorLayout 요소 구조와 1:1 */
     public static class VectorSeat {
         private String id;         // 영구 식별자 (uuid 등)
         private String label;      // 화면 표기용
         private Double x, y, w, h; // 0..canvas 범위 (비율 권장: 0..1)
         private Double r;          // 회전 (deg) nullable
         private Boolean disabled;  // 통로 등
+
+        @Field("Student_ID")
+        private String studentId;  // ✅ QR 체크인 시 주입되는 필드 수용
+
+        @Field("occupiedAt")
+        private Instant occupiedAt; // 선택
+
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
         public String getLabel() { return label; }
@@ -176,19 +139,45 @@ public class Room {
         public void setR(Double r) { this.r = r; }
         public Boolean getDisabled() { return disabled; }
         public void setDisabled(Boolean disabled) { this.disabled = disabled; }
+        public String getStudentId() { return studentId; }
+        public void setStudentId(String studentId) { this.studentId = studentId; }
+        public Instant getOccupiedAt() { return occupiedAt; }
+        public void setOccupiedAt(Instant occupiedAt) { this.occupiedAt = occupiedAt; }
     }
 
-    // ── Getters / Setters ───────────────────────────────────
-    public String getId() { return id; } public void setId(String id) { this.id = id; }
-    public int getRoomNumber() { return roomNumber; } public void setRoomNumber(int roomNumber) { this.roomNumber = roomNumber; }
-    public int getAcademyNumber() { return academyNumber; } public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
-    public Integer getRows() { return rows; } public void setRows(Integer rows) { this.rows = rows; }
-    public Integer getCols() { return cols; } public void setCols(Integer cols) { this.cols = cols; }
-    public List<SeatCell> getLayout() { return layout; } public void setLayout(List<SeatCell> layout) { this.layout = layout; }
-    public CurrentClass getCurrentClass() { return currentClass; } public void setCurrentClass(CurrentClass currentClass) { this.currentClass = currentClass; }
-    public List<Seat> getSeats() { return seats; } public void setSeats(List<Seat> seats) { this.seats = seats; }
-    public Integer getVectorVersion() { return vectorVersion; } public void setVectorVersion(Integer vectorVersion) { this.vectorVersion = vectorVersion; }
-    public Double getVectorCanvasW() { return vectorCanvasW; } public void setVectorCanvasW(Double vectorCanvasW) { this.vectorCanvasW = vectorCanvasW; }
-    public Double getVectorCanvasH() { return vectorCanvasH; } public void setVectorCanvasH(Double vectorCanvasH) { this.vectorCanvasH = vectorCanvasH; }
-    public List<VectorSeat> getVectorLayout() { return vectorLayout; } public void setVectorLayout(List<VectorSeat> vectorLayout) { this.vectorLayout = vectorLayout; }
+    // ---------- Getters / Setters ----------
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
+    public int getRoomNumber() { return roomNumber; }
+    public void setRoomNumber(int roomNumber) { this.roomNumber = roomNumber; }
+
+    public int getAcademyNumber() { return academyNumber; }
+    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+
+    public Integer getVectorVersion() { return vectorVersion; }
+    public void setVectorVersion(Integer vectorVersion) { this.vectorVersion = vectorVersion; }
+
+    public Double getVectorCanvasW() { return vectorCanvasW; }
+    public void setVectorCanvasW(Double vectorCanvasW) { this.vectorCanvasW = vectorCanvasW; }
+
+    public Double getVectorCanvasH() { return vectorCanvasH; }
+    public void setVectorCanvasH(Double vectorCanvasH) { this.vectorCanvasH = vectorCanvasH; }
+
+    public List<VectorSeat> getVectorLayout() { return vectorLayout; }
+    public void setVectorLayout(List<VectorSeat> vectorLayout) { this.vectorLayout = vectorLayout; }
+
+    public CurrentClass getCurrentClass() { return currentClass; }
+    public void setCurrentClass(CurrentClass currentClass) { this.currentClass = currentClass; }
+
+    public List<Seat> getSeats() { return seats; }
+    public void setSeats(List<Seat> seats) { this.seats = seats; }
+
+    // 레거시 그리드(저장 안함)
+    public Integer getRows() { return rows; }
+    public void setRows(Integer rows) { this.rows = rows; }
+    public Integer getCols() { return cols; }
+    public void setCols(Integer cols) { this.cols = cols; }
+    public List<SeatCell> getLegacyGridLayout() { return legacyGridLayout; }
+    public void setLegacyGridLayout(List<SeatCell> legacyGridLayout) { this.legacyGridLayout = legacyGridLayout; }
 }

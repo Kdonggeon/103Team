@@ -1,6 +1,8 @@
 // src/main/java/com/team103/model/Course.java
 package com.team103.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -25,8 +27,13 @@ public class Course {
     @Field("Teacher_ID")
     private String teacherId;
 
+    /** 
+     * ✅ DB에는 숫자/문자 혼재 가능 → 원본은 Object로 받는다.
+     *    JSON(프론트)에는 항상 문자열 배열로 내려준다.
+     */
     @Field("Students")
-    private List<String> students;
+    @JsonIgnore
+    private List<Object> studentsRaw;
 
     /** 호환용(단일) */
     @Field("roomNumber")
@@ -81,8 +88,24 @@ public class Course {
     public String getTeacherId() { return teacherId; }
     public void setTeacherId(String teacherId) { this.teacherId = teacherId; }
 
-    public List<String> getStudents() { return students; }
-    public void setStudents(List<String> students) { this.students = students; }
+    /** ✅ 프론트로는 항상 문자열 배열 */
+    @JsonProperty("students")
+    public List<String> getStudents() {
+        if (studentsRaw == null) return null;
+        List<String> out = new ArrayList<>(studentsRaw.size());
+        for (Object v : studentsRaw) out.add(v == null ? null : String.valueOf(v));
+        return out;
+    }
+
+    /** ✅ 프론트에서 올 때는 문자열 배열을 그대로 저장(원하면 숫자 변환 로직 추가 가능) */
+    @JsonProperty("students")
+    public void setStudents(List<String> students) {
+        if (students == null) {
+            this.studentsRaw = null;
+        } else {
+            this.studentsRaw = new ArrayList<>(students);
+        }
+    }
 
     public Integer getRoomNumber() { return roomNumber; }
     public void setRoomNumber(Integer roomNumber) { this.roomNumber = roomNumber; }
@@ -114,19 +137,11 @@ public class Course {
     public List<String> getCancelledDates() { return cancelledDates; }
     public void setCancelledDates(List<String> cancelledDates) { this.cancelledDates = cancelledDates; }
 
-    public Map<String, DailyTime> getDateTimeOverrides() {
-        return dateTimeOverrides;
-    }
-    public void setDateTimeOverrides(Map<String, DailyTime> dateTimeOverrides) {
-        this.dateTimeOverrides = dateTimeOverrides;
-    }
+    public Map<String, DailyTime> getDateTimeOverrides() { return dateTimeOverrides; }
+    public void setDateTimeOverrides(Map<String, DailyTime> dateTimeOverrides) { this.dateTimeOverrides = dateTimeOverrides; }
 
-    public Map<String, Integer> getDateRoomOverrides() {
-        return dateRoomOverrides;
-    }
-    public void setDateRoomOverrides(Map<String, Integer> dateRoomOverrides) {
-        this.dateRoomOverrides = dateRoomOverrides;
-    }
+    public Map<String, Integer> getDateRoomOverrides() { return dateRoomOverrides; }
+    public void setDateRoomOverrides(Map<String, Integer> dateRoomOverrides) { this.dateRoomOverrides = dateRoomOverrides; }
 
     /* ===== 편의 유틸 ===== */
 

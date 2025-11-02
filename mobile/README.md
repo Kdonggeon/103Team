@@ -1,9 +1,4 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
 
-=======
-=======
->>>>>>> sub
 # 103Team
 
 프로젝트 개요 : 학원관리 -> 출결관리?
@@ -16,7 +11,3 @@
 
 설계 링크
 https://www.figma.com/design/WCeHqNpAEPBDEbJtZZAjVQ/project103?node-id=0-1&t=Yx3dDHmWDL7aajgV-1
-<<<<<<< HEAD
->>>>>>> sub
-=======
->>>>>>> sub

@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/manage")   // ★★ 핵심: 원장 전용 prefix로 고정 ★★
+@RequestMapping("/api/manage")   
 @CrossOrigin(origins = "*")
 public class DirectorPeopleController {
 
@@ -41,9 +41,11 @@ public class DirectorPeopleController {
 
     private static String nz(Object v) { return v == null ? "" : String.valueOf(v); }
 
-    /** Course → ClassLite 변환 (요일 유연 처리) */
+    /** Course → ClassLite 변환 (요일은 정수 리스트로 표준화) */
     private static ClassLite toClassLite(Course c) {
-        List<String> days = daysOf(c);
+        // 근본 해결: 혼재 타입 사용 금지. 항상 1~7 정수 배열로 변환된 값을 사용
+        List<Integer> days = c.getDaysOfWeekInt();
+
         return new ClassLite(
                 nz(c.getId()),
                 nz(getClassName(c)),
@@ -55,29 +57,11 @@ public class DirectorPeopleController {
     }
 
     private static String getClassName(Course c) {
-        try { return (String)Course.class.getMethod("getClassName").invoke(c); }
+        try { return (String) Course.class.getMethod("getClassName").invoke(c); }
         catch (Exception ignore) {}
-        try { return (String)Course.class.getMethod("getName").invoke(c); }
+        try { return (String) Course.class.getMethod("getName").invoke(c); }
         catch (Exception ignore) {}
         return "";
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<String> daysOf(Course c) {
-        try {
-            Object v = Course.class.getMethod("getDaysOfWeek").invoke(c);
-            if (v instanceof List) return (List<String>) v;
-        } catch (Exception ignore) { }
-        try {
-            Object v = Course.class.getMethod("getDayOfWeek").invoke(c);
-            if (v instanceof List) return (List<String>) v;
-            if (v instanceof String) return List.of((String)v);
-        } catch (Exception ignore) { }
-        try {
-            Object v = Course.class.getMethod("getDays").invoke(c);
-            if (v instanceof List) return (List<String>) v;
-        } catch (Exception ignore) { }
-        return Collections.emptyList();
     }
 
     /* ======================== DTO ======================== */
@@ -105,11 +89,11 @@ public class DirectorPeopleController {
     public static final class ClassLite {
         public String classId;
         public String className;
-        public List<String> dayOfWeek;
+        public List<Integer> dayOfWeek; // ← 정수 리스트(1=월 … 7=일)로 고정
         public String startTime;
         public String endTime;
         public Object roomNumber;
-        public ClassLite(String classId, String className, List<String> dayOfWeek,
+        public ClassLite(String classId, String className, List<Integer> dayOfWeek,
                          String startTime, String endTime, Object roomNumber) {
             this.classId = classId; this.className = className; this.dayOfWeek = dayOfWeek;
             this.startTime = startTime; this.endTime = endTime; this.roomNumber = roomNumber;

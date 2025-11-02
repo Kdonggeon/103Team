@@ -2,7 +2,11 @@ package com.team103.controller;
 
 import com.team103.dto.FindIdRequest;
 import com.team103.model.Teacher;
+import com.team103.repository.AttendanceRepository;
+import com.team103.repository.CourseRepository;
 import com.team103.repository.TeacherRepository;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +22,6 @@ public class TeacherController {
 
     private final TeacherRepository teacherRepo;
 
-<<<<<<< HEAD
     @Autowired
     private CourseRepository courseRepo;
 
@@ -26,9 +29,6 @@ public class TeacherController {
     private AttendanceRepository attendanceRepo;
     
     
-
-=======
->>>>>>> main-develop/web/feature9
     public TeacherController(TeacherRepository teacherRepo) {
         this.teacherRepo = teacherRepo;
     }

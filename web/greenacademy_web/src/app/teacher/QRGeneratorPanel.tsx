@@ -137,11 +137,6 @@ function seatsFromRoom(room: any): SeatCell[] {
   // 3) rows*cols만 있을 때
   return fromGridLayout([], room?.rows ?? room?.Rows, room?.cols ?? room?.Cols);
 }
-
-/* =============================================
-   컴포넌트
-============================================= */
-
 type Props = { user: NonNullable<LoginResponse> };
 
 type SeatItem = { roomNumber: number; seatNumber: number; disabled?: boolean };

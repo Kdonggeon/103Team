@@ -1,6 +1,11 @@
 server:
   port: 9090  # 사용 중인 포트 그대로
 
+spring:
+  jackson:
+    time-zone: Asia/Seoul
+    date-format: yyyy-MM-dd'T'HH:mm:ss.SSSXXX
+
 # ✅ JWT 서명 키(반드시 Base64로 인코딩된 32바이트 이상)
 jwt:
   secret: "PJHNGrEM43nYOI+QmBxTzsdUuoX4iR/KYYGzbg6iHXI="

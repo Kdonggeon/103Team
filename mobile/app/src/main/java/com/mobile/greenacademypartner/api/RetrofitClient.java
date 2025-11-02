@@ -18,9 +18,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitClient {
 
-    private static final String BASE_URL = "http://127.0.0.1:9090/";
-    //코드상으로는 이거
-    // 실제로 할때는 자신의 ip를 넣ㄹ어야함 192.168.75.65
+    private static final String BASE_URL = "http://192.168.75.65:9090/";
+    //코드상으로는 이거 127.0.0.1
+    // 실제로 할때는 자신의 ip를 넣ㄹ어야함 192.168.75.65(진환 ip)
     private static volatile Retrofit retrofit;
 
     private static final SimpleCookieJar cookieJar = new SimpleCookieJar();

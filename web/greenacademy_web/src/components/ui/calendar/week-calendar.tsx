@@ -17,13 +17,7 @@ export type CalendarEvent = {
   color?: string;    // 카드 배경색
 };
 
-<<<<<<< HEAD
 
-
-function timeToMinutes(t: string) {
-  const [h, m = "0"] = t.split(":");
-  return parseInt(h, 10) * 60 + parseInt(m, 10);
-=======
 export type WeekCalendarProps = {
   startHour?: number;   // default 8
   endHour?: number;     // default 22
@@ -48,7 +42,6 @@ function toMin(hhmm: string) {
   const hh = parseInt(m[1], 10);
   const mm = parseInt(m[2], 10);
   return hh * 60 + mm;
->>>>>>> main-develop/web/feature9
 }
 
 /** overlap [s,e) */

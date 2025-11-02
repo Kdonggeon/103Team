@@ -94,7 +94,6 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "] }")
     Page<Student> pageByAcademyLooseAndNameLike(Integer academyNumber, String academyNumberStr, String nameLike, Pageable pageable);
 
-<<<<<<< HEAD
     @Query(value =
         "{ $and: [" +
         "  { $or: [" +
@@ -109,10 +108,10 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "  ]}" +
         "] }")
     Page<Student> pageByAcademyLooseAndGradeAndNameLike(Integer academyNumber, String academyNumberStr, Integer grade, String nameLike, Pageable pageable);
-=======
+
     @Query(value = "{ 'Academy_Numbers': ?0, 'Grade': ?1, 'Student_Name': { $regex: ?2, $options: 'i' } }")
     Page<Student> pageByAcademyAndGradeAndNameLike(Integer academyNumber, Integer grade, String nameLike, Pageable pageable);
     
     void deleteByStudentId(String studentId);
->>>>>>> main-develop/web/feature9
+
 }

@@ -112,9 +112,7 @@ public class TeacherClassManageController {
         c.setAcademyNumber(req.getAcademyNumber());
         c.setStudents(new ArrayList<>());
 
-<<<<<<< HEAD
-        // 시간표
-=======
+
         // ✅ 강의실(여러개) 처리: roomNumbers 우선, 없으면 roomNumber
         if (req.getRoomNumbers() != null && !req.getRoomNumbers().isEmpty()) {
             c.setRoomNumbers(new ArrayList<>(req.getRoomNumbers()));
@@ -127,7 +125,6 @@ public class TeacherClassManageController {
         }
 
         // 기본 시간표 필드(있으면 저장)
->>>>>>> main-develop/web/feature9
         c.setStartTime(req.getStartTime());
         c.setEndTime(req.getEndTime());
         if (req.getDaysOfWeek() != null) c.setDaysOfWeek(new ArrayList<>(req.getDaysOfWeek()));
@@ -158,8 +155,6 @@ public class TeacherClassManageController {
             if (req.getClassName() != null) c.setClassName(req.getClassName());
             if (req.getAcademyNumber() != null) c.setAcademyNumber(req.getAcademyNumber());
 
-<<<<<<< HEAD
-=======
             // ✅ 강의실(여러개) 패치
             if (req.getRoomNumbers() != null) {
                 List<Integer> copy = (req.getRoomNumbers().isEmpty()) ? null : new ArrayList<>(req.getRoomNumbers());
@@ -171,7 +166,6 @@ public class TeacherClassManageController {
             }
 
             // 시간표 필드
->>>>>>> main-develop/web/feature9
             if (req.getStartTime() != null) c.setStartTime(req.getStartTime());
             if (req.getEndTime() != null) c.setEndTime(req.getEndTime());
             if (req.getDaysOfWeek() != null) c.setDaysOfWeek(new ArrayList<>(req.getDaysOfWeek()));
@@ -247,7 +241,6 @@ public class TeacherClassManageController {
         }).collect(Collectors.toList());
     }
 
-<<<<<<< HEAD
     /* ===================== 교사용: 학생 정보 수정 ===================== */
     @PatchMapping("/students/{studentId}")
     public ResponseEntity<?> updateStudentByTeacher(@PathVariable String studentId,
@@ -425,15 +418,6 @@ public class TeacherClassManageController {
         return ResponseEntity.ok(newPid != null ? Map.of("parentId", newPid) : Map.of("ok", true));
     }
 
-    /* ======================================================================
-     *                           ⬇⬇  스케줄 섹션  ⬇⬇
-     *  schedules 컬렉션 없이 Course만으로 계산해서 내려줌 + 날짜(추가/취소) 토글
-     * ====================================================================== */
-
-    /** 주/월 범위 스케줄 계산 (date 단건 또는 [from,to) 범위) */
-=======
-    /* ===================== 스케줄 계산 (Course 기반) ===================== */
->>>>>>> main-develop/web/feature9
     @GetMapping("/{teacherId}/schedules")
     public List<ScheduleItem> listSchedules(@PathVariable String teacherId,
                                             @RequestParam(required = false) String date, // YYYY-MM-DD
