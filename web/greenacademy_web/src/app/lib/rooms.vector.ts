@@ -8,6 +8,10 @@ export type VectorSeat = {
   x: number; y: number; w: number; h: number;
   r?: number;
   disabled?: boolean;
+  /** ✅ 좌석 배정된 학생 */
+  studentId?: string | null;
+  /** (선택) 서버에서 내려줄 수 있음 */
+  occupiedAt?: string | null;
 };
 
 export type VectorLayout = {
@@ -25,7 +29,31 @@ export type AdminRoomLite = {
 };
 
 /* ---------- 유틸 ---------- */
-const asBackend = (u: string) => (u.startsWith("/backend") ? u : `/backend${u}`);
+/**
+ * API_BASE: 백엔드가 다른 오리진(예: 9090)일 때 절대 URL 앞부분
+ * BACKEND_PREFIX: 프록시를 /backend 로 태워줄 때만 "/backend", 아니면 ""(빈값)
+ *
+ * 예시1) 프록시 없이 CORS로 직통:
+ *   NEXT_PUBLIC_API_BASE=http://localhost:9090
+ *   NEXT_PUBLIC_BACKEND_PREFIX=
+ *
+ * 예시2) 프록시로 같은 오리진에서 /backend → 9090:
+ *   NEXT_PUBLIC_API_BASE=
+ *   NEXT_PUBLIC_BACKEND_PREFIX=/backend
+ */
+const API_BASE =
+  (typeof window !== "undefined" && (window as any).__API_BASE__) ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "";
+
+const BACKEND_PREFIX = process.env.NEXT_PUBLIC_BACKEND_PREFIX ?? "/backend";
+
+/** 항상 절대/정규화된 URL을 만든다 */
+function absUrl(path: string) {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const withPrefix = `${BACKEND_PREFIX}${p}`.replace(/\/{2,}/g, "/");
+  return API_BASE ? `${API_BASE}${withPrefix}` : withPrefix;
+}
 
 function makeHeaders(withJson = false): Headers {
   const h = new Headers();
@@ -38,7 +66,8 @@ function makeHeaders(withJson = false): Headers {
 async function handle<T = any>(res: Response): Promise<T> {
   const text = await res.text();
   if (!res.ok) {
-    const msg = text || `${res.status} ${res.statusText}`;
+    let msg = text || `${res.status} ${res.statusText}`;
+    try { const j = JSON.parse(text); msg = j?.message ?? msg; } catch {}
     throw new Error(msg);
   }
   return (text ? JSON.parse(text) : {}) as T;
@@ -56,16 +85,16 @@ const toLite = (row: any, academyNumber: number): AdminRoomLite | null => {
   const roomNumber = pickRoomNumber(row);
   if (!Number.isFinite(roomNumber)) return null;
 
-  // hasVector / vectorSeatCount 추론
   const seats =
+    row?.vectorLayout ??
     row?.seats ??
     row?.vectorSeats ??
     row?.layout?.seats ??
-    row?.vector?.seats ??
     [];
+
   const hasVector =
     !!row?.hasVector ||
-    Array.isArray(seats) && seats.length > 0 ||
+    (Array.isArray(seats) && seats.length > 0) ||
     !!row?.vectorSeatCount;
 
   const vectorSeatCount =
@@ -80,15 +109,9 @@ const toLite = (row: any, academyNumber: number): AdminRoomLite | null => {
   };
 };
 
-/* ---------- API ---------- */
+/* ---------- API (vector + listRooms 통합) ---------- */
 export const roomsVectorApi = {
-  /** 학원 전체 방 목록 (간단 DTO)
-   *  - 우선순위대로 여러 엔드포인트를 시도
-   *    1) /api/admin/rooms.vector-lite
-   *    2) /api/admin/rooms/vector-lite
-   *    3) /api/admin/rooms.vector
-   *    4) /api/admin/rooms (구버전/그리드, teacher는 403일 수 있음)
-   */
+  /** 학원 전체 방 목록 (간단 DTO) */
   async list(academyNumber: number): Promise<AdminRoomLite[]> {
     if (!academyNumber) throw new Error("academyNumber is required");
 
@@ -96,56 +119,60 @@ export const roomsVectorApi = {
       `/api/admin/rooms.vector-lite?academyNumber=${academyNumber}`,
       `/api/admin/rooms/vector-lite?academyNumber=${academyNumber}`,
       `/api/admin/rooms.vector?academyNumber=${academyNumber}`,
-      `/api/admin/rooms?academyNumber=${academyNumber}`, // fallback(구버전)
+      `/api/admin/rooms?academyNumber=${academyNumber}`, // fallback
     ];
 
     let lastError: any = null;
     for (const path of candidates) {
       try {
-        const url = asBackend(path);
+        const url = absUrl(path);
         const json = await handle<any>(await fetch(url, {
           method: "GET",
           credentials: "include",
           headers: makeHeaders(),
         }));
-
         const arr: any[] = Array.isArray(json) ? json : (Array.isArray(json?.items) ? json.items : []);
-        const out = arr
-          .map(row => toLite(row, academyNumber))
-          .filter((x): x is AdminRoomLite => !!x);
-
-        if (out.length > 0 || path !== candidates[candidates.length - 1]) {
-          // 결과가 있거나(성공) / 마지막 후보가 아니어도 성공으로 간주
-          return out;
-        }
-        // 결과가 0인데 마지막 후보였다 → 그대로 반환(빈 배열)
-        return out;
-      } catch (e) {
-        lastError = e;
-        // 다음 후보 시도
-      }
+        const out = arr.map(row => toLite(row, academyNumber)).filter((x): x is AdminRoomLite => !!x);
+        return out; // 비어있어도 그대로 반환(엔드포인트가 존재)
+      } catch (e) { lastError = e; }
     }
-    // 전부 실패한 경우
     throw lastError ?? new Error("Failed to load rooms");
+  },
+
+  /** (구호환용) rooms.ts의 listRooms 대체 */
+  async listRooms(academyNumber: number): Promise<AdminRoomLite[]> {
+    return this.list(academyNumber);
   },
 
   /** 특정 방 벡터 레이아웃 조회 */
   async get(roomNumber: number, academyNumber: number): Promise<VectorLayout | null> {
     if (!academyNumber) throw new Error("academyNumber is required");
-    const url = asBackend(`/api/admin/rooms/${roomNumber}/vector-layout?academyNumber=${academyNumber}`);
+    const url = absUrl(`/api/admin/rooms/${roomNumber}/vector-layout?academyNumber=${academyNumber}`);
     return handle(await fetch(url, {
       method: "GET",
       credentials: "include",
-      headers: makeHeaders()
+      headers: makeHeaders(),
     }));
   },
 
-  /** 저장(전체 교체) — 백엔드에서 path/query로 academy/room 주입 */
+  /** 저장(전체 교체) — studentId 포함해서 보냄 */
   async put(roomNumber: number, academyNumber: number, body: VectorLayout): Promise<void> {
     if (!academyNumber) throw new Error("academyNumber is required");
-    const url = asBackend(`/api/admin/rooms/${roomNumber}/vector-layout?academyNumber=${academyNumber}`);
+    const url = absUrl(`/api/admin/rooms/${roomNumber}/vector-layout?academyNumber=${academyNumber}`);
     await handle(await fetch(url, {
       method: "PUT",
+      credentials: "include",
+      headers: makeHeaders(true),
+      body: JSON.stringify(body),
+    }));
+  },
+
+  /** 부분 수정이 필요하면 사용 */
+  async patch(roomNumber: number, academyNumber: number, body: Partial<VectorLayout>): Promise<void> {
+    if (!academyNumber) throw new Error("academyNumber is required");
+    const url = absUrl(`/api/admin/rooms/${roomNumber}/vector-layout?academyNumber=${academyNumber}`);
+    await handle(await fetch(url, {
+      method: "PATCH",
       credentials: "include",
       headers: makeHeaders(true),
       body: JSON.stringify(body),
@@ -155,11 +182,13 @@ export const roomsVectorApi = {
   /** 방 삭제 */
   async delete(roomNumber: number, academyNumber: number): Promise<void> {
     if (!academyNumber) throw new Error("academyNumber is required");
-    const url = asBackend(`/api/admin/rooms/${roomNumber}?academyNumber=${academyNumber}`);
+    const url = absUrl(`/api/admin/rooms/${roomNumber}?academyNumber=${academyNumber}`);
     await handle(await fetch(url, {
       method: "DELETE",
       credentials: "include",
-      headers: makeHeaders()
+      headers: makeHeaders(),
     }));
   },
 };
+
+export type Room = never; // 구파일 대체용(불필요)

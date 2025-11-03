@@ -15,6 +15,7 @@ public interface StudentRepository extends MongoRepository<Student, String> {
     boolean existsByStudentId(String studentId);
     List<Student> findByParentsNumber(String parentsNumber);
     List<Student> findByStudentIdIn(List<String> studentIds);
+    void deleteByStudentId(String studentId);
 
     // 이름 + 전화번호 (대소문자/표기 혼합 대응)
     @Query(value =
@@ -27,7 +28,7 @@ public interface StudentRepository extends MongoRepository<Student, String> {
     // ==========================
     // ✅ 학원 + 이름(부분일치, 대소문자무시)
     // - 학원: Academy_Numbers / academyNumbers (배열), Academy_Number / academyNumber (단일)
-    // - 타입: 숫자/문자 모두 대응
+    // - 타입: 숫자/문자 모두 대응(academyNumber, academyNumberStr)
     // - 이름: Student_Name / studentName / name
     // ==========================
     @Query(value =
@@ -50,7 +51,7 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "      { 'academyNumbers': ?0 }, { 'academyNumber': ?0 }, { 'Academy_Numbers': ?0 }, { 'Academy_Number': ?0 }," +
         "      { 'academyNumbers': ?1 }, { 'academyNumber': ?1 }, { 'Academy_Numbers': ?1 }, { 'Academy_Number': ?1 }" +
         "  ]}," +
-        "  { $or: [ { 'Grade': ?2 }, { 'grade': ?2 } ] }," +   // Grade / grade 모두 허용
+        "  { $or: [ { 'Grade': ?2 }, { 'grade': ?2 } ] }," +
         "  { $or: [" +
         "      { 'studentName':  { $regex: ?3, $options: 'i' } }," +
         "      { 'Student_Name': { $regex: ?3, $options: 'i' } }," +
@@ -59,7 +60,7 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "] }")
     List<Student> findByAcademyLooseAndGradeAndNameLike(Integer academyNumber, String academyNumberStr, Integer grade, String nameLike);
 
-    // 전역 이름 검색(/api/students/search 폴백용) — 표기 혼합 지원
+    // 전역 이름 검색(폴백) — 표기 혼합 지원
     @Query(value =
         "{ $or: [" +
         "  { 'studentName':  { $regex: ?0, $options: 'i' } }," +
@@ -79,7 +80,7 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "] }")
     List<Student> findByNameLikeAnyAndGrade(String nameLike, Integer grade);
 
-    // (옵션) 페이징 버전
+    // (옵션) 페이징 버전들
     @Query(value =
         "{ $and: [" +
         "  { $or: [" +
@@ -94,7 +95,6 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "] }")
     Page<Student> pageByAcademyLooseAndNameLike(Integer academyNumber, String academyNumberStr, String nameLike, Pageable pageable);
 
-<<<<<<< HEAD
     @Query(value =
         "{ $and: [" +
         "  { $or: [" +
@@ -109,10 +109,4 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "  ]}" +
         "] }")
     Page<Student> pageByAcademyLooseAndGradeAndNameLike(Integer academyNumber, String academyNumberStr, Integer grade, String nameLike, Pageable pageable);
-=======
-    @Query(value = "{ 'Academy_Numbers': ?0, 'Grade': ?1, 'Student_Name': { $regex: ?2, $options: 'i' } }")
-    Page<Student> pageByAcademyAndGradeAndNameLike(Integer academyNumber, Integer grade, String nameLike, Pageable pageable);
-    
-    void deleteByStudentId(String studentId);
->>>>>>> main-develop/web/feature9
 }

@@ -23,7 +23,7 @@ public interface CourseRepository extends MongoRepository<Course, String> {
 
     /** 같은 방 번호의 반(코스) 목록 — 방 중복 예약 검사용 */
     List<Course> findByRoomNumber(Integer roomNumber);
-
+    List<Course> findByRoomNumbersContaining(Integer roomNumber);
     /** 편의 메서드 */
     default Course getByClassIdOrNull(String classId) {
         return findByClassId(classId).orElse(null);

@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/manage")   // ★★ 핵심: 원장 전용 prefix로 고정 ★★
+@RequestMapping("/api/manage/director")  
 @CrossOrigin(origins = "*")
 public class DirectorPeopleController {
 

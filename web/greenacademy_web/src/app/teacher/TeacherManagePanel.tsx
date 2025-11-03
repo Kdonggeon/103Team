@@ -1,136 +1,153 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type CourseLite, type LoginResponse } from "@/app/lib/api";
 import { roomsApi, type Room } from "@/app/lib/rooms";
 
-export default function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
+/** 안전한 roomNumber 추출 (백엔드 혼재 대응) */
+function getRoomNumber(r: Room | Record<string, unknown>): number {
+  const n = (r as any).roomNumber ?? (r as any).Room_Number;
+  return typeof n === "number" ? n : Number(n);
+}
+
+type Props = { user: NonNullable<LoginResponse> };
+
+export default function TeacherManagePanel({ user }: Props) {
   const teacherId = user.username;
   const academyNumber = user.academyNumbers?.[0] ?? 0;
 
-  const [items, setItems] = useState<CourseLite[]>([]);
+  /** ---------- 상태 ---------- */
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [classes, setClasses] = useState<CourseLite[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+
+  // UI 입력
   const [className, setClassName] = useState("");
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
-  const [q, setQ] = useState("");
-  const [grade, setGrade] = useState("");
-  const [hits, setHits] = useState<any[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<number[]>([]);
+  const [query, setQuery] = useState("");
+  const [grade, setGrade] = useState<string>("");
+
+  // 검색 결과/선택 학생
+  const [hits, setHits] = useState<{ studentId: string; studentName?: string; grade?: number }[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+
+  // 메시지
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  // ✅ 강의실 목록 불러오기
-  useEffect(() => {
-    (async () => {
-      try {
-        const list = await roomsApi.listRooms(academyNumber);
-        setRooms(list || []);
-      } catch (e: any) {
-        setErr("강의실 목록 불러오기 실패: " + e.message);
-      }
-    })();
+  /** ---------- 데이터 로드 ---------- */
+  const loadRooms = useCallback(async () => {
+    setLoadingRooms(true);
+    setErr(null);
+    try {
+      const list = await roomsApi.listRooms(academyNumber);
+      setRooms(list || []);
+    } catch (e: any) {
+      setErr("강의실 목록 불러오기 실패: " + e.message);
+    } finally {
+      setLoadingRooms(false);
+    }
   }, [academyNumber]);
 
-  // ✅ 반 목록 불러오기
-  const load = async () => {
+  const loadClasses = useCallback(async () => {
+    setLoadingClasses(true);
+    setErr(null);
     try {
-      setLoading(true);
-      const res = await api.listMyClasses(teacherId);
-      setItems(res || []);
+      const list = await api.listMyClasses(teacherId);
+      setClasses(list || []);
     } catch (e: any) {
-      setErr(e.message);
+      setErr("반 목록 불러오기 실패: " + e.message);
     } finally {
-      setLoading(false);
+      setLoadingClasses(false);
     }
-  };
+  }, [teacherId]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { loadRooms(); }, [loadRooms]);
+  useEffect(() => { loadClasses(); }, [loadClasses]);
 
-  // ✅ 학생 검색
-  const search = async () => {
+  /** ---------- 메모 ---------- */
+  const roomOptions = useMemo(
+    () => rooms.map(r => getRoomNumber(r)).filter(n => !Number.isNaN(n)),
+    [rooms]
+  );
+
+  /** ---------- 핸들러 ---------- */
+  const toggleRoom = useCallback((rn: number) => {
+    setSelectedRooms(prev => prev.includes(rn) ? prev.filter(x => x !== rn) : [...prev, rn]);
+  }, []);
+
+  const toggleStudent = useCallback((sid: string) => {
+    setSelectedStudents(prev => prev.includes(sid) ? prev.filter(x => x !== sid) : [...prev, sid]);
+  }, []);
+
+  const clearMsg = useCallback(() => { setMsg(null); setErr(null); }, []);
+
+  const search = useCallback(async () => {
+    clearMsg();
     try {
-      const res = await api.searchStudents(
-        academyNumber,
-        q,
-        grade ? Number(grade) : undefined
-      );
-      setHits(res);
+      const res = await api.searchStudents(academyNumber, query.trim(), grade ? Number(grade) : undefined);
+      setHits((res || []).map((h: any) => ({
+        studentId: h.studentId,
+        studentName: h.studentName,
+        grade: h.grade,
+      })));
     } catch (e: any) {
-      setErr(e.message);
+      setErr("학생 검색 실패: " + e.message);
     }
-  };
+  }, [academyNumber, query, grade, clearMsg]);
 
-  // ✅ 학생 선택/해제
-  const toggleStudent = (sid: string) => {
-    setSelectedStudents(prev =>
-      prev.includes(sid) ? prev.filter(x => x !== sid) : [...prev, sid]
-    );
-  };
+  const createClass = useCallback(async () => {
+    clearMsg();
 
-  // ✅ 방 선택/해제
-  const toggleRoom = (roomNumber: string) => {
-    setSelectedRooms(prev =>
-      prev.includes(roomNumber)
-        ? prev.filter(r => r !== roomNumber)
-        : [...prev, roomNumber]
-    );
-  };
-
-  // ✅ 반 만들기 (여러 방에 생성)
-  const createClass = async () => {
-    if (!className.trim()) {
-      setErr("반 이름을 입력하세요.");
-      return;
-    }
-    if (selectedRooms.length === 0) {
-      setErr("하나 이상의 강의실을 선택하세요.");
-      return;
-    }
+    if (!className.trim()) { setErr("반 이름을 입력하세요."); return; }
+    if (selectedRooms.length === 0) { setErr("하나 이상의 강의실을 선택하세요."); return; }
 
     try {
-      setErr(null);
-      setMsg(null);
-
-      for (const rnStr of selectedRooms) {
-        const rn = Number(rnStr);
+      for (const rn of selectedRooms) {
         const created = await api.createClass({
-          className,
+          className: className.trim(),
           teacherId,
           academyNumber,
           roomNumber: rn,
         });
 
-        // 선택된 학생도 자동 추가
         if (created?.classId && selectedStudents.length > 0) {
-          for (const sid of selectedStudents) {
-            await api.addStudentToClass(created.classId, sid);
-          }
+          await Promise.all(selectedStudents.map(sid => api.addStudentToClass(created.classId!, sid)));
         }
       }
 
       setMsg("반이 성공적으로 생성되었습니다!");
+      // 입력 초기화
       setClassName("");
       setSelectedRooms([]);
       setSelectedStudents([]);
       setHits([]);
-      setQ("");
+      setQuery("");
       setGrade("");
-      await load();
+
+      await loadClasses();
     } catch (e: any) {
       setErr("반 생성 실패: " + e.message);
     }
-  };
+  }, [academyNumber, className, selectedRooms, selectedStudents, teacherId, loadClasses, clearMsg]);
 
+  /** ---------- UI ---------- */
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
       <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-6">
-        <h1 className="text-2xl font-bold text-black">반 관리</h1>
+        <h1 className="text-2xl font-bold text-black">강의실 관리</h1>
 
-        {/* === 반 생성 섹션 === */}
-        <div className="border border-gray-200 rounded-xl p-5 space-y-4 bg-white">
+        {/* 메시지 영역 */}
+        {(msg || err) && (
+          <div className={`rounded-lg px-4 py-3 ${err ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+            {err ?? msg}
+          </div>
+        )}
+
+        {/* 반 생성 */}
+        <section className="border border-gray-200 rounded-xl p-5 space-y-4 bg-white">
           <div className="grid sm:grid-cols-2 gap-4">
-            {/* 반 이름 */}
             <div>
               <label className="block text-sm font-semibold text-black mb-1">반 이름</label>
               <input
@@ -141,18 +158,16 @@ export default function TeacherManagePanel({ user }: { user: NonNullable<LoginRe
               />
             </div>
 
-            {/* 강의실 선택 */}
             <div>
-              <label className="block text-sm font-semibold text-black mb-1">
-                강의실 선택 (여러 개)
-              </label>
+              <label className="block text-sm font-semibold text-black mb-1">강의실 선택 (여러 개)</label>
               <div className="flex flex-wrap gap-2">
-                {rooms.map((r) => {
-                  const rn = String((r as any).roomNumber ?? (r as any).Room_Number);
+                {loadingRooms && <span className="text-sm text-gray-500">방 불러오는 중…</span>}
+                {!loadingRooms && roomOptions.map(rn => {
                   const selected = selectedRooms.includes(rn);
                   return (
                     <button
                       key={rn}
+                      type="button"
                       onClick={() => toggleRoom(rn)}
                       className={`px-4 py-1 rounded-full border transition ${
                         selected
@@ -171,13 +186,11 @@ export default function TeacherManagePanel({ user }: { user: NonNullable<LoginRe
 
           {/* 학생 검색 */}
           <div>
-            <label className="block text-sm font-semibold text-black mb-1">
-              학생 추가 (선택)
-            </label>
+            <label className="block text-sm font-semibold text-black mb-1">학생 추가 (선택)</label>
             <div className="flex gap-2 mb-2">
               <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
                 placeholder="이름 검색"
                 className="border border-gray-300 rounded px-3 py-1 text-black"
               />
@@ -188,6 +201,7 @@ export default function TeacherManagePanel({ user }: { user: NonNullable<LoginRe
                 className="border border-gray-300 rounded px-3 py-1 text-black w-28"
               />
               <button
+                type="button"
                 onClick={search}
                 className="bg-emerald-600 text-white px-4 py-1 rounded hover:bg-emerald-700"
               >
@@ -195,25 +209,21 @@ export default function TeacherManagePanel({ user }: { user: NonNullable<LoginRe
               </button>
             </div>
 
-            {/* 검색 결과 */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {hits.map((h) => {
+              {hits.map(h => {
                 const picked = selectedStudents.includes(h.studentId);
                 return (
                   <button
                     key={h.studentId}
+                    type="button"
                     onClick={() => toggleStudent(h.studentId)}
                     className={`text-left border rounded px-3 py-2 ${
-                      picked
-                        ? "bg-emerald-50 border-emerald-400"
-                        : "bg-white border-gray-300 hover:bg-gray-50"
+                      picked ? "bg-emerald-50 border-emerald-400" : "bg-white border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     <div className="font-medium text-black">
                       {h.studentName ?? h.studentId}
-                      {picked && (
-                        <span className="ml-2 text-emerald-600 text-xs">선택됨</span>
-                      )}
+                      {picked && <span className="ml-2 text-emerald-600 text-xs">선택됨</span>}
                     </div>
                     <div className="text-xs text-black">
                       ID: {h.studentId} · 학년: {h.grade ?? "-"}
@@ -228,22 +238,20 @@ export default function TeacherManagePanel({ user }: { user: NonNullable<LoginRe
           </div>
 
           <button
+            type="button"
             onClick={createClass}
             className="bg-emerald-600 text-white px-5 py-2 rounded hover:bg-emerald-700"
           >
             반 만들기
           </button>
+        </section>
 
-          {msg && <div className="text-emerald-600 font-medium">{msg}</div>}
-          {err && <div className="text-red-600 font-medium">{err}</div>}
-        </div>
-
-        {/* === 반 목록 === */}
-        <div>
+        {/* 내 반 목록 */}
+        <section>
           <h2 className="text-lg font-semibold text-black mb-2">내 반 목록</h2>
-          {loading && <div className="text-sm text-gray-500">불러오는 중…</div>}
+          {loadingClasses && <div className="text-sm text-gray-500">불러오는 중…</div>}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {items.map((c) => (
+            {classes.map((c) => (
               <a
                 key={c.classId}
                 href={`/teacher/classes/${encodeURIComponent(c.classId)}`}
@@ -251,17 +259,15 @@ export default function TeacherManagePanel({ user }: { user: NonNullable<LoginRe
               >
                 <div className="font-semibold text-black">{c.className}</div>
                 <div className="text-sm text-black">Room #{c.roomNumber ?? "-"}</div>
-                <div className="text-sm text-black">
-                  학생 수: {c.students?.length ?? 0}
-                </div>
+                <div className="text-sm text-black">학생 수: {c.students?.length ?? 0}</div>
                 <div className="text-emerald-600 text-sm mt-1">학생 관리 · 시간표</div>
               </a>
             ))}
-            {items.length === 0 && (
+            {!loadingClasses && classes.length === 0 && (
               <div className="text-gray-600 text-sm">아직 생성된 반이 없습니다.</div>
             )}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

@@ -1,12 +1,15 @@
 package com.team103.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.List;
 
-@Document(collection = "attendances") // ✅ 컨트롤러/레포지토리와 컬렉션명 통일
+@Document(collection = "attendances")
+// Class_ID + Date로 빠른 조회 (하루 1문서 전략)
+@CompoundIndex(name = "class_date_idx", def = "{'Class_ID': 1, 'Date': 1}", unique = true)
 public class Attendance {
 
     @Id
@@ -18,16 +21,20 @@ public class Attendance {
     @Field("Date")
     private String date; // "yyyy-MM-dd"
 
-    @Field("Session_Start")
-    private String sessionStart; // "HH:mm" (옵션)
+    @Field("Session_Start") // 옵션
+    private String sessionStart; // "HH:mm"
 
-    @Field("Session_End")
-    private String sessionEnd;   // "HH:mm" (옵션)
+    @Field("Session_End")   // 옵션
+    private String sessionEnd;   // "HH:mm"
 
     @Field("Attendance_List")
-    private List<Item> attendanceList; // ✅ 강타입 리스트
+    private List<Item> attendanceList;
 
-    // --- getters/setters ---
+    /** ✅ 날짜별 좌석 배정: 수업별-날짜별로 저장 */
+    @Field("Seat_Assignments")
+    private List<SeatAssign> seatAssignments;
+
+    // ── getters/setters ─────────────────────────────────────────────
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -46,9 +53,11 @@ public class Attendance {
     public List<Item> getAttendanceList() { return attendanceList; }
     public void setAttendanceList(List<Item> attendanceList) { this.attendanceList = attendanceList; }
 
+    public List<SeatAssign> getSeatAssignments() { return seatAssignments; }
+    public void setSeatAssignments(List<SeatAssign> seatAssignments) { this.seatAssignments = seatAssignments; }
+
     // ── 출석 엔트리 ─────────────────────────────────────────────
     public static class Item {
-
         @Field("Student_ID")
         private String studentId;
 
@@ -61,7 +70,6 @@ public class Attendance {
         @Field("Source")           // "app", "qr", "admin" 등 (옵션)
         private String source;
 
-        // getters/setters
         public String getStudentId() { return studentId; }
         public void setStudentId(String studentId) { this.studentId = studentId; }
 
@@ -73,5 +81,21 @@ public class Attendance {
 
         public String getSource() { return source; }
         public void setSource(String source) { this.source = source; }
+    }
+
+    // ── 좌석 배정 엔트리 ───────────────────────────────────────────
+    public static class SeatAssign {
+        @Field("Seat_Id")    private String seatId;     // VectorSeat.id (옵션)
+        @Field("Seat_Label") private String seatLabel;  // "1","A-3" 등 (옵션)
+        @Field("Student_ID") private String studentId;
+
+        public String getSeatId() { return seatId; }
+        public void setSeatId(String seatId) { this.seatId = seatId; }
+
+        public String getSeatLabel() { return seatLabel; }
+        public void setSeatLabel(String seatLabel) { this.seatLabel = seatLabel; }
+
+        public String getStudentId() { return studentId; }
+        public void setStudentId(String studentId) { this.studentId = studentId; }
     }
 }

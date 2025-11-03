@@ -18,17 +18,6 @@ public class TeacherController {
 
     private final TeacherRepository teacherRepo;
 
-<<<<<<< HEAD
-    @Autowired
-    private CourseRepository courseRepo;
-
-    @Autowired
-    private AttendanceRepository attendanceRepo;
-    
-    
-
-=======
->>>>>>> main-develop/web/feature9
     public TeacherController(TeacherRepository teacherRepo) {
         this.teacherRepo = teacherRepo;
     }
@@ -45,7 +34,7 @@ public class TeacherController {
         return teacherRepo.save(teacher);
     }
 
-    /** 특정 교사 단건 조회 (선택) */
+    /** 특정 교사 단건 조회 */
     @GetMapping("/{teacherId}")
     public ResponseEntity<Teacher> getOne(@PathVariable String teacherId) {
         Teacher t = teacherRepo.findByTeacherId(teacherId);
@@ -67,9 +56,8 @@ public class TeacherController {
     @PostMapping("/find_id")
     public ResponseEntity<Map<String,String>> findTeacherId(@RequestBody FindIdRequest req) {
         String phone = req.normalizedPhone();
-        var t = teacherRepo.findByTeacherNameAndTeacherPhoneNumber(req.getName(), phone);
+        Teacher t = teacherRepo.findByTeacherNameAndTeacherPhoneNumber(req.getName(), phone);
         if (t == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "not found");
         return ResponseEntity.ok(Map.of("username", t.getTeacherId()));
     }
-    
 }

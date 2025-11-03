@@ -6,17 +6,8 @@ import org.springframework.data.mongodb.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
-<<<<<<< HEAD
 import org.springframework.data.mongodb.repository.MongoRepository;
 import com.team103.model.Room;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
-
-import java.util.List;
-import java.util.Optional;
-
-=======
->>>>>>> main-develop/web/feature9
 
 public interface RoomRepository extends MongoRepository<Room, String> {
 

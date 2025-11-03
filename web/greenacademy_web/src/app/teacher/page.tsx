@@ -15,14 +15,8 @@ export default function TeacherHomePage() {
   }
 
   return (
-<<<<<<< HEAD
-    <div className="max-w-6xl mx-auto p-6">
-      <TeacherManagePanel teacherId={teacherId} defaultAcademy={defaultAcademy} />
-
-=======
     <div className="max-w-7xl mx-auto px-6 py-6">
       <TeacherManagePanel user={me} />
->>>>>>> main-develop/web/feature9
     </div>
   );
 }
