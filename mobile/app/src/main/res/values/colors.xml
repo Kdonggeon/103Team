@@ -6,4 +6,6 @@
     <color name="white">#FFFFFFFF</color>
     <color name="green">#FF65E478</color>
     <color name="gray">#FFD9D9D9</color>
+    <color name="form_bg_gray">#F5F5F7</color>
+    <color name="form_stroke_gray">#D9D9D9</color>
 </resources>

@@ -9,6 +9,8 @@ import android.net.NetworkInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
 import android.util.Log;
 import android.widget.Button;
@@ -60,7 +62,6 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
-        // 🔹 자동 로그인 체크
         boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
         boolean autoLogin = prefs.getBoolean("auto_login", false);
 
@@ -74,7 +75,6 @@ public class LoginActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_login);
 
-        // 뷰 바인딩
         findAccount = findViewById(R.id.find_account);
         signupText = findViewById(R.id.signup_next);
         editTextId = findViewById(R.id.editTextId);
@@ -84,27 +84,29 @@ public class LoginActivity extends AppCompatActivity {
         btnTogglePassword = findViewById(R.id.btn_toggle_password);
 
         autoLoginCheckBox.setChecked(autoLogin);
-
         requestNotificationPermissionIfNeeded();
 
-        // 비밀번호 표시/숨김 토글
         btnTogglePassword.setOnClickListener(v -> {
             if (isPasswordVisible) {
-                editTextPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                editTextPassword.setInputType(
+                        InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+                );
                 btnTogglePassword.setImageResource(R.drawable.eye_off);
             } else {
-                editTextPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+                editTextPassword.setInputType(
+                        InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                );
                 btnTogglePassword.setImageResource(R.drawable.eye);
             }
             editTextPassword.setSelection(editTextPassword.length());
             isPasswordVisible = !isPasswordVisible;
         });
 
-        // 회원가입/계정찾기 이동
-        signupText.setOnClickListener(v -> startActivity(new Intent(this, RoleSelectActivity.class)));
-        findAccount.setOnClickListener(v -> startActivity(new Intent(this, FindSelectActivity.class)));
+        signupText.setOnClickListener(v ->
+                startActivity(new Intent(this, RoleSelectActivity.class)));
+        findAccount.setOnClickListener(v ->
+                startActivity(new Intent(this, FindSelectActivity.class)));
 
-        // 로그인 버튼 클릭 처리
         loginButton.setOnClickListener(v -> {
             String inputId = safe(editTextId.getText().toString());
             String inputPw = safe(editTextPassword.getText().toString());
@@ -128,48 +130,25 @@ public class LoginActivity extends AppCompatActivity {
                                 Log.d(TAG, "로그인 성공: " + new Gson().toJson(response.body()));
 
                                 LoginResponse res = response.body();
-                                String role = safeLower(res.getRole());
-                                String username = safe(res.getUsername());
-                                String token = safe(res.getToken());
+                                String roleLower = safeLower(res.getRole());
+                                String username  = safe(res.getUsername());
+                                String jwt       = safe(res.getToken());
 
-                                if (username.isEmpty() || role.isEmpty() || token.isEmpty()) {
-                                    Toast.makeText(LoginActivity.this, "로그인 응답이 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
+                                if (username.isEmpty() || roleLower.isEmpty() || jwt.isEmpty()) {
+                                    Toast.makeText(LoginActivity.this,
+                                            "로그인 응답이 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
                                     return;
                                 }
 
-                                // 로그인 정보 저장
-                                SharedPreferences.Editor editor = prefs.edit();
-                                editor.putBoolean("is_logged_in", true);
-                                editor.putBoolean("auto_login", autoLoginCheckBox.isChecked());
-                                editor.putString("token", res.getToken());
-                                editor.putString("role", res.getRole().toLowerCase());
-                                editor.putString("username", res.getUsername());
-                                editor.putString("name", res.getName());
-                                editor.putString("phone", res.getPhone());
-                                editor.putString("userId", res.getUsername());
+                                // ✅ 병합 저장 (commit으로 동기 저장)
+                                mergeAndSaveLoginToPrefs(res, autoLoginCheckBox.isChecked());
 
-                                // 학생 전용 필드
-                                if ("student".equals(role)) {
-                                    editor.putString("address", res.getAddress());
-                                    editor.putString("school", res.getSchool());
-                                    editor.putInt("grade", safeInt(res.getGrade()));
-                                    editor.putString("gender", res.getGender());
+                                // ✅ FCM 업서트를 약간 지연시켜 호출 (비동기 저장 대비)
+                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                    upsertFcmTokenImmediately(roleLower, username);
+                                }, 800);
 
-                                    // ✅ 추가: 학생 이름 저장
-                                    editor.putString("student_name", res.getName());
-                                }
-
-                                // 학원 번호 리스트 저장
-                                List<Integer> academyNumbers = res.getAcademyNumbers();
-                                editor.putString("academyNumbers",
-                                        academyNumbers != null ? new JSONArray(academyNumbers).toString() : "[]");
-
-                                editor.apply();
-
-                                // FCM 토큰 업서트
-                                upsertFcmTokenImmediately(role, username);
-
-                                // 메인 화면으로 이동
+                                // ✅ 메인 화면 이동
                                 Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                 startActivity(intent);
@@ -181,20 +160,91 @@ public class LoginActivity extends AppCompatActivity {
                                 } catch (IOException e) {
                                     Log.e(TAG, "에러 바디 파싱 실패", e);
                                 }
-                                Toast.makeText(LoginActivity.this, "로그인 실패: 아이디 또는 비밀번호를 확인하세요", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(LoginActivity.this,
+                                        "로그인 실패: 아이디 또는 비밀번호를 확인하세요",
+                                        Toast.LENGTH_SHORT).show();
                             }
                         }
 
                         @Override
                         public void onFailure(Call<LoginResponse> call, Throwable t) {
                             Log.e(TAG, "서버 연결 실패", t);
-                            Toast.makeText(LoginActivity.this, "서버 연결 실패", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(LoginActivity.this,
+                                    "서버 연결 실패",
+                                    Toast.LENGTH_SHORT).show();
                         }
                     });
         });
     }
 
-    // ===== Network Check =====
+    // ✅ SharedPreferences 병합 + commit() 저장
+    private void mergeAndSaveLoginToPrefs(LoginResponse res, boolean autoLoginChecked) {
+        String curName     = prefs.getString("name", "");
+        String curPhone    = prefs.getString("phone", "");
+        String curAddress  = prefs.getString("address", "");
+        String curSchool   = prefs.getString("school", "");
+        int    curGrade    = prefs.getInt("grade", 0);
+        String curGender   = prefs.getString("gender", "");
+        String curParentId = prefs.getString("parentId", "");
+
+        String mergedName    = mergedString(curName,    res.getName());
+        String mergedPhone   = mergedString(curPhone,   res.getPhone());
+        String mergedAddress = mergedString(curAddress, res.getAddress());
+        String mergedSchool  = mergedString(curSchool,  res.getSchool());
+        String mergedGender  = mergedString(curGender,  res.getGender());
+        int    mergedGrade   = (res.getGrade() > 0) ? res.getGrade() : curGrade;
+
+        String mergedParentId = curParentId;
+        if ("parent".equalsIgnoreCase(safeLower(res.getRole()))) {
+            String serverUsername = safe(res.getUsername());
+            if (!serverUsername.isEmpty()) mergedParentId = serverUsername;
+        }
+
+        SharedPreferences.Editor ed = prefs.edit();
+        ed.putBoolean("is_logged_in", true);
+        ed.putBoolean("auto_login", autoLoginChecked);
+        ed.putString("token", safe(res.getToken()));
+        ed.putString("role", safeLower(res.getRole()));
+        ed.putString("username", safe(res.getUsername()));
+        ed.putString("userId", safe(res.getUsername()));
+
+        if (!mergedName.trim().isEmpty())  ed.putString("name", mergedName);
+        if (!mergedPhone.trim().isEmpty()) ed.putString("phone", mergedPhone);
+        if (!mergedAddress.trim().isEmpty()) ed.putString("address", mergedAddress);
+        if (!mergedSchool.trim().isEmpty())  ed.putString("school", mergedSchool);
+        if (!mergedGender.trim().isEmpty())  ed.putString("gender", mergedGender);
+        if (mergedGrade > 0)                 ed.putInt("grade", mergedGrade);
+        if (!mergedParentId.trim().isEmpty()) ed.putString("parentId", mergedParentId);
+
+        List<Integer> academyNumbers = res.getAcademyNumbers();
+        ed.putString(
+                "academyNumbers",
+                academyNumbers != null ? new JSONArray(academyNumbers).toString() : "[]"
+        );
+
+        if ("student".equalsIgnoreCase(safeLower(res.getRole()))) {
+            String curStudentName   = prefs.getString("student_name", "");
+            String mergedStudentName= mergedString(curStudentName, res.getName());
+            if (!mergedStudentName.trim().isEmpty())
+                ed.putString("student_name", mergedStudentName);
+        }
+
+        // ✅ commit으로 동기 저장
+        ed.commit();
+
+        Log.d(TAG, "[mergeAndSaveLoginToPrefs] 최종 저장값:");
+        Log.d(TAG, "token=" + prefs.getString("token","(null)"));
+        Log.d(TAG, "name=" + prefs.getString("name","(null)"));
+        Log.d(TAG, "phone=" + prefs.getString("phone","(null)"));
+        Log.d(TAG, "parentId=" + prefs.getString("parentId","(null)"));
+    }
+
+    private String mergedString(String oldVal, String newVal) {
+        if (newVal == null) return oldVal;
+        String t = newVal.trim();
+        return t.isEmpty() ? oldVal : t;
+    }
+
     private boolean isNetworkAvailable() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         if (cm == null) return false;
@@ -203,30 +253,32 @@ public class LoginActivity extends AppCompatActivity {
             Network network = cm.getActiveNetwork();
             if (network == null) return false;
             NetworkCapabilities caps = cm.getNetworkCapabilities(network);
-            return caps != null && (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-                    || caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-                    || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET));
+            return caps != null && (
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+            );
         } else {
             NetworkInfo active = cm.getActiveNetworkInfo();
             return active != null && active.isConnected();
         }
     }
 
-    // ===== Helpers =====
     private String safe(String s) { return s == null ? "" : s.trim(); }
     private String safeLower(String s) { return safe(s).toLowerCase(); }
-    private int safeInt(Integer v) { return v == null ? 0 : v; }
 
     private void requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= 33) {
             if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1001);
+                requestPermissions(
+                        new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                        1001
+                );
             }
         }
     }
 
-    // ===== FCM 업서트 =====
     private void upsertFcmTokenImmediately(String roleLower, String username) {
         FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
             if (token == null || token.trim().isEmpty()) {
@@ -235,13 +287,49 @@ public class LoginActivity extends AppCompatActivity {
             }
             Log.d(TAG, "FCM 토큰 획득: " + token);
 
+            String rawJwt = prefs.getString("token", null);
+            Log.d(TAG, "Authorization 헤더 = Bearer " + rawJwt);
+
+            if (rawJwt == null || rawJwt.trim().isEmpty()) {
+                Log.w(TAG, "JWT 없음 → FCM 토큰 업서트 스킵");
+                return;
+            }
+            String authHeader = "Bearer " + rawJwt.trim();
+
+            String parentId = firstNonEmpty(
+                    prefs.getString("parentId", null),
+                    prefs.getString("userId", null),
+                    prefs.getString("username", null),
+                    username
+            );
+            String studentId = firstNonEmpty(
+                    prefs.getString("studentId", null),
+                    prefs.getString("userId", null),
+                    prefs.getString("username", null),
+                    username
+            );
+
             try {
-                if ("parent".equals(roleLower)) {
+                if ("parent".equalsIgnoreCase(roleLower)) {
+                    if (parentId == null || parentId.trim().isEmpty()) {
+                        Log.w(TAG, "parentId 없음 → 업서트 생략");
+                        return;
+                    }
+
                     ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
-                    api.updateFcmToken(username, token).enqueue(new VoidLoggingCallback("parent"));
-                } else if ("student".equals(roleLower)) {
+                    api.updateFcmToken(parentId, authHeader, token)
+                            .enqueue(new VoidLoggingCallback("parent"));
+
+                } else if ("student".equalsIgnoreCase(roleLower)) {
+                    if (studentId == null || studentId.trim().isEmpty()) {
+                        Log.w(TAG, "studentId 없음 → 업서트 생략");
+                        return;
+                    }
+
                     StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-                    api.updateFcmToken(username, token).enqueue(new VoidLoggingCallback("student"));
+                    api.updateFcmToken(studentId, authHeader, token)
+                            .enqueue(new VoidLoggingCallback("student"));
+
                 } else {
                     Log.w(TAG, "알 수 없는 역할. FCM 토큰 업서트 생략: " + roleLower);
                 }
@@ -255,15 +343,26 @@ public class LoginActivity extends AppCompatActivity {
         private final String tagSuffix;
         private VoidLoggingCallback(String tagSuffix) { this.tagSuffix = tagSuffix; }
 
-        @Override public void onResponse(Call<Void> call, Response<Void> response) {
+        @Override
+        public void onResponse(Call<Void> call, Response<Void> response) {
             if (response.isSuccessful()) {
-                Log.d(TAG, "FCM 토큰 업서트 성공(" + tagSuffix + ")");
+                Log.d(TAG, "✅ FCM 토큰 업서트 성공(" + tagSuffix + ")");
             } else {
-                Log.e(TAG, "FCM 토큰 업서트 실패(" + tagSuffix + "): code=" + response.code());
+                Log.e(TAG, "❌ FCM 토큰 업서트 실패(" + tagSuffix + "): code=" + response.code());
             }
         }
-        @Override public void onFailure(Call<Void> call, Throwable t) {
+
+        @Override
+        public void onFailure(Call<Void> call, Throwable t) {
             Log.e(TAG, "FCM 토큰 업서트 네트워크 실패(" + tagSuffix + ")", t);
         }
+    }
+
+    private String firstNonEmpty(String... vals) {
+        if (vals == null) return null;
+        for (String v : vals) {
+            if (v != null && !v.trim().isEmpty()) return v;
+        }
+        return null;
     }
 }

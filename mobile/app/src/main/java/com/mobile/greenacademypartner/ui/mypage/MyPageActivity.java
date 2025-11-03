@@ -40,7 +40,6 @@ public class MyPageActivity extends AppCompatActivity {
     private Button btnSave;
     private String role;
 
-    // ▼ 스피너(나/자녀 전환)
     private Spinner spinnerProfileTarget;
     private final List<ProfileItem> targets = new ArrayList<>();
     private ArrayAdapter<String> spinnerAdapter;
@@ -49,7 +48,10 @@ public class MyPageActivity extends AppCompatActivity {
     private String currentStudentId = null;
     private String parentDisplayName = "";
 
-    // ▼ 하단 네비게이션
+    // 원래 부모 정보
+    private String originalParentName = "";
+    private String originalParentPhone = "";
+
     private BottomNavigationView bottomNavigationView;
     private ImageButton btnShowNav, btnHideNav;
 
@@ -100,22 +102,15 @@ public class MyPageActivity extends AppCompatActivity {
         btnHideNav = findViewById(R.id.btn_hide_nav);
     }
 
-    /** 하단 네비게이션 + 토글 */
     private void setupBottomNavigation() {
         if (bottomNavigationView != null) {
             bottomNavigationView.setOnItemSelectedListener(item -> {
                 int id = item.getItemId();
-                if (id == R.id.nav_home) {
-                    startActivity(new Intent(this, MainActivity.class));
-                } else if (id == R.id.nav_attendance) {
-                    startActivity(new Intent(this, AttendanceActivity.class));
-                } else if (id == R.id.nav_qr) {
-                    startActivity(new Intent(this, QRScannerActivity.class));
-                } else if (id == R.id.nav_timetable) {
-                    startActivity(new Intent(this, StudentTimetableActivity.class));
-                } else if (id == R.id.nav_my) {
-                    return true;
-                }
+                if (id == R.id.nav_home) startActivity(new Intent(this, MainActivity.class));
+                else if (id == R.id.nav_attendance) startActivity(new Intent(this, AttendanceActivity.class));
+                else if (id == R.id.nav_qr) startActivity(new Intent(this, QRScannerActivity.class));
+                else if (id == R.id.nav_timetable) startActivity(new Intent(this, StudentTimetableActivity.class));
+                else if (id == R.id.nav_my) return true;
                 return true;
             });
             bottomNavigationView.setSelectedItemId(R.id.nav_my);
@@ -148,6 +143,10 @@ public class MyPageActivity extends AppCompatActivity {
         editId.setText(username);
         editPhone.setText(phone);
 
+        // 원래 값 저장
+        originalParentName = name;
+        originalParentPhone = phone;
+
         if ("student".equals(role)) {
             editAddress.setText(pref.getString("address", ""));
             editSchool.setText(pref.getString("school", ""));
@@ -162,11 +161,6 @@ public class MyPageActivity extends AppCompatActivity {
         }
         parentDisplayName = titleName;
         updateCardTitle(parentDisplayName);
-
-        Map<String, ?> allEntries = pref.getAll();
-        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
-            Log.d("MyPage", entry.getKey() + ": " + entry.getValue());
-        }
     }
 
     private void updateCardTitle(String displayName) {
@@ -330,74 +324,129 @@ public class MyPageActivity extends AppCompatActivity {
                 return;
             }
 
-            String id = safe(editId.getText().toString());
-            String name = safe(editName.getText().toString());
-            String phone = safe(editPhone.getText().toString());
-            String address = safe(editAddress.getText().toString());
-            String school = safe(editSchool.getText().toString());
-            String gender = safe(editGender.getText().toString());
+            // 1) 우선 화면 값 전부 읽어서 “한 번에” 정리
+            String rawId = safe(editId.getText().toString());
+            String rawName = safe(editName.getText().toString());
+            String rawPhone = safe(editPhone.getText().toString());
+            String rawAddress = safe(editAddress.getText().toString());
+            String rawSchool = safe(editSchool.getText().toString());
+            String rawGender = safe(editGender.getText().toString());
+            int gradeTmp;
+            try { gradeTmp = Integer.parseInt(safe(editGrade.getText().toString()).trim()); }
+            catch (Exception e) { gradeTmp = 0; }
 
-            int tmpGrade;
-            try { tmpGrade = Integer.parseInt(safe(editGrade.getText().toString()).trim()); }
-            catch (Exception e) { tmpGrade = 0; }
-            final int fGradeVal = tmpGrade;
-
-            if (name.isEmpty()) {
-                Toast.makeText(this, "이름을 입력해 주세요.", Toast.LENGTH_SHORT).show();
-                return;
+            // 2) 여기서 한 번만 백업값 대입
+            if (rawName == null || rawName.trim().isEmpty()) {
+                rawName = originalParentName;
+            }
+            if (rawPhone == null || rawPhone.trim().isEmpty()) {
+                rawPhone = originalParentPhone;
             }
 
+            // 3) 이 시점의 값들을 전부 final 로 만들어서 콜백에서 쓸 거야
+            final String fixedId = rawId;
+            final String fixedName = rawName;
+            final String fixedPhone = rawPhone;
+            final String fixedAddress = rawAddress;
+            final String fixedSchool = rawSchool;
+            final String fixedGender = rawGender;
+            final int fixedGrade = gradeTmp;
+
+            SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
+            final SharedPreferences sharedPrefFinal = pref; // 콜백에서 쓰려고
+
+            String token = pref.getString("token", "");
+
             if ("parent".equals(role)) {
+                // ▶ 부모 자기 정보
                 if (currentSelectionType == ProfileItem.Type.SELF) {
-                    ParentUpdateRequest parent = new ParentUpdateRequest(id, name, phone);
+
+                    ParentUpdateRequest parent = new ParentUpdateRequest(fixedId, fixedName, fixedPhone);
                     ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
-                    api.updateParent(id, parent).enqueue(new Callback<Void>() {
-                        @Override
-                        public void onResponse(Call<Void> call, Response<Void> response) {
-                            boolean ok = response.isSuccessful();
-                            showToast(ok, "학부모");
-                            if (ok) {
-                                SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
-                                pref.edit()
-                                        .putString("parentId", id)
-                                        .putString("username", id)
-                                        .putString("name", name)
-                                        .putString("phone", phone)
-                                        .apply();
-                                loadUserInfoAndSetTitles();
-                                updateCardTitle(parentDisplayName);
-                            }
-                        }
-                        @Override public void onFailure(Call<Void> call, Throwable t) { showToast(false, "학부모"); }
-                    });
-                } else if (currentSelectionType == ProfileItem.Type.STUDENT && currentStudentId != null) {
-                    StudentUpdateRequest req = new StudentUpdateRequest(currentStudentId, name, phone, address, school, fGradeVal, gender);
-                    StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-                    api.updateStudent(currentStudentId, req).enqueue(new Callback<Void>() {
-                        @Override
-                        public void onResponse(Call<Void> call, Response<Void> response) {
-                            boolean ok = response.isSuccessful();
-                            showToast(ok, "학생");
-                            if (ok) {
-                                Student cached = studentCache.get(currentStudentId);
-                                if (cached != null) {
-                                    cached.setStudentName(name);
-                                    cached.setStudentPhoneNumber(phone);
-                                    cached.setStudentAddress(address);
-                                    cached.setSchool(school);
-                                    cached.setGrade(fGradeVal);
-                                    cached.setGender(gender);
+
+                    api.updateParent("Bearer " + token, fixedId, parent)
+                            .enqueue(new Callback<Void>() {
+                                @Override
+                                public void onResponse(Call<Void> call, Response<Void> response) {
+                                    boolean ok = response.isSuccessful();
+                                    showToast(ok, "학부모");
+                                    if (ok) {
+                                        sharedPrefFinal.edit()
+                                                .putString("parentId", fixedId)
+                                                .putString("username", fixedId)
+                                                .putString("name", fixedName)
+                                                .putString("phone", fixedPhone)
+                                                .apply();
+
+                                        // 원본 갱신
+                                        originalParentName = fixedName;
+                                        originalParentPhone = fixedPhone;
+
+                                        loadUserInfoAndSetTitles();
+                                        updateCardTitle(parentDisplayName);
+                                    } else {
+                                        Log.e("MyPage", "updateParent 실패 code=" + response.code());
+                                    }
                                 }
-                                SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
-                                pref.edit()
-                                        .putString("last_student_id", currentStudentId)
-                                        .putString("last_student_name", name)
-                                        .apply();
-                                updateCardTitle(name);
-                            }
-                        }
-                        @Override public void onFailure(Call<Void> call, Throwable t) { showToast(false, "학생"); }
-                    });
+
+                                @Override
+                                public void onFailure(Call<Void> call, Throwable t) {
+                                    Log.e("MyPage", "updateParent 실패", t);
+                                    showToast(false, "학부모");
+                                }
+                            });
+
+                }
+                // ▶ 자녀 정보
+                else if (currentSelectionType == ProfileItem.Type.STUDENT && currentStudentId != null) {
+
+                    final String fixedStudentId = currentStudentId;
+                    final String parentId = pref.getString("parentId", pref.getString("username", ""));
+
+                    StudentUpdateRequest req = new StudentUpdateRequest(
+                            fixedStudentId,
+                            fixedName,
+                            fixedPhone,
+                            fixedAddress,
+                            fixedSchool,
+                            fixedGrade,
+                            fixedGender
+                    );
+                    req.setParentId(parentId);
+
+                    StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
+                    api.updateStudent("Bearer " + token, fixedStudentId, req)
+                            .enqueue(new Callback<Void>() {
+                                @Override
+                                public void onResponse(Call<Void> call, Response<Void> response) {
+                                    boolean ok = response.isSuccessful();
+                                    showToast(ok, "학생");
+                                    if (ok) {
+                                        Student cached = studentCache.get(fixedStudentId);
+                                        if (cached != null) {
+                                            cached.setStudentName(fixedName);
+                                            cached.setStudentPhoneNumber(fixedPhone);
+                                            cached.setStudentAddress(fixedAddress);
+                                            cached.setSchool(fixedSchool);
+                                            cached.setGrade(fixedGrade);
+                                            cached.setGender(fixedGender);
+                                        }
+                                        sharedPrefFinal.edit()
+                                                .putString("last_student_id", fixedStudentId)
+                                                .putString("last_student_name", fixedName)
+                                                .apply();
+                                        updateCardTitle(fixedName);
+                                    } else {
+                                        Log.e("MyPage", "updateStudent 실패 code=" + response.code());
+                                    }
+                                }
+
+                                @Override
+                                public void onFailure(Call<Void> call, Throwable t) {
+                                    Log.e("MyPage", "updateStudent 실패", t);
+                                    showToast(false, "학생");
+                                }
+                            });
                 }
             }
         });
@@ -460,9 +509,18 @@ public class MyPageActivity extends AppCompatActivity {
 
     private void bindParentFromPrefs() {
         SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        editName.setText(pref.getString("name", ""));
-        editId.setText(pref.getString("username", ""));
-        editPhone.setText(pref.getString("phone", ""));
+        String name = pref.getString("name", "");
+        String username = pref.getString("username", "");
+        String phone = pref.getString("phone", "");
+
+        editName.setText(name);
+        editId.setText(username);
+        editPhone.setText(phone);
+
+        // 이때도 원본 갱신
+        originalParentName = name;
+        originalParentPhone = phone;
+
         editAddress.setText(""); editSchool.setText(""); editGrade.setText(""); editGender.setText("");
     }
 
@@ -473,8 +531,12 @@ public class MyPageActivity extends AppCompatActivity {
         editPhone.setText(safe(s.getStudentPhoneNumber()));
         editAddress.setText(safe(s.getStudentAddress()));
         editSchool.setText(safe(s.getSchool()));
-        try { int g = s.getGrade(); editGrade.setText(g == 0 ? "" : String.valueOf(g)); }
-        catch (Exception e) { editGrade.setText(""); }
+        try {
+            int g = s.getGrade();
+            editGrade.setText(g == 0 ? "" : String.valueOf(g));
+        } catch (Exception e) {
+            editGrade.setText("");
+        }
         editGender.setText(safe(s.getGender()));
     }
 

@@ -10,13 +10,11 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
-import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
-//import com.mobile.greenacademypartner.api.TeacherApi;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -33,7 +31,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         SharedPreferences settings = getSharedPreferences("settings", MODE_PRIVATE);
         boolean enabled = settings.getBoolean("notifications_enabled_" + uid, true);
         if (!enabled) {
-            // 인앱 알림 OFF → 표시하지 않음
+            // 알림 끈 상태면 그냥 표시 안 함
             return;
         }
         Log.d("FCM", "onMessageReceived() 진입: " + remoteMessage.getData());
@@ -93,37 +91,72 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             return;
         }
 
-        // 공통 폴백
-        String username = firstNonEmpty(prefs.getString("userId", null),
-                prefs.getString("username", null));
+        // JWT 읽어와서 Authorization 헤더 준비
+        String jwt = prefs.getString("token", null);
+        if (jwt == null || jwt.trim().isEmpty()) {
+            Log.w("FCM", "JWT 없음 → 서버에 FCM 토큰 업로드 못 함");
+            return;
+        }
+        String authHeader = "Bearer " + jwt.trim();
+
+        // 공통 폴백 username
+        String username = firstNonEmpty(
+                prefs.getString("userId", null),
+                prefs.getString("username", null)
+        );
 
         if ("student".equalsIgnoreCase(role)) {
-            String id = firstNonEmpty(prefs.getString("studentId", null), username);
-            if (id != null) {
+            String id = firstNonEmpty(
+                    prefs.getString("studentId", null),
+                    username
+            );
+            if (id != null && !id.trim().isEmpty()) {
                 StudentApi studentApi = RetrofitClient.getClient().create(StudentApi.class);
-                studentApi.updateFcmToken(id, token).enqueue(new Callback<Void>() {
+                studentApi.updateFcmToken(
+                        id,          // @Path("studentId")
+                        authHeader,  // @Header("Authorization")
+                        token        // @Body String fcmToken
+                ).enqueue(new Callback<Void>() {
                     @Override public void onResponse(Call<Void> call, Response<Void> response) {
-                        Log.d("FCM", "onNewToken() → 학생 토큰 서버 업데이트 성공");
+                        if (response.isSuccessful()) {
+                            Log.d("FCM", "onNewToken() → 학생 토큰 서버 업데이트 성공");
+                        } else {
+                            Log.e("FCM", "onNewToken() → 학생 토큰 서버 업데이트 실패 code=" + response.code());
+                        }
                     }
                     @Override public void onFailure(Call<Void> call, Throwable t) {
-                        Log.e("FCM", "onNewToken() → 학생 토큰 서버 업데이트 실패", t);
+                        Log.e("FCM", "onNewToken() → 학생 토큰 서버 업데이트 네트워크 실패", t);
                     }
                 });
+            } else {
+                Log.w("FCM", "student 역할인데 studentId/username 없음 → 업로드 스킵");
             }
 
-
         } else if ("parent".equalsIgnoreCase(role)) {
-            String id = firstNonEmpty(prefs.getString("parentId", null), username);
-            if (id != null) {
+            String id = firstNonEmpty(
+                    prefs.getString("parentId", null),
+                    username
+            );
+            if (id != null && !id.trim().isEmpty()) {
                 ParentApi parentApi = RetrofitClient.getClient().create(ParentApi.class);
-                parentApi.updateFcmToken(id, token).enqueue(new Callback<Void>() {
+                parentApi.updateFcmToken(
+                        id,          // @Path("id")
+                        authHeader,  // @Header("Authorization")
+                        token        // @Body String fcmToken
+                ).enqueue(new Callback<Void>() {
                     @Override public void onResponse(Call<Void> call, Response<Void> response) {
-                        Log.d("FCM", "onNewToken() → 부모 토큰 서버 업데이트 성공");
+                        if (response.isSuccessful()) {
+                            Log.d("FCM", "onNewToken() → 부모 토큰 서버 업데이트 성공");
+                        } else {
+                            Log.e("FCM", "onNewToken() → 부모 토큰 서버 업데이트 실패 code=" + response.code());
+                        }
                     }
                     @Override public void onFailure(Call<Void> call, Throwable t) {
-                        Log.e("FCM", "onNewToken() → 부모 토큰 서버 업데이트 실패", t);
+                        Log.e("FCM", "onNewToken() → 부모 토큰 서버 업데이트 네트워크 실패", t);
                     }
                 });
+            } else {
+                Log.w("FCM", "parent 역할인데 parentId/username 없음 → 업로드 스킵");
             }
 
         } else {

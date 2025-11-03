@@ -11,6 +11,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
@@ -32,6 +33,11 @@ import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 import com.mobile.greenacademypartner.ui.timetable.QRScannerActivity;
 import com.mobile.greenacademypartner.ui.timetable.StudentTimetableActivity;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -67,7 +73,14 @@ public class ParentAttendanceActivity extends AppCompatActivity {
     private Call<List<Course>> callClasses;
     private Call<List<AttendanceResponse>> callAttendance;
 
+    // 요일 하이라이트(어댑터가 쓰는 값, 선택 날짜 변경 시 갱신)
     private int currentDisplayDow = -1;
+
+    // ✅ 선택 날짜(기본: 오늘) & 시간대/표시 포맷
+    private LocalDate selectedDate = LocalDate.now();
+    private static final ZoneId ZONE_KST = ZoneId.of("Asia/Seoul");
+    private static final DateTimeFormatter KEY_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.KOREA);
 
     private static final String PREFS_NAME = "login_prefs";
     private static final String KEY_PARENT_ID = "parentId";
@@ -84,7 +97,7 @@ public class ParentAttendanceActivity extends AppCompatActivity {
     private static final TimeZone KST = TimeZone.getTimeZone("Asia/Seoul");
     private static final Locale KOR = Locale.KOREA;
 
-    // 🔹 네비게이션 토글 버튼
+    // 네비게이션 토글 버튼
     private ImageButton btnHideNav, btnShowNav;
     private BottomNavigationView bottomNavigationView;
 
@@ -105,8 +118,6 @@ public class ParentAttendanceActivity extends AppCompatActivity {
         toolbar.setTitleTextColor(white);
         setSupportActionBar(toolbar);
         setTitle("자녀 출석 확인");
-
-        // ✅ 테마 색 적용
         ThemeColorUtil.applyThemeColor(this, toolbar);
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
@@ -130,13 +141,12 @@ public class ParentAttendanceActivity extends AppCompatActivity {
 
         fetchChildrenAndBind(parentId);
 
-        // ✅ 하단 네비게이션 바 + 토글 버튼
+        // 하단 네비 + 토글
         bottomNavigationView = findViewById(R.id.bottom_navigation);
         btnHideNav = findViewById(R.id.btn_hide_nav);
         btnShowNav = findViewById(R.id.btn_show_nav);
 
         bottomNavigationView.setSelectedItemId(R.id.nav_attendance);
-
         bottomNavigationView.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_home) {
@@ -157,14 +167,11 @@ public class ParentAttendanceActivity extends AppCompatActivity {
             return false;
         });
 
-        // ⬇️ 네비게이션 숨기기
         btnHideNav.setOnClickListener(v -> {
             bottomNavigationView.setVisibility(android.view.View.GONE);
             btnHideNav.setVisibility(android.view.View.GONE);
             btnShowNav.setVisibility(android.view.View.VISIBLE);
         });
-
-        // ⬆️ 네비게이션 보이기
         btnShowNav.setOnClickListener(v -> {
             bottomNavigationView.setVisibility(android.view.View.VISIBLE);
             btnHideNav.setVisibility(android.view.View.VISIBLE);
@@ -306,8 +313,8 @@ public class ParentAttendanceActivity extends AppCompatActivity {
                 allAttendances.clear();
                 allAttendances.addAll(list);
 
-                adapter.setAll(list);
-                updateSummaryCountsForDow(currentDisplayDow);
+                // ✅ 전체를 보관해두고, 현재 선택 날짜로 화면 반영
+                applyDateFilterAndBind();
             }
 
             @Override
@@ -320,6 +327,105 @@ public class ParentAttendanceActivity extends AppCompatActivity {
         });
     }
 
+    // ─────────────────────────────
+    // 메뉴(툴바 아이콘) : 캘린더로 날짜 선택
+    // ─────────────────────────────
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_student_timetable, menu); // action_pick_date 있어야 함
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
+        if (item.getItemId() == R.id.action_pick_date) {
+            showDatePickerAndApplyLikeTimetable();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showDatePickerAndApplyLikeTimetable() {
+        java.util.Calendar now = java.util.Calendar.getInstance(KST, Locale.KOREA);
+        int y = now.get(java.util.Calendar.YEAR);
+        int m = now.get(java.util.Calendar.MONTH);
+        int d = now.get(java.util.Calendar.DAY_OF_MONTH);
+
+        android.app.DatePickerDialog dlg = new android.app.DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> {
+                    // ✅ 선택 날짜 저장
+                    selectedDate = LocalDate.of(year, month + 1, dayOfMonth);
+
+                    // 어댑터의 요일 하이라이트도 갱신(옵션)
+                    int dow = selectedDate.getDayOfWeek().getValue(); // Mon=1..Sun=7
+                    currentDisplayDow = dow;
+                    adapter.setDisplayDow(dow);
+
+                    // ✅ 실제 필터 적용
+                    applyDateFilterAndBind();
+                },
+                y, m, d
+        );
+        dlg.show();
+    }
+
+    // ─────────────────────────────
+    // 날짜 필터링 & 요약 갱신
+    // ─────────────────────────────
+    /** 선택 날짜 기준으로 리스트/카운트 반영 */
+    private void applyDateFilterAndBind() {
+        List<AttendanceResponse> filtered = new ArrayList<>();
+        long present = 0, late = 0, absent = 0;
+
+        for (AttendanceResponse ar : allAttendances) {
+            if (isSameSelectedDay(ar)) {
+                filtered.add(ar);
+                String s = normalizeStatus(ar.getStatus());
+                if ("출석".equals(s)) present++;
+                else if ("지각".equals(s)) late++;
+                else if ("결석".equals(s)) absent++;
+            }
+        }
+
+        adapter.setAll(filtered);
+        tvPresent.setText("출석 " + present);
+        tvLate.setText("지각 " + late);
+        tvAbsent.setText("결석 " + absent);
+    }
+
+    /** AttendanceResponse에서 날짜 문자열 추출 (프로젝트에 맞게 필요한 항목만 남겨도 됨) */
+    private String pickDateString(AttendanceResponse ar) {
+        return (ar != null) ? ar.getDate() : null;
+    }
+
+
+    /** 아이템이 선택 날짜와 같은 날인지 (KST 기준 안전 비교) */
+    private boolean isSameSelectedDay(AttendanceResponse ar) {
+        String raw = pickDateString(ar);
+        if (raw == null || raw.isEmpty()) return false;
+
+        // 1) "yyyy-MM-dd" 형태면 앞 10자리만 비교
+        if (raw.length() >= 10) {
+            try {
+                LocalDate d = LocalDate.parse(raw.substring(0, 10));
+                return d.equals(selectedDate);
+            } catch (Exception ignored) {}
+        }
+
+        // 2) ISO-8601(+Z/+09:00/.SSS) 등 → KST로 변환 후 날짜 비교
+        try { return Instant.parse(raw).atZone(ZONE_KST).toLocalDate().equals(selectedDate); } catch (Exception ignored) {}
+        try { return OffsetDateTime.parse(raw).atZoneSameInstant(ZONE_KST).toLocalDate().equals(selectedDate); } catch (Exception ignored) {}
+
+        // 3) 마지막 시도
+        try { return LocalDate.parse(raw).equals(selectedDate); } catch (Exception ignored) {}
+
+        return false;
+    }
+
+    // ─────────────────────────────
+    // 기존 유틸/요약
+    // ─────────────────────────────
     private void updateSummaryCountsForDow(int dowMon1ToSun7) {
         long present = 0, late = 0, absent = 0;
         for (AttendanceResponse ar : allAttendances) {
@@ -368,7 +474,6 @@ public class ParentAttendanceActivity extends AppCompatActivity {
         return -1;
     }
 
-    // ✅ onResume에서 테마 색 재적용
     @Override
     protected void onResume() {
         super.onResume();
