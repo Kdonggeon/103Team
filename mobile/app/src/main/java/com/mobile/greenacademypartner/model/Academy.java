@@ -1,32 +1,54 @@
 package com.mobile.greenacademypartner.model;
 
+import com.google.gson.annotations.SerializedName;
+
 public class Academy {
-    private int id;
-    private String academyName;
 
-    public Academy() {
-        // 기본 생성자 (필수)
-    }
+    @SerializedName("id")
+    private String id;   // 🚨 String으로 변경
 
-    // 🔧 이 생성자를 추가하세요
-    public Academy(int id, String academyName) {
+    @SerializedName("academyNumber")
+    private int academyNumber;
+
+    @SerializedName(value = "academyName", alternate = {"name"})
+    private String academyName;   // 🚨 서버의 "name" 키와 매핑
+
+    @SerializedName("phone")
+    private String phone;
+
+    @SerializedName("address")
+    private String address;
+
+    @SerializedName("directorNumber")
+    private int directorNumber;
+
+    public Academy() {}
+
+    public Academy(String id, int academyNumber, String academyName,
+                   String phone, String address, int directorNumber) {
         this.id = id;
+        this.academyNumber = academyNumber;
         this.academyName = academyName;
+        this.phone = phone;
+        this.address = address;
+        this.directorNumber = directorNumber;
     }
 
-    public int getId() {
-        return id;
-    }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public String getAcademyName() {
-        return academyName;
-    }
+    public int getAcademyNumber() { return academyNumber; }
+    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
 
-    public void setId(int id) {
-        this.id = id;
-    }
+    public String getAcademyName() { return academyName; }
+    public void setAcademyName(String academyName) { this.academyName = academyName; }
 
-    public void setAcademyName(String academyName) {
-        this.academyName = academyName;
-    }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+
+    public int getDirectorNumber() { return directorNumber; }
+    public void setDirectorNumber(int directorNumber) { this.directorNumber = directorNumber; }
 }

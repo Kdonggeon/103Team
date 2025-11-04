@@ -87,6 +87,35 @@
     </style>
     <!-- 기존 참조 호환 -->
     <style name="Widget.Green.BoxRow" parent="Widget.Green.BoxRow.Fixed" />
+    <!-- 라디오 버튼: 원은 유지하되 색상은 고정 -->
+    <style name="Widget.App.RadioButton" parent="Widget.Material3.CompoundButton.RadioButton">
+        <!-- 테마 색상 무시 -->
+        <item name="useMaterialThemeColors">false</item>
+        <!-- 선택/비선택 상태 색상 지정 (회색/검정 등) -->
+        <item name="android:buttonTint">@android:color/darker_gray</item>
+        <!-- 배경 없애기 (선택 시 배경색 방지) -->
+        <item name="android:background">@null</item>
+        <!-- 텍스트 색 -->
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+    <!-- 회색 배경 입력칸 스타일 -->
+    <style name="Widget.App.TextInputLayout.Gray"
+        parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <!-- 내부 배경색 -->
+        <item name="boxBackgroundColor">#F5F5F7</item>   <!-- ✅ 연회색 -->
+        <!-- 테두리 색상 -->
+        <item name="boxStrokeColor">#D9D9D9</item>
+        <!-- 둥근 모서리 -->
+        <item name="boxCornerRadiusTopStart">12dp</item>
+        <item name="boxCornerRadiusTopEnd">12dp</item>
+        <item name="boxCornerRadiusBottomStart">12dp</item>
+        <item name="boxCornerRadiusBottomEnd">12dp</item>
+        <!-- 테두리 두께 -->
+        <item name="boxStrokeWidth">1dp</item>
+        <item name="boxStrokeWidthFocused">2dp</item>
+        <!-- 여백 줄이기 -->
+        <item name="android:minHeight">52dp</item>
+    </style>
 
 
 

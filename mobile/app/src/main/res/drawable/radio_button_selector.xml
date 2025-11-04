@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 선택된 상태 -->
+    <item android:state_checked="true" android:drawable="@drawable/radio_checked_circle" />
+    <!-- 선택 안 된 상태 -->
+    <item android:drawable="@drawable/radio_unchecked_circle" />
+</selector>

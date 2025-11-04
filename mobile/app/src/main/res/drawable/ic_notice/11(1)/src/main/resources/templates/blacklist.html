@@ -1,0 +1,55 @@
+<!DOCTYPE html> <!-- 블랙 리스트한 사용자를 보여줌 -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>블랙리스트 목록</title>
+    <style>
+        body { font-family: Arial; padding: 30px; }
+        h2 { margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+        th { background-color: #f0f0f0; }
+        .btn-unblock {
+            padding: 5px 12px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            text-decoration: none;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+	
+	<a th:href="@{/getBoardList}" class="back-link">← 목록으로 돌아가기</a> 
+	
+    <h2>내가 차단한 사용자 목록</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>차단된 사용자 ID</th>
+                <th>차단 일시</th>
+                <th>관리</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="blacklist : ${blacklist}">
+                <td th:text="${blacklist.blockedId}">blockedId</td>
+                <td th:text="${#temporals.format(blacklist.createdAt, 'yyyy-MM-dd HH:mm')}">2025-06-20 10:00</td>
+                <td>
+                    <form th:action="@{/blacklist/remove}" method="post">
+                        <input type="hidden" name="id" th:value="${blacklist.id}" />
+                        <button type="submit" class="btn-unblock">차단 해제</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>

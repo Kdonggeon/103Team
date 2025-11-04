@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 상단 헤더: 왼쪽 화살표 + 가운데 타이틀 -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/green"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <!-- 왼쪽 끝 뒤로가기 -->
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="start|center_vertical"
+            android:background="@android:color/transparent"
+            android:contentDescription="뒤로가기" />
+
+        <!-- 가운데 타이틀 -->
+        <TextView
+            android:id="@+id/toolbarTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="알림"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:textSize="18sp"/>
+    </androidx.appcompat.widget.Toolbar>
+
+    <!-- 섹션 헤더 행: "최근 알림" + 전체 삭제 -->
+    <RelativeLayout
+        android:id="@+id/rowSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/toolbar"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp">
+
+        <TextView
+            android:id="@+id/tvSection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="최근 알림"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClearAll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+
+            android:text="전체 삭제"
+            android:textAllCaps="false"
+            android:textSize="14sp"
+            android:textColor="@android:color/white"
+            android:fontFamily="sans-serif-medium"
+            android:includeFontPadding="false"
+
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+
+        app:cornerRadius="999dp"
+        app:backgroundTint="@color/green"/>
+
+    </RelativeLayout>
+
+    <!-- 알림 리스트: 위/아래 제약으로 꽉 차게(스크롤 OK) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvNotifications"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_below="@id/rowSection"
+        android:layout_alignParentBottom="true"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:clipToPadding="false" />
+
+    <!-- 빈 상태 (리스트가 없을 때만 보임) -->
+    <LinearLayout
+        android:id="@+id/emptyState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_empty_box"
+        android:padding="14dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/ic_notice" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="현재 표시할 알림이 없습니다."
+            android:textColor="@color/black"
+            android:textSize="14sp" />
+    </LinearLayout>
+</RelativeLayout>

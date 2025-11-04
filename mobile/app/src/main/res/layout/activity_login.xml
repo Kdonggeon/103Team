@@ -16,127 +16,117 @@
         android:contentDescription="로고"
         android:src="@drawable/logo" />
 
-    <!-- 회색 테두리 박스 + 겹치는 타이틀 -->
-    <FrameLayout
+    <!-- 회색 입력 박스 -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/gray_border_box"
+        android:elevation="2dp"
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <!-- 회색 입력 박스 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/gray_border_box"
-            android:elevation="2dp"
-            android:orientation="vertical"
-            android:padding="16dp">
-            <Space
-            android:layout_width="match_parent"
-            android:layout_height="20dp"/>
-            <!-- 아이디 입력 -->
-            <EditText
-                android:id="@+id/editTextId"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:background="@drawable/input_field"
-                android:hint="아이디"
-                android:padding="10dp" />
-
-
-            <!-- 비밀번호 입력 + 로그인 버튼 한 줄 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <!-- 비밀번호 입력 -->
-                <RelativeLayout
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content">
-
-                    <EditText
-                        android:id="@+id/editTextPassword"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/input_field"
-                        android:hint="비밀번호"
-                        android:padding="10dp"
-                        android:inputType="textPassword"
-                        android:layout_alignParentStart="true"
-                        android:layout_toStartOf="@id/btn_toggle_password"
-                        android:layout_centerVertical="true" />
-
-                    <ImageView
-                        android:id="@+id/btn_toggle_password"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_alignParentEnd="true"
-                        android:layout_marginEnd="10dp"
-                        android:layout_centerVertical="true"
-                        android:src="@drawable/eye_off"
-                        android:contentDescription="비밀번호 보기 토글"
-                        android:clickable="true"
-                        android:focusable="true" />
-                </RelativeLayout>
-
-                <!-- 로그인 버튼 -->
-                <Button
-                    android:id="@+id/buttonLogin"
-                    android:layout_width="100dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:backgroundTint="@color/green"
-                    android:text="로그인"
-                    android:textColor="#FFFFFF" />
-            </LinearLayout>
-
-
-            <!-- 하단 텍스트/체크 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/signup_next"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingEnd="12dp"
-                    android:text="회원가입" />
-
-                <TextView
-                    android:id="@+id/find_account"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ID/PW 찾기" />
-
-                <CheckBox
-                    android:id="@+id/login_check"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="로그인 상태 유지" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 겹치는 ID/PW 로그인 라벨 -->
+        <!-- 제목 라벨 (박스 안쪽) -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="top|center_horizontal"
-            android:background="@color/green"
-            android:elevation="3dp"
-            android:paddingStart="40dp"
-            android:paddingTop="20dp"
-            android:paddingEnd="40dp"
-            android:paddingBottom="10dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/bg_login_label"
+            android:paddingLeft="24dp"
+            android:paddingRight="24dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
             android:text="ID/PW 로그인"
             android:textSize="18sp"
-            android:textColor="#FFFFFF"
-            android:translationY="-12dp" />
-    </FrameLayout>
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- 아이디 입력 -->
+        <EditText
+            android:id="@+id/editTextId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/input_field"
+            android:hint="아이디"
+            android:padding="10dp" />
+
+        <!-- 비밀번호 입력 + 로그인 버튼 한 줄 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- 비밀번호 입력 -->
+            <RelativeLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content">
+
+                <EditText
+                    android:id="@+id/editTextPassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/input_field"
+                    android:hint="비밀번호"
+                    android:padding="10dp"
+                    android:inputType="textPassword"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@id/btn_toggle_password"
+                    android:layout_centerVertical="true" />
+
+                <ImageView
+                    android:id="@+id/btn_toggle_password"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginEnd="10dp"
+                    android:layout_centerVertical="true"
+                    android:src="@drawable/eye_off"
+                    android:contentDescription="비밀번호 보기 토글"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </RelativeLayout>
+
+            <!-- 로그인 버튼 -->
+            <Button
+                android:id="@+id/buttonLogin"
+                android:layout_width="100dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:backgroundTint="@color/green"
+                android:text="로그인"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- 하단 텍스트/체크 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/signup_next"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="12dp"
+                android:text="회원가입" />
+
+            <TextView
+                android:id="@+id/find_account"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ID/PW 찾기" />
+
+            <CheckBox
+                android:id="@+id/login_check"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="로그인 상태 유지" />
+        </LinearLayout>
+    </LinearLayout>
 </LinearLayout>

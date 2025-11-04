@@ -1,41 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/drawer_layout_attendance"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 메인 컨텐츠 -->
-
-    <LinearLayout
-        android:orientation="vertical"
+    <!-- 🔹 상단 툴바 -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar_attendance"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/green"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        android:title="출석 관리"
+        app:titleTextColor="@android:color/white" />
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar_attendance"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/green"
-            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-            android:title="출석 관리"
-            app:titleTextColor="@android:color/white" />
+    <!-- 🔹 본문 컨텐츠 -->
+    <TextView
+        android:id="@+id/main_content_text_attendance"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="출석 화면입니다"
+        android:textSize="18sp" />
 
-        <TextView
-            android:id="@+id/main_content_text_attendance"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:text="출석 화면입니다"
-            android:textSize="18sp" />
-    </LinearLayout>
+    <!-- 🔹 하단 네비게이션 바 -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="12dp"
+        android:background="@drawable/bg_bottom_nav_rounded"
+        app:menu="@menu/bottom_nav_menu"
+        app:itemIconTint="@color/nav_item_color"
+        app:itemTextColor="@color/nav_item_color"
+        app:labelVisibilityMode="selected"
+        android:elevation="8dp"/>
 
-    <!-- 사이드바 -->
-    <LinearLayout
-        android:id="@+id/nav_container_attendance"
-        android:layout_width="280dp"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:orientation="vertical"
-        android:background="@android:color/darker_gray" />
-</androidx.drawerlayout.widget.DrawerLayout>
+</LinearLayout>

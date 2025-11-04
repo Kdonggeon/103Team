@@ -1,8 +1,16 @@
 package com.mobile.greenacademypartner.model.parent;
 
+import com.google.gson.annotations.SerializedName;
+
 public class ParentUpdateRequest {
+
+    @SerializedName("Parents_Number")
     private String parentsId;
+
+    @SerializedName("Parents_Name")
     private String parentsName;
+
+    @SerializedName("Parents_Phone")
     private String parentsPhoneNumber;
 
     public ParentUpdateRequest() {}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- 바 색상 -->
+    <solid android:color="@android:color/white"/>
+
+    <!-- 위쪽 둥글게 -->
+    <corners
+        android:topLeftRadius="24dp"
+        android:topRightRadius="24dp"/>
+
+    <!-- 그림자 효과를 주고 싶으면 -->
+    <padding android:top="2dp"/>
+</shape>

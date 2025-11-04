@@ -9,6 +9,9 @@ public class StudentUpdateRequest {
     private int grade;
     private String gender;
 
+    // ✅ 부모 식별자 (학부모 계정으로 수정 시 필요)
+    private String parentId;
+
     // 기본 생성자
     public StudentUpdateRequest() {}
 
@@ -33,6 +36,9 @@ public class StudentUpdateRequest {
     public int getGrade() { return grade; }
     public String getGender() { return gender; }
 
+    // ✅ parentId Getter 추가
+    public String getParentId() { return parentId; }
+
     // Setter
     public void setStudentId(String studentId) { this.studentId = studentId; }
     public void setStudentName(String studentName) { this.studentName = studentName; }
@@ -41,4 +47,7 @@ public class StudentUpdateRequest {
     public void setSchool(String school) { this.school = school; }
     public void setGrade(int grade) { this.grade = grade; }
     public void setGender(String gender) { this.gender = gender; }
+
+    // ✅ parentId Setter 추가
+    public void setParentId(String parentId) { this.parentId = parentId; }
 }

@@ -17,8 +17,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GreenAcademyPartner"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:name=".ui.qna.MyApplication"
-        android:usesCleartextTraffic="true">
+        android:name=".ui.qna.MyApplication">
 
         <activity
             android:name=".ui.start.SplashActivity"
@@ -48,6 +47,7 @@
         <activity android:name=".ui.login.FindIdResultActivity" />
         <activity android:name=".ui.attendance.StudentAttendanceActivity" />
         <activity android:name=".ui.attendance.ParentAttendanceActivity" />
+        <activity android:name=".ui.notification.NotificationActivity" />
 <!--        <activity android:name=".ui.classes.TeacherClassesActivity" />-->
         <activity android:name=".ui.attendance.ClassAttendanceActivity" />
         <activity android:name=".ui.timetable.QRScannerActivity" />
@@ -56,7 +56,7 @@
         <activity android:name=".ui.timetable.ParentChildrenListActivity"/>
 <!--        <activity android:name=".ui.timetable.TeacherTimetableActivity"/>-->
         <activity android:name=".ui.classes.CreateClassActivity"/>
-<!--        <activity android:name=".ui.timetable.AddChildActivity" />-->
+        <activity android:name=".ui.timetable.AddChildActivity" />
 <!--&lt;!&ndash;        <activity android:name=".ui.signup.DirectorSignupActivity" />&ndash;&gt;-->
 <!--        <activity-->
 <!--            android:name=".ui.director.DirectorMyPageActivity"-->

@@ -1,0 +1,115 @@
+<!DOCTYPE html> <!-- 글작성 -->
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>새글 등록</title>
+  <style>
+    body {
+      background-color: #ffffff;
+      color: #333333;
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 80px auto;
+      padding: 30px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+
+    table td {
+      border: 1px solid #dddddd;
+      padding: 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    table td:first-child {
+      width: 100px;
+      background-color: #e3f2fd;
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    textarea,
+    input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    input[type="submit"] {
+      background-color: #007bff;
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #0056b3;
+    }
+
+    a {
+      display: inline-block;
+      margin: 8px;
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      color: #0056b3;
+    }
+
+    .top-links {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-links">
+      <div><a th:href="@{/getBoardList}">글목록</a></div>
+    </div>
+
+    <h1>새글 등록</h1>
+
+    <form action="insertBoard" method="post" enctype="multipart/form-data">
+      <table>
+        <tr>
+          <td>제목</td>
+          <td><input name="title" type="text" /></td>
+        </tr>
+        <tr>
+          <td>내용</td>
+          <td><textarea name="content" rows="10"></textarea></td>
+        </tr>
+        <tr>
+          <td colspan="2" style="text-align: center;">
+            <input type="submit" value="등록하기" />
+          </td>
+        </tr>
+      </table>
+    </form>
+  </div>
+</body>
+</html>
