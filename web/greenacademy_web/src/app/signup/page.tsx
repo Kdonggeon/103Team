@@ -132,13 +132,13 @@ export function payloadMapper(values: FormValues) {
         academyNumber: values.academyNumber ?? 0,
       };
     case "director":
-      return {
-        directorId: values.directorId,
-        directorPw: values.directorPw,
-        directorName: values.directorName,
-        directorPhoneNumber: values.directorPhoneNumber,
-        academyNumbers: values.academyNumbers ?? [],
-      };
+  return {
+    username: values.directorId,
+    password: values.directorPw,
+    name: values.directorName,
+    phone: values.directorPhoneNumber,
+    academyNumbers: values.academyNumbers ?? [],
+  };
   }
 }
 
@@ -147,7 +147,7 @@ const submitUrlByRole: Record<Role, string> = {
   student: `${API_BASE}/api/students`,
   parent: `${API_BASE}/api/parents`,
   teacher: `${API_BASE}/api/teachers`,
-  director: `${API_BASE}/api/directors`,
+  director: `${API_BASE}/api/directors/signup`,
 };
 
 // ===== 공용 필드 컴포넌트 =====

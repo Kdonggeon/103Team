@@ -27,32 +27,32 @@ export default function LoginPage() {
       const body: LoginRequest = { username: id, password: pw };
       const data: LoginResponse = await api.login(body);
 
-// 1) 토큰 필수 확인
-if (!data?.token || typeof data.token !== "string" || data.token.length === 0) {
-  setLoading(false);
-  return setMsg("로그인 토큰이 없습니다. 관리자에게 문의하세요.");
-}
+      // 1) 토큰 필수 확인
+      if (!data?.token || typeof data.token !== "string" || data.token.length === 0) {
+        setLoading(false);
+        return setMsg("로그인 토큰이 없습니다. 관리자에게 문의하세요.");
+      }
 
-// 2) 세션 저장: 상태(Session) 반영
-setSession(data);
+      // 2) 세션 저장: 상태(Session) 반영
+      setSession(data);
 
-// 3) 로컬 영구 저장(localStorage)
-//    - 호환성 위해 keepLogin, ipSecure도 함께 저장(기존 sub1 코드 유지)
-localStorage.setItem(
-  "login",
-  JSON.stringify({
-    token: data.token,
-    role: data.role,
-    username: data.username,
-    name: data.name ?? null,
-    academyNumbers: Array.isArray(data.academyNumbers) ? data.academyNumbers : [],
-    keepLogin,
-    ipSecure,
-  })
-);
+      // 3) 로컬 영구 저장(localStorage)
+      //    - 호환성 위해 keepLogin, ipSecure도 함께 저장(기존 sub1 코드 유지)
+      localStorage.setItem(
+        "login",
+        JSON.stringify({
+          token: data.token,
+          role: data.role,
+          username: data.username,
+          name: data.name ?? null,
+          academyNumbers: Array.isArray(data.academyNumbers) ? data.academyNumbers : [],
+          keepLogin,
+          ipSecure,
+        })
+      );
 
-// 4) 옵션은 별도 키로도 저장(기존 HEAD 동작 유지)
-localStorage.setItem("client_prefs", JSON.stringify({ keepLogin, ipSecure }));
+      // 4) 옵션은 별도 키로도 저장(기존 HEAD 동작 유지)
+      localStorage.setItem("client_prefs", JSON.stringify({ keepLogin, ipSecure }));
 
       // 역할별 라우팅
       let next = "/";
@@ -84,8 +84,8 @@ localStorage.setItem("client_prefs", JSON.stringify({ keepLogin, ipSecure }));
         </div>
 
         <input
-          className="w-full h-12 rounded-xl border border-gray-200 px-4 outline-none bg-emerald-50/20
-                     focus:ring-2 focus:ring-emerald-300 focus:border-emerald-300"
+          className="w-full h-12 rounded-xl border border-black px-4 outline-none bg-white
+                     focus:ring-2 focus:ring-black focus:border-black text-black placeholder:text-black caret-black"
           placeholder="아이디 또는 전화번호"
           value={id}
           onChange={(e) => setId(e.target.value)}
@@ -94,11 +94,11 @@ localStorage.setItem("client_prefs", JSON.stringify({ keepLogin, ipSecure }));
         />
 
         <div
-          className="flex h-12 rounded-xl border border-gray-200 overflow-hidden
-                     focus-within:ring-2 focus-within:ring-emerald-300 focus-within:border-emerald-300 bg-emerald-50/20"
+          className="flex h-12 rounded-xl border border-black overflow-hidden
+                     focus-within:ring-2 focus-within:ring-black focus-within:border-black bg-white"
         >
           <input
-            className="flex-1 px-4 outline-none border-0 bg-transparent"
+            className="flex-1 px-4 outline-none border-0 bg-transparent text-black placeholder:text-black caret-black"
             placeholder="비밀번호"
             type={showPw ? "text" : "password"}
             value={pw}
@@ -110,8 +110,8 @@ localStorage.setItem("client_prefs", JSON.stringify({ keepLogin, ipSecure }));
             onClick={() => setShowPw((v) => !v)}
             className={`px-4 text-xs font-semibold border-l ${
               showPw
-                ? "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600"
-                : "bg-white text-emerald-600 border-gray-200 hover:bg-emerald-50"
+                ? "bg-black text-white border-black hover:opacity-90"
+                : "bg-white text-black border-black hover:bg-gray-50"
             }`}
           >
             {showPw ? "숨김" : "보기"}

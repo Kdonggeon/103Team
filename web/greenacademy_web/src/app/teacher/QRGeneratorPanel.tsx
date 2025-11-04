@@ -1,4 +1,3 @@
-// C:\project\103Team-sub\web\greenacademy_web\src\app\teacher\QRGeneratorPanel.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -10,6 +9,7 @@ import { roomsApi, type Room } from "@/app/lib/rooms";
 ============================================= */
 const QR_PNG_PX = 320;     // QR 원본 PNG 해상도(고정)
 const PREVIEW_PX = 120;    // 화면 미리보기 크기(고정)
+const KST_TZ = "Asia/Seoul";
 
 /* =============================================
    유틸
@@ -18,15 +18,32 @@ const PREVIEW_PX = 120;    // 화면 미리보기 크기(고정)
 // 숫자 3자리 패딩(강의실 번호 표기용: 1 → "001")
 const pad3 = (n: number) => String(n).padStart(3, "0");
 
+// KST 표기(화면용)
+function nowKSTLabel() {
+  try {
+    return new Date().toLocaleString("ko-KR", { timeZone: KST_TZ });
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
 // 모바일 파서가 바로 읽을 수 있는 쿼리스트링 페이로드 생성
-// 형식: v=1&type=seat&academyNumber=103&room=403&seat=12
+// 형식 예: v=1&type=seat&academyNumber=103&room=403&seat=12&idx=11&tz=Asia/Seoul&tEpochMs=1730617200000&tLocal=2025. 11. 3. 오후 5:00:00
 function buildQrPayloadQS(academyNumber: number, roomNumber: number, seatNumber: number): string {
+  const idx = Math.max(0, Number(seatNumber) - 1); // 0-based 힌트
+  const tEpochMs = Date.now();
+  const tLocal = nowKSTLabel();
+
   const qs = new URLSearchParams({
     v: "1",
     type: "seat",
     academyNumber: String(academyNumber),
     room: String(roomNumber),
-    seat: String(seatNumber), // 1..N
+    seat: String(seatNumber),   // 1..N (라벨)
+    idx: String(idx),           // 0..N-1 (선택 사용)
+    tz: KST_TZ,                 // Olson ID
+    tEpochMs: String(tEpochMs), // 기기/서버에서 KST 변환 용이
+    tLocal,                     // 사람이 읽기 쉬운 KST 표기(백업용)
   });
   return qs.toString();
 }
@@ -75,12 +92,25 @@ function printQrCards(
       <div class="card">
         <div class="title">${pad3(it.roomNumber)} 강의실 ${it.seatNumber}번 좌석</div>
         <img src="${it.url}" />
-        <div class="meta">Printed ${new Date().toLocaleString()}</div>
+        <!-- ✅ 표시 시간 KST 고정 -->
+        <div class="meta"><span class="printedAt"></span></div>
       </div>`
       )
       .join("")}
   </div>
-  <script>window.onload = () => setTimeout(() => window.print(), 200);</script>
+  <script>
+    function nowKST() {
+      try {
+        return new Date().toLocaleString('ko-KR', { timeZone: '${KST_TZ}' });
+      } catch (e) {
+        return new Date().toISOString();
+      }
+    }
+    window.onload = () => {
+      document.querySelectorAll('.printedAt').forEach(el => { el.textContent = 'Printed ' + nowKST(); });
+      setTimeout(() => window.print(), 200);
+    };
+  </script>
 </body>
 </html>`;
   const w = window.open("", "_blank");
@@ -125,18 +155,34 @@ const fromVectorLayout = (vectorLayout: any[] | undefined): SeatCell[] => {
   return Array.from({ length: n }, (_, i) => ({ seatNumber: i + 1, disabled: false }));
 };
 
-function seatsFromRoom(room: any): SeatCell[] {
-  // 1) layout(row/col)
-  const grid = fromGridLayout(room?.layout, room?.rows ?? room?.Rows, room?.cols ?? room?.Cols);
-  if (grid.length > 0) return grid;
+function fromCount(n: number): SeatCell[] {
+  if (!Number.isFinite(n) || n <= 0) return [];
+  return Array.from({ length: n }, (_, i) =>
+    ({
+      index: i,
+      seatIndex: i,
+      seatNumber: i + 1,
+      label: String(i + 1),
+      disabled: false,
+      blocked: false,
+    } as unknown as SeatCell)
+  );
+}
 
-  // 2) vectorLayout 길이 기반
+function seatsFromRoom(room: any): SeatCell[] {
+  // 1) 상세 응답(벡터) 우선
   const vec = fromVectorLayout(room?.vectorLayout);
   if (vec.length > 0) return vec;
-
-  // 3) rows*cols만 있을 때
+  // 2) 그리드(rows/cols 또는 layout)
+  const grid = fromGridLayout(room?.layout, room?.rows ?? room?.Rows, room?.cols ?? room?.Cols);
+  if (grid.length > 0) return grid;
+  // 3) 목록 응답(RoomLite)만 있을 때: vectorSeatCount 기반 1..N 생성
+  const n = Number((room as any)?.vectorSeatCount);
+  if (Number.isFinite(n) && n > 0) return fromCount(n);
+  // 4) 최후 보루
   return fromGridLayout([], room?.rows ?? room?.Rows, room?.cols ?? room?.Cols);
 }
+
 type Props = { user: NonNullable<LoginResponse> };
 
 type SeatItem = { roomNumber: number; seatNumber: number; disabled?: boolean };
@@ -190,8 +236,10 @@ export default function QRGeneratorPanel({ user }: Props) {
     }));
   }, [rooms, currentRoom, isAllRooms]);
 
-  // 선택 상태: "room-seat" 키로 관리
+  // ✅ 선택 상태 키 생성 함수 (누락되어 오류 발생하던 부분)
   const keyOf = (roomNumber: number, seatNumber: number) => `${roomNumber}-${seatNumber}`;
+
+  // 선택 상태: "room-seat" 키로 관리
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const toggleSeat = (k: string) =>
     setSelectedKeys((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
@@ -390,7 +438,6 @@ export default function QRGeneratorPanel({ user }: Props) {
                 const k = keyOf(s.roomNumber, s.seatNumber);
                 const checked = selectedKeys.includes(k);
                 const disabled = !!s.disabled;
-                // ✅ 단일/전체 모두 같은 표기 형식
                 const label = `${pad3(s.roomNumber)} 강의실 ${s.seatNumber}번 좌석`;
                 return (
                   <label
@@ -447,7 +494,6 @@ export default function QRGeneratorPanel({ user }: Props) {
                   <img
                     src={it.url}
                     alt={`${it.roomNumber}강의실 ${it.seatNumber}번 좌석 QR`}
-                    /* 미리보기는 고정 px */
                     style={{ width: `${PREVIEW_PX}px`, height: `${PREVIEW_PX}px` }}
                     className="mx-auto rounded-lg ring-1 ring-black/5"
                   />

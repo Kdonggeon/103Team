@@ -21,7 +21,7 @@ import QRGeneratorPanel from "@/app/teacher/QRGeneratorPanel";
 import DirectorRoomsPanel from "@/components/rooms/director/DirectorRoomsPanel";
 import TeacherManagePanel from "@/components/manage/TeacherManagePanel";
 import TeacherSchedulePanelInline from "@/components/manage/TeacherSchedulePanelInline";
-import DirectorPeoplePanel from "@/components/manage/director/DirectorPeoplePanel";
+import DirectorMyInfoCard from "@/app/director/DirectorMyInfoCard";
 
 /** 색상 토큰 */
 const colors = { green: "#65E478", grayBg: "#F2F4F7" };
@@ -645,7 +645,7 @@ export default function GreenAcademyDashboard() {
     setReady(true);
   }, [router]);
 
-  /** 최초 진입 시 쿼리 탭 반영 (?tab=overview|manage|schedule|attendance|qna|notice|guide) */
+  /** 최초 진입 시 쿼리 탭 반영 */
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (!tab) return;
@@ -710,7 +710,9 @@ export default function GreenAcademyDashboard() {
           setList(todayRows.map((r) => ({ label: r.className, sub: `${r.status} • ${r.date}` })));
           setSeats(null);
         } else if (user.role === "student") {
-          const rows = await apiGet<StudentAttendanceRow[]>(`/students/${encodeURIComponent(user.username)}/attendance`);
+          const rows = await apiGet<StudentAttendanceRow[]>(
+            `/students/${encodeURIComponent(user.username)}/attendance`
+          );
           const todayRows = rows.filter((r) => isSameDate(r.date));
           const sum = summarizeAttendance(todayRows);
           setPresent(sum.present);
@@ -818,7 +820,9 @@ export default function GreenAcademyDashboard() {
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">강의실 찾기 추가 예정</span>
+                <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
+                  강의실 찾기 추가 예정
+                </span>
               </div>
 
               {user?.role !== "teacher" && (
@@ -853,12 +857,16 @@ export default function GreenAcademyDashboard() {
               </div>
             )}
 
+            {/* 내정보 */}
             {manageMenu === "내정보" && user?.role === "teacher" && <TeacherProfileCard user={user} />}
+            {manageMenu === "내정보" && user?.role === "director" && <DirectorMyInfoCard />}
+
+            {/* 학생/반 관리 */}
             {manageMenu === "학생관리" && <TeacherStudentManage />}
             {manageMenu === "반 관리" && user?.role === "teacher" && <TeacherManagePanel user={user} />}
 
+            {/* 학원관리 */}
             {manageMenu === "학원관리" && user?.role === "director" && <DirectorRoomsPanel user={user} />}
-
             {manageMenu === "학원관리" && user?.role === "teacher" && (
               <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">학원관리</h2>
@@ -866,6 +874,7 @@ export default function GreenAcademyDashboard() {
               </div>
             )}
 
+            {/* QR 생성 */}
             {manageMenu === "QR 생성" && (user?.role === "teacher" || user?.role === "director") && (
               <QRGeneratorPanel user={user} />
             )}
@@ -873,9 +882,9 @@ export default function GreenAcademyDashboard() {
         )}
 
         {/* 원장 전용: 출결확인 탭 */}
-        {activeTab === "출결확인" && user?.role === "director" && <DirectorPeoplePanel />}
+        {activeTab === "출결확인" && user?.role === "director" && <DirectorMyInfoCard/>}
 
-        {/* 시간표 탭 (교사=실제 캘린더, 원장/기타=안내) */}
+        {/* 시간표 탭 */}
         {activeTab === "시간표" && (
           <>
             {user?.role === "teacher" ? (
@@ -894,7 +903,7 @@ export default function GreenAcademyDashboard() {
           </>
         )}
 
-        {/* Q&A 탭(HEAD 실제 연동 유지) */}
+        {/* Q&A 탭 */}
         {activeTab === "Q&A" && (
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
