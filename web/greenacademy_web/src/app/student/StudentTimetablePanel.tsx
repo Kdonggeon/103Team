@@ -13,35 +13,48 @@ type ClassInfo = {
   roomNumber?: string | number;
   startTime?: string; // "09:00"
   endTime?: string;   // "10:00"
-  daysOfWeek: number[]; // 0~6
+  daysOfWeek: number[]; // 0~6 (0=일)
 };
 
 /** 유틸 */
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.trim() || "/backend";
+const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
+const API_BASE = RAW_BASE.length > 0 ? RAW_BASE : "/backend";
+
 async function apiGet<T>(path: string, token?: string): Promise<T> {
-  const r = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  const url = `${API_BASE}${path}`;
+  const r = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     cache: "no-store",
   });
-  if (!r.ok) { const t = await r.text().catch(()=>""); throw new Error(`${r.status} ${r.statusText}${t?` | ${t}`:""}`); }
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(`${r.status} ${r.statusText}${t ? ` | ${t}` : ""}`);
+  }
   return r.json();
 }
-async function apiGetWithFallback<T>(primary: string, token?: string, fallback?: string) {
-  try { return await apiGet<T>(primary, token); }
-  catch (e) { if (!fallback) throw e; return await apiGet<T>(fallback, token); }
-}
-function readLogin(): LoginSession | null { try { const raw = localStorage.getItem("login"); return raw?JSON.parse(raw):null; } catch { return null; } }
 
-function ymd(d: Date) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
-function dotYmd(d: Date) { return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`; }
+function ymd(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function dotYmd(d: Date) {
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+}
 function addDays(d: Date, n: number) { const o = new Date(d); o.setDate(o.getDate()+n); return o; }
 function startOfWeekMonday(d: Date) {
   const day = d.getDay(); const diff = (day === 0 ? -6 : 1 - day);
   const out = new Date(d); out.setDate(d.getDate()+diff); out.setHours(0,0,0,0); return out;
 }
-function minutesFromHHMM(s?: string) { if (!s) return 0; const m = /^(\d{1,2}):(\d{2})$/.exec(String(s).trim()); if (!m) return 0; return Number(m[1])*60 + Number(m[2]); }
+function minutesFromHHMM(s?: string) {
+  if (!s) return 0;
+  const m = /^(\d{1,2})\s*:\s*(\d{2})$/.exec(String(s).trim());
+  if (!m) return 0;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
 
-/** 출결 방식: 네이티브 <input type="date"> 팝오버 */
+/** 날짜 선택 팝오버 */
 function MiniDatePicker({
   open,
   anchorRef,
@@ -125,12 +138,13 @@ const COLORS = [
   "bg-fuchsia-200/70 text-fuchsia-950 ring-fuchsia-300",
 ];
 function colorFor(id: string) { let h=0; for (let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return COLORS[h%COLORS.length]; }
+
 function dayToNum(v: any): number | null {
   const s = String(v ?? "").trim().toUpperCase();
   const n = Number(s);
   if (Number.isFinite(n)) {
     if (n >= 0 && n <= 6) return n;
-    if (n >= 1 && n <= 7) return n === 7 ? 0 : n;
+    if (n >= 1 && n <= 7) return n === 7 ? 0 : n - 1; // 1~7 → 0~6
   }
   if (["SUN","일"].some(k=>s.includes(k))) return 0;
   if (["MON","월"].some(k=>s.includes(k))) return 1;
@@ -145,19 +159,16 @@ function normalizeDays(any: any): number[] {
   if (
     Array.isArray(any) &&
     any.length === 7 &&
-    any.every(
-      v => v === true || v === false || v === 0 || v === 1 || v === "0" || v === "1"
-    )
+    any.every(v => v === true || v === false || v === 0 || v === 1 || v === "0" || v === "1")
   ) {
-    return any
-      .map((v, i) => (v === true || v === 1 || v === "1") ? i : null)
-      .filter((n): n is number => n !== null);
+    return any.map((v, i) => (v === true || v === 1 || v === "1") ? i : null)
+              .filter((n): n is number => n !== null);
   }
   const arr = Array.isArray(any) ? any : [any];
-  return arr
-    .map(dayToNum)
-    .filter((n): n is number => typeof n === "number");
+  const out = arr.map(dayToNum).filter((n): n is number => typeof n === "number");
+  return out.length ? out : []; // 비어 있으면 전 요일 취급
 }
+
 function normalizeClass(raw: any): ClassInfo | null {
   const classId   = raw?.Class_ID ?? raw?.classId ?? raw?.ClassId ?? raw?.id ?? raw?.Class_No ?? raw?.class_no;
   const className = raw?.Class_Name ?? raw?.className ?? raw?.name ?? raw?.Title ?? raw?.title;
@@ -189,7 +200,13 @@ function Spinner({ label }: { label?: string }) {
 
 /** 메인 */
 export default function StudentTimetablePanel() {
-  const login = readLogin();
+  // 로그인 세션 안전하게 로드
+  const [login, setLogin] = useState<LoginSession | null>(null);
+  useEffect(() => {
+    try { const raw = localStorage.getItem("login"); setLogin(raw ? JSON.parse(raw) : null); }
+    catch { setLogin(null); }
+  }, []);
+
   const token = login?.token ?? "";
   const studentId = login?.username ?? "";
 
@@ -200,31 +217,38 @@ export default function StudentTimetablePanel() {
   // 보기 날짜 / 주간
   const [viewDate, setViewDate] = useState<Date>(() => new Date());
   const weekStart = useMemo(() => startOfWeekMonday(viewDate), [viewDate]);
-  const dayOrder = [1,2,3,4,5,6,0] as const; // 월~일
+  const dayOrder: number[] = [1,2,3,4,5,6,0]; // 월~일
   const weekDates = useMemo(() => dayOrder.map((_,i)=> addDays(weekStart, i)), [weekStart]);
   const weekRangeText = `${dotYmd(weekDates[0])} ~ ${dotYmd(weekDates[6])}`;
 
-  // 날짜 선택 팝오버(출결 방식)
+  // 날짜 선택 팝오버
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  // API
+  // API 호출 (공식 엔드포인트 고정)
   useEffect(() => {
     if (!studentId) return;
     let aborted = false;
     (async () => {
       setLoading(true); setErr(null);
       try {
-        const raw = await apiGetWithFallback<any[]>(
+        const raw = await apiGet<any[]>(
           `/api/students/${encodeURIComponent(studentId)}/classes`,
-          token,
-          `/api/classes?studentId=${encodeURIComponent(studentId)}`
+          token
         );
         if (aborted) return;
-        const list = (Array.isArray(raw) ? raw : []).map(normalizeClass).filter((x): x is ClassInfo => !!x);
+        const list = (Array.isArray(raw) ? raw : [])
+          .map(normalizeClass)
+          .filter((x): x is ClassInfo => !!x);
         setClasses(list);
       } catch (e: any) {
-        if (!aborted) { setErr(e?.message ?? "시간표를 불러오지 못했습니다."); setClasses([]); }
+        const msg = String(e?.message ?? "");
+        if (/(^| )401( |$)|Unauthorized/i.test(msg) || /(^| )403( |$)|Forbidden/i.test(msg)) {
+          setErr("권한이 없습니다. 로그인 상태(토큰) 또는 계정 권한을 확인해 주세요.");
+        } else {
+          setErr(msg || "시간표를 불러오지 못했습니다.");
+        }
+        setClasses([]);
       } finally {
         if (!aborted) setLoading(false);
       }
@@ -232,23 +256,27 @@ export default function StudentTimetablePanel() {
     return () => { aborted = true; };
   }, [studentId, token]);
 
-  // 레이아웃 계산 (★ 08:00 ~ 23:00 고정)
+  // 레이아웃 계산 (08:00 ~ 23:00)
   const MIN_START = 8 * 60, MAX_END = 23 * 60;
   const hours = useMemo(() => { const out:number[]=[]; for (let t=MIN_START;t<=MAX_END;t+=60) out.push(t); return out; }, []);
   const PX_PER_MIN = 1;
   const GRID_HEIGHT = (MAX_END - MIN_START) * PX_PER_MIN;
   const hhmm = (m:number)=>`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
 
+  type PlacedClass = ClassInfo & { top:number; height:number };
   const byDay = useMemo(() => {
-    const map = new Map<number, Array<ClassInfo & { top:number; height:number }>>();
-    dayOrder.forEach(d=>map.set(d,[]));
+    const map = new Map<number, PlacedClass[]>();
+    [1,2,3,4,5,6,0].forEach(d=>map.set(d,[]));
     for (const c of classes) {
       const st = minutesFromHHMM(c.startTime), et = minutesFromHHMM(c.endTime) || (st+60);
       const top = Math.max(0, (Math.max(st, MIN_START)-MIN_START)*PX_PER_MIN);
       const height = Math.max(24, (Math.min(et, MAX_END)-Math.max(st, MIN_START))*PX_PER_MIN);
-      c.daysOfWeek.forEach(d => { if (!map.has(d)) map.set(d, []); map.get(d)!.push({ ...c, top, height }); });
+      const days = (Array.isArray(c.daysOfWeek) && c.daysOfWeek.length) ? c.daysOfWeek : [1,2,3,4,5];
+      days.forEach(d => { if (!map.has(d)) map.set(d, []); map.get(d)!.push({ ...c, top, height }); });
     }
-    for (const d of map.keys()) { map.set(d, map.get(d)!.sort((a,b)=> minutesFromHHMM(a.startTime) - minutesFromHHMM(b.startTime))); }
+    for (const d of map.keys()) {
+      map.set(d, map.get(d)!.sort((a,b)=> minutesFromHHMM(a.startTime) - minutesFromHHMM(b.startTime)));
+    }
     return map;
   }, [classes]);
 
@@ -271,15 +299,17 @@ export default function StudentTimetablePanel() {
           >
             날짜 선택
           </button>
-          <MiniDatePicker
-            open={pickerOpen}
-            anchorRef={pickerBtnRef as unknown as React.RefObject<HTMLElement | null>}
-            value={viewDate}
-            onCancel={() => setPickerOpen(false)}
-            onConfirm={(d)=>{ setPickerOpen(false); setViewDate(d); }}
-          />
         </div>
       </div>
+
+      {/* 날짜 피커 */}
+      <MiniDatePicker
+        open={pickerOpen}
+        anchorRef={pickerBtnRef as unknown as React.RefObject<HTMLElement | null>}
+        value={viewDate}
+        onCancel={() => setPickerOpen(false)}
+        onConfirm={(d: Date) => { setPickerOpen(false); setViewDate(d); }}
+      />
 
       {/* 그리드 */}
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm">
@@ -317,7 +347,7 @@ export default function StudentTimetablePanel() {
               })}
               {byDay.get(d)?.map((c) => (
                 <div
-                  key={`${c.classId}-${c.startTime}-${c.endTime}`}
+                  key={`${c.classId}-${c.startTime}-${c.endTime}-${d}`}
                   className={`absolute left-1 right-1 rounded-lg ring-1 p-2 text-xs font-medium shadow-sm ${colorFor(c.classId)}`}
                   style={{ top: c.top, height: c.height, minHeight: 24 }}
                   title={`${c.className} | ${c.startTime ?? "??:??"} ~ ${c.endTime ?? "??:??"}`}
@@ -336,7 +366,7 @@ export default function StudentTimetablePanel() {
         {/* 상태 */}
         <div className="p-3">
           {loading && <Spinner label="시간표 불러오는 중" />}
-          {err && <div className="text-sm text-red-600">오류: {err}</div>}
+          {err && <div className="text-sm text-red-600 break-words">오류: {err}</div>}
           {!loading && !err && classes.length === 0 && <div className="text-sm text-gray-700">표시할 수업이 없습니다.</div>}
         </div>
       </div>
