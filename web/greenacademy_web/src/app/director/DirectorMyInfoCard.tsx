@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { getSession } from "@/app/lib/session";
 
 /** 타입 */
@@ -52,6 +53,8 @@ async function patchAcademy(
 }
 
 export default function DirectorMyInfoCard() {
+  const router = useRouter();
+
   const [me, setMe] = React.useState<DirectorMe | null>(null);
   const [academies, setAcademies] = React.useState<Academy[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -124,7 +127,17 @@ export default function DirectorMyInfoCard() {
 
       {/* 기본 정보 */}
       <section className="bg-white ring-1 ring-black/5 rounded-2xl shadow-sm p-6">
-        <h2 className="text-lg font-bold text-black mb-4">기본 정보</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-black">기본 정보</h2>
+          {/* ▶ 우상단 버튼: 정보 수정 화면으로 이동 */}
+          <button
+            onClick={() => router.push("/settings/profile")}
+            className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black"
+          >
+            정보 수정하기
+          </button>
+        </div>
+
         {loading ? (
           <div className="text-sm text-gray-700">불러오는 중…</div>
         ) : (

@@ -119,10 +119,10 @@ function NavTabs({
 
   const manageItems =
     role === "director"
-      ? (["내정보", "학생관리", "반 관리", "학원관리", "QR 생성"] as const)
+      ? (["학생관리", "반 관리", "학원관리", "QR 생성"] as const)
       : role === "teacher"
-      ? (["내정보", "학생관리", "반 관리", "QR 생성"] as const)
-      : (["내정보", "학생관리", "반 관리"] as const);
+      ? (["학생관리", "반 관리", "QR 생성"] as const)
+      : (["학생관리", "반 관리"] as const);
 
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -279,6 +279,7 @@ function SidebarProfile({
   user,
   onLogout,
   onOpenRecentQna,
+  onOpenMyInfo, // ✅ 추가
 }: {
   user: {
     role?: "student" | "teacher" | "parent" | "director" | string;
@@ -288,6 +289,7 @@ function SidebarProfile({
   } | null;
   onLogout: () => void;
   onOpenRecentQna?: () => void;
+  onOpenMyInfo?: () => void; // ✅ 추가
 }) {
   const router = useRouter();
   const role = user?.role;
@@ -321,7 +323,7 @@ function SidebarProfile({
             </div>
             {role && (
               <span
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ring-1 ${roleColor}`}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${roleColor}`}
                 title={`role: ${role}`}
               >
                 <span className="inline-block w-2 h-2 rounded-full bg-current opacity-70" />
@@ -363,10 +365,14 @@ function SidebarProfile({
 
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => router.push("/settings/profile")}
+              onClick={() => {
+                // ✅ 원장/교사면 관리 → 내정보로 열기, 그 외에는 기존 프로필 페이지로 폴백
+                if (onOpenMyInfo) onOpenMyInfo();
+                else router.push("/settings/profile");
+              }}
               className="rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-xs font-medium text-gray-800"
             >
-              개인정보 수정
+              내 정보 {/* ✅ 문구 변경 */}
             </button>
             <button
               onClick={() => router.push("/account/delete")}
@@ -813,7 +819,20 @@ export default function GreenAcademyDashboard() {
 
       {/* 본문 */}
       <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        <SidebarProfile user={user} onLogout={handleLogout} onOpenRecentQna={handleOpenRecentQna} />
+        <SidebarProfile
+          user={user}
+          onLogout={handleLogout}
+          onOpenRecentQna={handleOpenRecentQna}
+          onOpenMyInfo={() => {
+            // ✅ 원장/교사: 관리 → 내정보, 그 외: 기존 경로 폴백
+            if (user?.role === "teacher" || user?.role === "director") {
+              setActiveTab("관리");
+              setManageMenu("내정보");
+            } else {
+              router.push("/settings/profile");
+            }
+          }}
+        />
 
         {/* 탭별 콘텐츠 */}
         {activeTab === "종합정보" && (
@@ -882,7 +901,12 @@ export default function GreenAcademyDashboard() {
         )}
 
         {/* 원장 전용: 출결확인 탭 */}
-        {activeTab === "출결확인" && user?.role === "director" && <DirectorMyInfoCard/>}
+        {activeTab === "출결확인" && (
+          <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">출결확인</h2>
+            <p className="text-sm text-gray-700">출결확인 페이지 입니다.</p>
+          </div>
+        )}
 
         {/* 시간표 탭 */}
         {activeTab === "시간표" && (

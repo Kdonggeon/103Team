@@ -9,6 +9,7 @@ import com.team103.repository.TeacherRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -21,16 +22,19 @@ import java.util.Map;
 public class TeacherController {
 
     private final TeacherRepository teacherRepo;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     private CourseRepository courseRepo;
 
     @Autowired
     private AttendanceRepository attendanceRepo;
-    
-    
-    public TeacherController(TeacherRepository teacherRepo) {
+
+    @Autowired
+    public TeacherController(TeacherRepository teacherRepo,
+                             PasswordEncoder passwordEncoder) {
         this.teacherRepo = teacherRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /** 교사 전체 조회 */
@@ -39,9 +43,13 @@ public class TeacherController {
         return teacherRepo.findAll();
     }
 
-    /** 교사 생성 (필요 시 SecurityConfig에서 permitAll 유지) */
+    /** 교사 생성 (비밀번호 해시 후 저장) */
     @PostMapping
     public Teacher create(@RequestBody Teacher teacher) {
+        String raw = teacher.getTeacherPw();
+        if (raw != null && !raw.isBlank()) {
+            teacher.setTeacherPw(passwordEncoder.encode(raw));
+        }
         return teacherRepo.save(teacher);
     }
 
@@ -71,5 +79,4 @@ public class TeacherController {
         if (t == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "not found");
         return ResponseEntity.ok(Map.of("username", t.getTeacherId()));
     }
-    
 }
