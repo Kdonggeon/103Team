@@ -3,6 +3,7 @@ package com.team103.controller;
 
 import com.team103.model.Course;
 import com.team103.repository.CourseRepository;
+import com.team103.service.AttendanceSeedService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -20,10 +22,14 @@ import java.util.stream.Collectors;
 public class TeacherScheduleController {
 
     private static final Logger log = LoggerFactory.getLogger(TeacherScheduleController.class);
-    private final CourseRepository courseRepo;
 
-    public TeacherScheduleController(CourseRepository courseRepo) {
+    private final CourseRepository courseRepo;
+    private final AttendanceSeedService seedSvc;
+
+    public TeacherScheduleController(CourseRepository courseRepo,
+                                     AttendanceSeedService seedSvc) {
         this.courseRepo = courseRepo;
+        this.seedSvc = seedSvc;
     }
 
     /* ───────────────── helpers ───────────────── */
@@ -42,37 +48,26 @@ public class TeacherScheduleController {
         }
     }
 
-    /** ✅ 레포 수정 없이 classId/id/name 까지 유연 매칭 */
+    /** 레포 수정 없이 classId/id/name 까지 유연 매칭 */
     private Course findCourseByClassIdFlexible(String anyIdOrName) {
         if (anyIdOrName == null) return null;
-        // 입력 정규화
         String key = anyIdOrName.trim()
-                .replaceAll("^\"|\"$", "")     // 양끝 따옴표 제거
-                .replaceAll("\\s+", " ");      // 중간 다중공백 정리
+                .replaceAll("^\"|\"$", "")
+                .replaceAll("\\s+", " ");
 
         List<Course> all = courseRepo.findAll();
         if (all.isEmpty()) return null;
 
-        // 1) exact: classId
-        for (Course c : all) {
-            if (key.equals(c.getClassId())) return c;
-        }
-        // 2) case-insensitive: classId
-        for (Course c : all) {
-            if (c.getClassId() != null && key.equalsIgnoreCase(c.getClassId())) return c;
-        }
-        // 3) Mongo _id(문서 id)로 들어오는 경우
-        for (Course c : all) {
-            if (c.getId() != null && key.equals(c.getId())) return c;
-        }
-        // 4) className 으로 들어온 경우(이름이 유니크일 때만)
+        for (Course c : all) if (key.equals(c.getClassId())) return c;
+        for (Course c : all) if (c.getClassId() != null && key.equalsIgnoreCase(c.getClassId())) return c;
+        for (Course c : all) if (c.getId() != null && key.equals(c.getId())) return c;
+
         List<Course> nameMatches = new ArrayList<>();
         for (Course c : all) {
             if (c.getClassName() != null && key.equals(c.getClassName().trim())) nameMatches.add(c);
         }
         if (nameMatches.size() == 1) return nameMatches.get(0);
 
-        // 5) 마지막 시도: 공백/하이픈/콜론 제거 후 classId 비교
         String loose = key.replaceAll("[\\s:-]", "");
         for (Course c : all) {
             String cid = c.getClassId() == null ? "" : c.getClassId().replaceAll("[\\s:-]", "");
@@ -80,7 +75,6 @@ public class TeacherScheduleController {
         }
         return null;
     }
-
 
     public record ScheduleItem(
             String scheduleId,
@@ -101,6 +95,16 @@ public class TeacherScheduleController {
             String startTime,   // HH:mm
             String endTime,     // HH:mm
             Integer roomNumber, // optional
+            String memo
+    ) {}
+
+    /** 벌크 추가용 DTO */
+    public record CreateSchedulesBulkReq(
+            List<String> dates, // ["YYYY-MM-DD", ...]
+            String classId,
+            String startTime,   // optional 공통
+            String endTime,     // optional 공통
+            Integer roomNumber, // optional 공통
             String memo
     ) {}
 
@@ -141,7 +145,6 @@ public class TeacherScheduleController {
     }
 
     /* ── 조회: 특정 일 ── */
-
     @GetMapping("/{teacherId}/schedules/day")
     public List<ScheduleItem> getDay(@PathVariable String teacherId,
                                      @RequestParam String date,
@@ -167,7 +170,6 @@ public class TeacherScheduleController {
     }
 
     /* ── 조회: 범위 ── */
-
     @GetMapping(value = "/{teacherId}/schedules", params = {"from","to"})
     public List<ScheduleItem> list(@PathVariable String teacherId,
                                    @RequestParam String from,
@@ -198,8 +200,7 @@ public class TeacherScheduleController {
                 .collect(Collectors.toList());
     }
 
-    /* ── 생성: 날짜별 오버라이드 저장 ── */
-
+    /* ── 생성: 날짜별 오버라이드 저장 + Attendance 즉시 생성 ── */
     @PostMapping("/{teacherId}/schedules")
     public ResponseEntity<?> create(@PathVariable String teacherId,
                                     @RequestBody CreateScheduleReq body,
@@ -211,7 +212,6 @@ public class TeacherScheduleController {
         if (body.classId() == null || body.classId().isBlank())
             return ResponseEntity.badRequest().body("classId required");
 
-        // ✅ 레포 메서드 없이 classId로 찾기
         Course c = findCourseByClassIdFlexible(body.classId());
         if (c == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("class not found");
 
@@ -231,6 +231,9 @@ public class TeacherScheduleController {
 
         // 같은 방(Room) 충돌 검사 — 모든 코스
         for (Course other : courseRepo.findAll()) {
+            // ✅ 같은 반은 충돌 검사에서 제외
+            if (Objects.equals(other.getClassId(), c.getClassId())) continue;
+
             if (!Objects.equals(room, other.getRoomFor(ymd))) continue;
             if (isIn(ymd, other.getCancelledDates())) continue;
 
@@ -246,29 +249,102 @@ public class TeacherScheduleController {
             }
         }
 
-        // 내 스케줄(방 무관) 시간 겹침 차단
+        // 내 스케줄(방 무관) 시간 겹침 차단 — ✅ 같은 반은 제외
         List<ScheduleItem> myDay = getDay(teacherId, ymd, auth);
-        boolean timeClash = myDay.stream().anyMatch(ev -> overlaps(start, end, ev.startTime(), ev.endTime()));
+        boolean timeClash = myDay.stream()
+                .filter(ev -> !Objects.equals(ev.classId(), c.getClassId()))
+                .anyMatch(ev -> overlaps(start, end, ev.startTime(), ev.endTime()));
         if (timeClash) return ResponseEntity.status(HttpStatus.CONFLICT).body("time conflict");
 
         boolean matchesWeekly = Optional.ofNullable(c.getDaysOfWeek()).orElse(List.of()).stream()
                 .map(Object::toString).map(Integer::parseInt).anyMatch(n -> n == dow);
 
-        // ✅ 날짜별 오버라이드(시간/방) 저장
+        // 날짜별 오버라이드 저장
         c.putOverride(ymd, start, end, room);
-
         if (!matchesWeekly) {
             Set<String> extras = new LinkedHashSet<>(Optional.ofNullable(c.getExtraDates()).orElseGet(ArrayList::new));
             extras.add(ymd);
             c.setExtraDates(new ArrayList<>(extras));
         }
-
         courseRepo.save(c);
+
+        // Attendance 즉시 생성
+        seedSvc.ensureAttendanceForDate(c.getClassId(), ymd);
+
         return ResponseEntity.ok(toItem(c, ymd));
     }
 
-    /* ── 삭제 ── */
+    /* ── 벌크 생성: 여러 날짜 한꺼번에 + Attendance 일괄 생성 ── */
+    @PostMapping("/{teacherId}/schedules/bulk")
+    public ResponseEntity<?> createBulk(@PathVariable String teacherId,
+                                        @RequestBody CreateSchedulesBulkReq body,
+                                        Authentication auth) {
+        guardTeacherId(teacherId, auth);
 
+        if (body == null || body.classId() == null || body.classId().isBlank())
+            return ResponseEntity.badRequest().body("classId required");
+        if (body.dates() == null || body.dates().isEmpty())
+            return ResponseEntity.badRequest().body("dates required");
+
+        Course c = findCourseByClassIdFlexible(body.classId());
+        if (c == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("class not found");
+        if (!(hasRole(auth, "DIRECTOR") || teacherId.equals(c.getTeacherId())))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("not your class");
+
+        List<ScheduleItem> created = new ArrayList<>();
+        for (String raw : body.dates()) {
+            if (raw == null || raw.isBlank()) continue;
+            String ymd = LocalDate.parse(raw.strip()).toString();
+            int dow = toMonFirstDow(LocalDate.parse(ymd));
+
+            String start = isHHmm(body.startTime()) ? body.startTime() : c.getTimeFor(ymd).getStart();
+            String end   = isHHmm(body.endTime())   ? body.endTime()   : c.getTimeFor(ymd).getEnd();
+            Integer room = (body.roomNumber() != null) ? body.roomNumber() : c.getRoomFor(ymd);
+
+            if (!isHHmm(start) || !isHHmm(end)) return ResponseEntity.badRequest().body("invalid time (HH:mm required)");
+            if (room == null) return ResponseEntity.badRequest().body("room required");
+
+            // 간단 충돌 체크(동일 로직 재사용)
+            for (Course other : courseRepo.findAll()) {
+                // ✅ 같은 반은 충돌 검사에서 제외
+                if (Objects.equals(other.getClassId(), c.getClassId())) continue;
+
+                if (!Objects.equals(room, other.getRoomFor(ymd))) continue;
+                if (isIn(ymd, other.getCancelledDates())) continue;
+
+                boolean weekly = Optional.ofNullable(other.getDaysOfWeek()).orElse(List.of()).stream()
+                        .map(Object::toString).map(Integer::parseInt).anyMatch(n -> n == dow);
+                boolean extra = isIn(ymd, other.getExtraDates());
+                if (!(weekly || extra)) continue;
+
+                Course.DailyTime odt = other.getTimeFor(ymd);
+                String os = odt.getStart(), oe = odt.getEnd();
+                if (overlaps(start, end, os, oe)) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body("room conflict at " + ymd);
+                }
+            }
+
+            // 저장
+            c.putOverride(ymd, start, end, room);
+            boolean matchesWeekly = Optional.ofNullable(c.getDaysOfWeek()).orElse(List.of()).stream()
+                    .map(Object::toString).map(Integer::parseInt).anyMatch(n -> n == dow);
+            if (!matchesWeekly) {
+                Set<String> extras = new LinkedHashSet<>(Optional.ofNullable(c.getExtraDates()).orElseGet(ArrayList::new));
+                extras.add(ymd);
+                c.setExtraDates(new ArrayList<>(extras));
+            }
+
+            // 시드
+            seedSvc.ensureAttendanceForDate(c.getClassId(), ymd);
+            created.add(toItem(c, ymd));
+        }
+
+        courseRepo.save(c);
+        created.sort(Comparator.comparing(ScheduleItem::date).thenComparing(ScheduleItem::startTime));
+        return ResponseEntity.ok(created);
+    }
+
+    /* ── 삭제 ── */
     @DeleteMapping("/{teacherId}/schedules/{scheduleId}")
     public ResponseEntity<?> delete(@PathVariable String teacherId,
                                     @PathVariable String scheduleId,
@@ -282,7 +358,6 @@ public class TeacherScheduleController {
         LocalDate date = LocalDate.parse(ymd);
         int dow = toMonFirstDow(date);
 
-        // ✅ 레포 메서드 없이 classId로 찾기
         Course c = findCourseByClassIdFlexible(classId);
         if (c == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("class not found");
         if (!(hasRole(auth, "DIRECTOR") || teacherId.equals(c.getTeacherId())))
@@ -309,5 +384,44 @@ public class TeacherScheduleController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("schedule not found");
+    }
+
+    /* ── 오늘 수업 목록 ── */
+    @GetMapping("/{teacherId}/classes/today")
+    public List<Map<String,Object>> listToday(@PathVariable String teacherId,
+                                              @RequestParam(required = false) String date,
+                                              Authentication auth) {
+        guardTeacherId(teacherId, auth);
+
+        String ymd = (date == null || date.isBlank())
+                ? LocalDate.now().toString()
+                : LocalDate.parse(date.strip(), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toString();
+
+        int dow = LocalDate.parse(ymd).getDayOfWeek().getValue();
+        List<Course> all = courseRepo.findByTeacherId(teacherId);
+        if (all == null || all.isEmpty()) return List.of();
+
+        List<Map<String,Object>> out = new ArrayList<>();
+        for (Course c : all) {
+            boolean weekly = Optional.ofNullable(c.getDaysOfWeek()).orElse(List.of())
+                    .stream().map(Object::toString).map(Integer::parseInt).anyMatch(n -> n==dow);
+            boolean extra = Optional.ofNullable(c.getExtraDates()).orElse(List.of()).contains(ymd);
+            boolean cancel = Optional.ofNullable(c.getCancelledDates()).orElse(List.of()).contains(ymd);
+
+            if ((weekly || extra) && !cancel) {
+                Course.DailyTime dt = c.getTimeFor(ymd);
+                Integer room = c.getRoomFor(ymd);
+                Map<String,Object> m = new LinkedHashMap<>();
+                m.put("classId", c.getClassId());
+                m.put("title", c.getClassName());
+                m.put("date", ymd);
+                m.put("startTime", dt.getStart());
+                m.put("endTime", dt.getEnd());
+                m.put("roomNumber", room);
+                out.add(m);
+            }
+        }
+        out.sort(Comparator.comparing(m -> (String)m.get("startTime")));
+        return out;
     }
 }

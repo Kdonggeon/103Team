@@ -54,11 +54,14 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/teacher").permitAll()
+             // authorizeHttpRequests 안에 추가
+                .requestMatchers("/api/teachermain/**").hasAnyRole("TEACHER","DIRECTOR")
+
 
                 /* 교사/원장 공통 */
                 .requestMatchers("/api/teachers/**").hasAnyRole("TEACHER","DIRECTOR")
                 .requestMatchers("/api/calendar/**").hasAnyRole("TEACHER","DIRECTOR")
-
+                
                 /* 강의실 조회(교사/원장 허용) */
                 .requestMatchers(HttpMethod.GET, "/api/admin/rooms").hasAnyRole("TEACHER","DIRECTOR")
                 .requestMatchers(HttpMethod.GET, "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER","DIRECTOR")
@@ -74,6 +77,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/**").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.DELETE,"/api/admin/rooms/**").hasRole("DIRECTOR")
                 .requestMatchers("/api/admin/**").hasRole("DIRECTOR")
+                .requestMatchers("/api/director/overview/**").hasAnyRole("DIRECTOR","TEACHER")
+
 
                 /* 나머지 인증 필요 */
                 .anyRequest().authenticated()
@@ -98,4 +103,6 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", cfg);
         return source;
     }
+    
+    
 }

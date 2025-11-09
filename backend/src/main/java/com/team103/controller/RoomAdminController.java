@@ -1,3 +1,4 @@
+// src/main/java/com/team103/controller/RoomAdminController.java
 package com.team103.controller;
 
 import com.team103.dto.RoomLite;
@@ -9,12 +10,15 @@ import com.team103.service.RoomService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+/**
+ * 학원 강의실 관리 + 벡터 좌석 편집용 통합 컨트롤러
+ * (※ AdminRoomsVectorController는 제거해야 충돌이 사라집니다)
+ */
 @RestController
 @RequestMapping("/api/admin/rooms")
+@CrossOrigin(origins = "*")
 public class RoomAdminController {
 
     private final RoomRepository roomRepo;
@@ -41,21 +45,21 @@ public class RoomAdminController {
         return out;
     }
 
-    /** 상세 (없으면 생성) */
+    /** ✅ 상세 조회 (없으면 새로 생성) */
     @GetMapping("/{roomNumber}")
     public Room detail(@PathVariable Integer roomNumber,
                        @RequestParam Integer academyNumber) {
         return roomService.getOrCreate(roomNumber, academyNumber);
     }
 
-    /** 벡터 레이아웃 조회 */
+    /** ✅ 벡터 레이아웃 조회 */
     @GetMapping("/{roomNumber}/vector-layout")
     public RoomVectorLayoutResponse getVector(@PathVariable Integer roomNumber,
                                               @RequestParam Integer academyNumber) {
         return roomService.getVectorLayout(roomNumber, academyNumber);
     }
 
-    /** 저장(전체 교체) – query/path 값을 DTO에 주입 */
+    /** ✅ 저장(전체 교체) */
     @PutMapping("/{roomNumber}/vector-layout")
     public ResponseEntity<?> putVector(@PathVariable Integer roomNumber,
                                        @RequestParam Integer academyNumber,
@@ -66,7 +70,7 @@ public class RoomAdminController {
         return ResponseEntity.ok(Map.of("message", "saved"));
     }
 
-    /** 부분 수정(PATCH) – query/path 값을 DTO에 주입 */
+    /** ✅ 부분 수정(PATCH) */
     @PatchMapping("/{roomNumber}/vector-layout")
     public ResponseEntity<?> patchVector(@PathVariable Integer roomNumber,
                                          @RequestParam Integer academyNumber,
@@ -77,7 +81,7 @@ public class RoomAdminController {
         return ResponseEntity.ok(Map.of("message", "patched"));
     }
 
-    /** 벡터 레이아웃 초기화(삭제) */
+    /** ✅ 벡터 레이아웃 초기화(삭제) */
     @DeleteMapping("/{roomNumber}/vector-layout")
     public ResponseEntity<?> clearVector(@PathVariable Integer roomNumber,
                                          @RequestParam Integer academyNumber) {
@@ -85,7 +89,7 @@ public class RoomAdminController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 방 삭제(문서 자체 삭제) */
+    /** ✅ 방 자체 삭제 */
     @DeleteMapping("/{roomNumber}")
     public ResponseEntity<Void> deleteRoom(@PathVariable Integer roomNumber,
                                            @RequestParam Integer academyNumber) {
@@ -95,7 +99,7 @@ public class RoomAdminController {
         return ResponseEntity.noContent().build();
     }
 
-    /** (선택) 서비스에서 던진 IllegalArgumentException을 400으로 변환 */
+    /** ⚠️ 서비스에서 던진 IllegalArgumentException을 400으로 변환 */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));

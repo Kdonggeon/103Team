@@ -24,9 +24,11 @@ export type MonthCalendarProps = {
   onDayClick?: (date: string) => void;
   onPrevMonth?: () => void;
   onNextMonth?: () => void;
+  /** 이벤트 칩 클릭 핸들러 */
+  onEventClick?: (ev: MonthEvent) => void;
 };
 
-// ✅ 로컬 기준으로 안전하게 YYYY-MM-DD 만들기
+// 로컬 기준 YYYY-MM-DD
 const ymd = (d: Date) => {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -45,16 +47,17 @@ export default function MonthCalendar({
   onDayClick,
   onPrevMonth,
   onNextMonth,
+  onEventClick,
 }: MonthCalendarProps) {
-  const first = new Date(year, month - 1, 1); // ✅ 로컬 생성자 사용
+  const first = new Date(year, month - 1, 1);
   const firstDow = first.getDay(); // 0~6
   const last = new Date(year, month, 0);
   const daysInMonth = last.getDate();
 
-  // ✅ 로컬 기준으로 6주 그리드(42칸) 구성
+  // 6주 그리드(42칸)
   const cells = useMemo(() => {
     const arr: { date: string; inMonth: boolean; dow: number }[] = [];
-    // 전월 채우기
+    // 전월
     for (let i = 0; i < firstDow; i++) {
       const d = new Date(year, month - 1, -(firstDow - i - 1));
       arr.push({ date: ymd(d), inMonth: false, dow: d.getDay() });
@@ -64,9 +67,9 @@ export default function MonthCalendar({
       const d = new Date(year, month - 1, day);
       arr.push({ date: ymd(d), inMonth: true, dow: d.getDay() });
     }
-    // 다음달 채우기 (총 42칸)
+    // 다음달 (총 42칸)
     while (arr.length < 42) {
-      const lastDate = new Date(arr[arr.length - 1].date + "T00:00:00"); // ✅ 로컬기준
+      const lastDate = new Date(arr[arr.length - 1].date + "T00:00:00");
       lastDate.setDate(lastDate.getDate() + 1);
       arr.push({ date: ymd(lastDate), inMonth: false, dow: lastDate.getDay() });
     }
@@ -97,7 +100,9 @@ export default function MonthCalendar({
         >
           ◀
         </button>
-        <div className="text-lg font-semibold">{year}년 {month}월</div>
+        <div className="text-lg font-semibold">
+          {year}년 {month}월
+        </div>
         <button
           type="button"
           onClick={onNextMonth}
@@ -109,8 +114,11 @@ export default function MonthCalendar({
 
       {/* 요일 */}
       <div className="grid grid-cols-7 text-center text-sm font-semibold mb-1">
-        {["일","월","화","수","목","금","토"].map((w, i) => (
-          <div key={w} className={i===0 ? "text-red-600" : i===6 ? "text-blue-600" : "text-gray-900"}>
+        {["일", "월", "화", "수", "목", "금", "토"].map((w, i) => (
+          <div
+            key={w}
+            className={i === 0 ? "text-red-600" : i === 6 ? "text-blue-600" : "text-gray-900"}
+          >
             {w}
           </div>
         ))}
@@ -130,30 +138,41 @@ export default function MonthCalendar({
           const evs = evByDate.get(c.date) ?? [];
 
           return (
-            <button
+            <div
               key={c.date}
-              type="button"
-              onClick={() => onDayClick?.(c.date)}
               className={[
-                "relative min-h-[96px] bg-white rounded-lg p-2 text-left",
-                "border border-gray-400 hover:bg-emerald-50 transition",
+                "relative min-h-[96px] bg-white rounded-lg p-2",
+                "border border-gray-400 transition",
                 isSel ? "ring-2 ring-red-500" : isToday ? "ring-2 ring-emerald-500" : "",
               ].join(" ")}
             >
+              {/* 날짜 클릭(빈공간) */}
+              <button
+                type="button"
+                onClick={() => onDayClick?.(c.date)}
+                className="absolute inset-0 rounded-lg hover:bg-emerald-50 focus:outline-none"
+                aria-label={`${c.date} 선택`}
+              />
               <div className={`absolute left-2 top-1 text-xs ${numberColor}`}>{n}</div>
-              <div className="mt-5 space-y-1">
+
+              <div className="relative mt-5 space-y-1">
                 {evs.map((ev) => (
-                  <div
+                  <button
                     key={ev.id}
-                    className="w-full rounded-md border border-black px-2 py-1 text-xs font-medium truncate"
-                    style={{ background: ev.color ?? "#fee2e2" }}
+                    type="button"
                     title={ev.title}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick?.(ev);
+                    }}
+                    className="w-full rounded-md border border-black px-2 py-1 text-xs font-medium truncate text-left hover:opacity-90"
+                    style={{ background: ev.color ?? "#fee2e2" }}
                   >
                     {ev.title}
-                  </div>
+                  </button>
                 ))}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

@@ -2,6 +2,7 @@ package com.team103.repository;
 
 import com.team103.model.WaitingRoom;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,4 +23,8 @@ public interface WaitingRoomRepository extends MongoRepository<WaitingRoom, Stri
 
     /** 좌석 배정 완료 시 대기실에서 제거 */
     void deleteByAcademyNumberAndStudentId(int academyNumber, String studentId);
+    
+
+	@Query("{ 'Academy_Number': ?0, 'Student_ID': { $in: ?1 } }")
+	List<WaitingRoom> findByAcademyNumberAndStudentIdIn(int academyNumber, List<String> studentIds);
 }

@@ -1,12 +1,15 @@
+// src/main/java/com/team103/controller/TeacherClassManageController.java
 package com.team103.controller;
 
 import com.team103.dto.CreateClassRequest;
 import com.team103.dto.ScheduleItem;
 import com.team103.dto.StudentSearchResponse;
 import com.team103.dto.UpdateClassRequest;
+import com.team103.model.Attendance;
 import com.team103.model.Course;
 import com.team103.model.Student;
 import com.team103.model.Teacher;
+import com.team103.repository.AttendanceRepository;
 import com.team103.repository.CourseRepository;
 import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
@@ -22,15 +25,14 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * 교사용 반/학생/스케줄 관리 컨트롤러 (원장도 접근 가능)
- * 프론트의 경로 혼재를 위해 두 prefix를 동시에 지원:
- *   - /api/teachers/**
- *   - /api/manage/teachers/**
+ * 프론트 경로 혼재 대응: /api/teachers/** 와 /api/manage/teachers/** 동시 지원
  */
 @RestController
 @RequestMapping({"/api/teachers", "/api/manage/teachers"})
@@ -42,15 +44,18 @@ public class TeacherClassManageController {
     private final StudentRepository studentRepo;
     private final TeacherRepository teacherRepo;
     private final MongoTemplate mongo;
+    private final AttendanceRepository attRepo;
 
     public TeacherClassManageController(CourseRepository courseRepo,
                                         StudentRepository studentRepo,
                                         TeacherRepository teacherRepo,
-                                        MongoTemplate mongo) {
+                                        MongoTemplate mongo,
+                                        AttendanceRepository attRepo) {
         this.courseRepo = courseRepo;
         this.studentRepo = studentRepo;
         this.teacherRepo = teacherRepo;
         this.mongo = mongo;
+        this.attRepo = attRepo;
     }
 
     /* ===================== 공통 가드/유틸 ===================== */
@@ -88,7 +93,7 @@ public class TeacherClassManageController {
         return courseRepo.findByTeacherId(teacherId);
     }
 
-    /* ===================== 반 생성 ===================== */
+    /* ===================== 반 생성 (출석 자동 시딩 포함) ===================== */
 
     @PostMapping("/classes")
     public ResponseEntity<?> createClass(@RequestBody CreateClassRequest req, Authentication auth) {
@@ -137,7 +142,13 @@ public class TeacherClassManageController {
         if (req.getDaysOfWeek() != null) c.setDaysOfWeek(new ArrayList<>(req.getDaysOfWeek()));
         c.setSchedule(req.getSchedule());
 
-        return ResponseEntity.ok(courseRepo.save(c));
+        // 먼저 코스 저장
+        Course saved = courseRepo.save(c);
+
+        // ✅ 출석(attendances) 문서 자동 시딩 (오늘 포함 +30일, 정규 수업일만)
+        seedAttendanceForNewClass(saved, 30);
+
+        return ResponseEntity.ok(saved);
     }
 
     /* ===================== 반 상세 ===================== */
@@ -235,6 +246,12 @@ public class TeacherClassManageController {
                 c.setStudents(c.getStudents().stream()
                         .filter(id -> !studentId.equals(id))
                         .collect(Collectors.toList()));
+                // 좌석 배정도 함께 제거
+                if (c.getSeatMap() != null) {
+                    for (Map<String,String> m : c.getSeatMap().values()) {
+                        m.entrySet().removeIf(e -> studentId.equals(e.getValue()));
+                    }
+                }
                 courseRepo.save(c);
             }
             return ResponseEntity.ok().build();
@@ -264,104 +281,6 @@ public class TeacherClassManageController {
             r.setAcademyNumber(academy);
             return r;
         }).collect(Collectors.toList());
-    }
-
-    /* ===================== 교사용: 학생 정보 수정(아이디 변경 포함) ===================== */
-
-    @PatchMapping("/students/{studentId}")
-    public ResponseEntity<?> updateStudentByTeacher(@PathVariable String studentId,
-                                                    @RequestBody Map<String, Object> body,
-                                                    Authentication auth) {
-        // 인증 체크
-        if (auth == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("UNAUTHORIZED");
-
-        // 1) 학생 조회
-        Student st = studentRepo.findByStudentId(studentId);
-        if (st == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("student not found");
-
-        // 2) 권한 체크: 교사 또는 원장 + 학원번호 교집합
-        Teacher me = teacherRepo.findByTeacherId(auth.getName());
-        boolean director = hasRole(auth, "DIRECTOR");
-        if (!director) {
-            if (me == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("NO_PERMISSION");
-            List<Integer> mine = Optional.ofNullable(me.getAcademyNumbers()).orElse(List.of());
-            List<Integer> students = Optional.ofNullable(st.getAcademyNumbers()).orElse(List.of());
-            boolean ok = false;
-            for (Integer n : students) if (mine.contains(n)) { ok = true; break; }
-            if (!ok) return ResponseEntity.status(HttpStatus.FORBIDDEN).body("NO_PERMISSION");
-        }
-
-        // 3) 기본 필드 적용
-        if (body.containsKey("studentName")) st.setStudentName(Objects.toString(body.get("studentName"), st.getStudentName()));
-        if (body.containsKey("Student_Name")) st.setStudentName(Objects.toString(body.get("Student_Name"), st.getStudentName()));
-        if (body.containsKey("school")) st.setSchool(Objects.toString(body.get("school"), st.getSchool()));
-        if (body.containsKey("School")) st.setSchool(Objects.toString(body.get("School"), st.getSchool()));
-        if (body.containsKey("grade")) st.setGrade(body.get("grade") == null ? null : Integer.valueOf(body.get("grade").toString()));
-        if (body.containsKey("Grade")) st.setGrade(body.get("Grade") == null ? null : Integer.valueOf(body.get("Grade").toString()));
-        if (body.containsKey("gender")) st.setGender(Objects.toString(body.get("gender"), st.getGender()));
-        if (body.containsKey("Gender")) st.setGender(Objects.toString(body.get("Gender"), st.getGender()));
-
-        // 4) 아이디 변경 처리
-        String newId = null;
-        if (body.containsKey("studentId")) newId = Objects.toString(body.get("studentId"), null);
-        if (body.containsKey("Student_ID")) newId = Objects.toString(body.get("Student_ID"), newId);
-
-        if (newId != null && !newId.isBlank() && !newId.equals(studentId)) {
-            if (studentRepo.existsByStudentId(newId)) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("DUPLICATE_STUDENT_ID");
-            }
-
-            // 4-1) 학생 문서 저장(아이디 변경)
-            st.setStudentId(newId);
-            studentRepo.save(st);
-
-            // 4-2) 수업 students 배열 값 교체
-            List<Course> courses = courseRepo.findByStudentsContaining(studentId);
-            for (Course c : courses) {
-                List<String> arr = new ArrayList<>(Optional.ofNullable(c.getStudents()).orElse(List.of()));
-                for (int i = 0; i < arr.size(); i++) if (studentId.equals(arr.get(i))) arr.set(i, newId);
-                c.setStudents(arr);
-                courseRepo.save(c);
-            }
-
-            // 4-3) 부모 문서의 관련 필드 교체 — 위치 연산자($) 사용
-            mongo.updateMulti(
-                    new Query(Criteria.where("Student_ID_List").is(studentId)),
-                    new Update().set("Student_ID_List.$", newId),
-                    "parents"
-            );
-            mongo.updateMulti(
-                    new Query(Criteria.where("studentIdList").is(studentId)),
-                    new Update().set("studentIdList.$", newId),
-                    "parents"
-            );
-            mongo.updateMulti(
-                    new Query(Criteria.where("children.Student_ID").is(studentId)),
-                    new Update().set("children.$.Student_ID", newId),
-                    "parents"
-            );
-            mongo.updateMulti(
-                    new Query(Criteria.where("children.studentId").is(studentId)),
-                    new Update().set("children.$.studentId", newId),
-                    "parents"
-            );
-            mongo.updateMulti(
-                    new Query(Criteria.where("students.Student_ID").is(studentId)),
-                    new Update().set("students.$.Student_ID", newId),
-                    "parents"
-            );
-            mongo.updateMulti(
-                    new Query(Criteria.where("students.studentId").is(studentId)),
-                    new Update().set("students.$.studentId", newId),
-                    "parents"
-            );
-
-            return ResponseEntity.ok(Map.of("studentId", newId));
-        } else {
-            // 일반 필드만 저장
-            studentRepo.save(st);
-            return ResponseEntity.ok().build();
-        }
     }
 
     /* ===================== 교사용: 학부모 정보 수정 ===================== */
@@ -537,5 +456,122 @@ public class TeacherClassManageController {
 
         courseRepo.save(c);
         return ResponseEntity.ok().build();
+    }
+
+    /* ===================== 좌석 배정 섹션 ===================== */
+
+    public static class SeatAssignDTO {
+        public Integer roomNumber;
+        public String seatLabel;
+        public String studentId; // null => unassign
+    }
+    public static class SeatAssignBulkDTO {
+        public Integer roomNumber;
+        public List<SeatAssignDTO> items;
+    }
+
+    @GetMapping("/classes/{classId}/seats")
+    public ResponseEntity<?> getSeatMap(@PathVariable String classId,
+                                        @RequestParam Integer roomNumber,
+                                        Authentication auth) {
+        return courseRepo.findByClassId(classId).map(c -> {
+            guardCourseOwner(c, auth);
+            Map<Integer,Map<String,String>> seatMap = c.getSeatMap();
+            Map<String,String> map = (seatMap==null)? Map.of() : seatMap.getOrDefault(roomNumber, Map.of());
+            return ResponseEntity.ok(Map.of("roomNumber", roomNumber, "map", map));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/classes/{classId}/seats")
+    public ResponseEntity<?> assignSeat(@PathVariable String classId,
+                                        @RequestBody SeatAssignDTO req,
+                                        Authentication auth){
+        if (req.roomNumber == null || req.seatLabel == null) {
+            return ResponseEntity.badRequest().body("roomNumber, seatLabel 필요");
+        }
+        return courseRepo.findByClassId(classId).map(c -> {
+            guardCourseOwner(c, auth);
+            if (req.studentId != null && !req.studentId.isBlank()) {
+                c.clearSeatStudent(req.roomNumber, req.studentId);
+                c.assignSeat(req.roomNumber, req.seatLabel, req.studentId);
+            } else {
+                c.assignSeat(req.roomNumber, req.seatLabel, null); // unassign
+            }
+            courseRepo.save(c);
+            return ResponseEntity.ok().build();
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/classes/{classId}/seats/bulk")
+    public ResponseEntity<?> assignSeatBulk(@PathVariable String classId,
+                                            @RequestBody SeatAssignBulkDTO req,
+                                            Authentication auth){
+        if (req.roomNumber == null) {
+            return ResponseEntity.badRequest().body("roomNumber 필요");
+        }
+        return courseRepo.findByClassId(classId).map(c -> {
+            guardCourseOwner(c, auth);
+            if (c.getSeatMap() == null) c.setSeatMap(new HashMap<>());
+
+            Map<String,String> map = new HashMap<>();
+            if (req.items != null) {
+                Map<String,String> lastByStudent = new HashMap<>();
+                for (SeatAssignDTO item : req.items) {
+                    if (item == null) continue;
+                    if (item.seatLabel == null) continue;
+                    if (item.studentId == null || item.studentId.isBlank()) continue;
+                    lastByStudent.put(item.studentId, item.seatLabel);
+                }
+                for (var e : lastByStudent.entrySet()){
+                    map.put(e.getValue(), e.getKey());
+                }
+            }
+            c.getSeatMap().put(req.roomNumber, map);
+            courseRepo.save(c);
+            return ResponseEntity.ok().build();
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    /* ===================== 출석 시딩 유틸 ===================== */
+
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+    private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    /**
+     * 새로 생성된 수업에 대해 오늘 포함 앞으로 N일 동안
+     * 정규 수업일(요일 매칭)만 빈 출석 문서를 미리 생성합니다.
+     *
+     * - 이미 존재하는 (classId, date)는 건너뜀.
+     * - Attendance 필드는 프로젝트 스키마에 맞춰 조정하세요.
+     */
+    private void seedAttendanceForNewClass(Course c, int daysForward) {
+        if (c == null || c.getClassId() == null) return;
+
+        final LocalDate today = LocalDate.now(SEOUL);
+        final LocalDate endEx = today.plusDays(Math.max(daysForward, 0));
+        final List<Integer> dows = (c.getDaysOfWeekInt() != null) ? c.getDaysOfWeekInt() : List.of();
+
+        for (LocalDate d = today; d.isBefore(endEx); d = d.plusDays(1)) {
+            final String ymd = d.format(YMD);
+            final int dow = d.getDayOfWeek().getValue(); // 1~7 ISO (1=월)
+
+            // 정규 수업일만 생성
+            if (!dows.contains(dow)) continue;
+
+            // 이미 있으면 skip
+            if (attRepo.findFirstByClassIdAndDate(c.getClassId(), ymd) != null) continue;
+
+            Attendance att = new Attendance();
+            att.setClassId(c.getClassId());
+            att.setDate(ymd);
+            att.setAttendanceList(new ArrayList<>());   // e.g., [{Student_ID, Status}, ...]
+
+            // 선택 필드(프로젝트에 있으면 세팅)
+            try {
+                att.getClass().getMethod("setSeatAssignments", List.class).invoke(att, new ArrayList<>());
+            } catch (Exception ignore) { /* 없음 */ }
+
+            attRepo.save(att);
+        }
     }
 }

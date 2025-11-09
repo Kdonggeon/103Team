@@ -25,5 +25,6 @@ public interface AttendanceRepository extends MongoRepository<Attendance, String
     // 특정 수업들 + 날짜 구간(양끝 포함) — 월/주 캘린더에서 사용
     List<Attendance> findByClassIdInAndDateBetween(Collection<String> classIds, String from, String to);
 
+    
 
 }

@@ -11,6 +11,9 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Objects;
 
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 @Service
 public class RoomService {
     private final RoomRepository roomRepo;
@@ -119,5 +122,100 @@ public class RoomService {
             out.add(t);
         }
         return out;
+    }
+    
+    public void putVectorLayoutFlexible(int roomNumber, int academyNumber, JsonNode body) {
+        Room r = getOrCreate(roomNumber, academyNumber);
+
+        // 메타(버전/캔버스)
+        Integer ver = pickInt(body, "vectorVersion", "version");
+        Double cw   = pickD(body, "vectorCanvasW", "canvasW");
+        Double ch   = pickD(body, "vectorCanvasH", "canvasH");
+        r.setVectorVersion(ver != null ? ver : 1);
+        r.setVectorCanvasW(cw   != null ? cw   : 1000.0);
+        r.setVectorCanvasH(ch   != null ? ch   : 700.0);
+
+        // 좌석 배열: V2 우선, 없으면 seats
+        JsonNode seats = body.get("vectorLayoutV2");
+        if (seats == null || !seats.isArray()) seats = body.get("seats");
+
+        var list = new ArrayList<Room.VectorSeat>();
+        if (seats != null && seats.isArray()) {
+            for (JsonNode n : seats) {
+                Room.VectorSeat s = new Room.VectorSeat();
+                s.setId(text(n, "_id", "id", "seatId", "seat_id", "label"));
+                if (!StringUtils.hasText(s.getId())) s.setId(java.util.UUID.randomUUID().toString());
+                s.setLabel(text(n, "label", "seatNumber", "name"));
+                s.setX(d(n, "x")); s.setY(d(n, "y"));
+                s.setW(d(n, "w")); s.setH(d(n, "h"));
+                s.setR(d(n, "r"));
+                s.setDisabled(bool(n, "disabled", "isDisabled"));
+                // V2: Student_ID, 레거시: studentId 등
+                s.setStudentId(text(n, "Student_ID", "studentId", "student_id", "student"));
+                list.add(s);
+            }
+        }
+        r.setVectorLayout(list);
+        roomRepo.save(r);
+    }
+
+    /** (선택) PATCH 버전 */
+    public void patchVectorLayoutFlexible(int roomNumber, int academyNumber, JsonNode body) {
+        Room r = roomRepo.findByRoomNumberAndAcademyNumber(roomNumber, academyNumber)
+                .orElseThrow(() -> new IllegalArgumentException("room not found"));
+
+        Integer ver = pickInt(body, "vectorVersion", "version");
+        Double cw   = pickD(body, "vectorCanvasW", "canvasW");
+        Double ch   = pickD(body, "vectorCanvasH", "canvasH");
+        if (ver != null) r.setVectorVersion(ver);
+        if (cw  != null) r.setVectorCanvasW(cw);
+        if (ch  != null) r.setVectorCanvasH(ch);
+
+        JsonNode seats = body.get("vectorLayoutV2");
+        if (seats == null || !seats.isArray()) seats = body.get("seats");
+        if (seats != null && seats.isArray()) {
+            var list = new ArrayList<Room.VectorSeat>();
+            for (JsonNode n : seats) {
+                Room.VectorSeat s = new Room.VectorSeat();
+                s.setId(text(n, "_id", "id", "seatId", "seat_id", "label"));
+                if (!StringUtils.hasText(s.getId())) s.setId(java.util.UUID.randomUUID().toString());
+                s.setLabel(text(n, "label", "seatNumber", "name"));
+                s.setX(d(n, "x")); s.setY(d(n, "y"));
+                s.setW(d(n, "w")); s.setH(d(n, "h"));
+                s.setR(d(n, "r"));
+                s.setDisabled(bool(n, "disabled", "isDisabled"));
+                s.setStudentId(text(n, "Student_ID", "studentId", "student_id", "student"));
+                list.add(s);
+            }
+            r.setVectorLayout(list);
+        }
+        roomRepo.save(r);
+    }
+
+    /* ── helpers ───────────────── */
+    private static Integer pickInt(JsonNode n, String a, String b) {
+        JsonNode x = n.get(a); if (x==null) x = n.get(b);
+        return (x!=null && x.isNumber()) ? x.intValue() : null;
+    }
+    private static Double pickD(JsonNode n, String a, String b) {
+        JsonNode x = n.get(a); if (x==null) x = n.get(b);
+        return (x!=null && x.isNumber()) ? x.doubleValue() : null;
+    }
+    private static String text(JsonNode n, String... keys) {
+        for (String k : keys) {
+            JsonNode v = n.get(k);
+            if (v != null && !v.isNull()) return v.asText();
+        }
+        return null;
+    }
+    private static Double d(JsonNode n, String k) {
+        JsonNode v = n.get(k); return (v!=null && v.isNumber()) ? v.doubleValue() : null;
+    }
+    private static Boolean bool(JsonNode n, String... keys) {
+        for (String k: keys) {
+            JsonNode v = n.get(k);
+            if (v!=null && v.isBoolean()) return v.booleanValue();
+        }
+        return null;
     }
 }

@@ -1,6 +1,6 @@
-// backend/src/main/java/com/team103/controller/RoomController.java
 package com.team103.controller;
 
+import java.time.OffsetDateTime;
 import java.util.Date;
 import java.util.Optional;
 import java.util.ArrayList;
@@ -25,6 +25,7 @@ import com.team103.repository.RoomRepository;
 
 @RestController
 @RequestMapping("/api/rooms")
+@CrossOrigin(origins = "*")
 public class RoomController {
 
     private final RoomRepository roomRepository;
@@ -51,6 +52,31 @@ public class RoomController {
         room.setCurrentClass(currentClass);
         roomRepository.save(room);
         return ResponseEntity.ok("수업이 등록되었습니다");
+    }
+
+    /** (선택) 입구 QR: 웨이팅룸 입장 or 갱신 */
+    @PostMapping("/{roomNumber}/enter-lobby")
+    public ResponseEntity<?> enterLobby(
+            @PathVariable int roomNumber,
+            @RequestParam int academyNumber,
+            @RequestParam String studentId
+    ) {
+        String now = OffsetDateTime.now().toString();
+        // upsert
+        Update update = new Update()
+                .set("Student_ID", studentId)
+                .set("Academy_Number", academyNumber)
+                .set("Checked_In_At", now)
+                .set("Status", "LOBBY");
+        mongoTemplate.upsert(
+                new Query(new Criteria().andOperator(
+                        anyStudentId(studentId),
+                        anyAcademyNumber(academyNumber)
+                )),
+                update,
+                "waiting_room"
+        );
+        return ResponseEntity.ok("로비 입장 기록됨");
     }
 
     /**
@@ -120,33 +146,40 @@ public class RoomController {
 
     /** waiting_room에서 academyNumber+studentId 일치 문서 1건 조회(필드/타입 혼재 대응) */
     private Document findWaitingRoomDoc(int academyNumber, String studentId) {
-        // studentId: 문자열/숫자 혼재 대응
-        List<Criteria> studentOrs = new ArrayList<>();
-        studentOrs.add(Criteria.where("studentId").is(studentId));
-        studentOrs.add(Criteria.where("Student_ID").is(studentId));
-        studentOrs.add(Criteria.where("Student_Id").is(studentId));
-        studentOrs.add(Criteria.where("student_id").is(studentId));
+        Query q = new Query(new Criteria().andOperator(
+                anyAcademyNumber(academyNumber),
+                anyStudentId(studentId)
+        )).limit(1);
+        return mongoTemplate.findOne(q, Document.class, "waiting_room");
+    }
+
+    /* --------- criteria helpers --------- */
+
+    private Criteria anyStudentId(String studentId) {
+        List<Criteria> ors = new ArrayList<>();
+        ors.add(Criteria.where("studentId").is(studentId));
+        ors.add(Criteria.where("Student_ID").is(studentId));
+        ors.add(Criteria.where("Student_Id").is(studentId));
+        ors.add(Criteria.where("student_id").is(studentId));
         try {
             int sidNum = Integer.parseInt(studentId);
-            studentOrs.add(Criteria.where("studentId").is(sidNum));
-            studentOrs.add(Criteria.where("Student_ID").is(sidNum));
-            studentOrs.add(Criteria.where("Student_Id").is(sidNum));
-            studentOrs.add(Criteria.where("student_id").is(sidNum));
-        } catch (NumberFormatException ignore) { /* 문자열만 사용되는 환경 지원 */ }
-        Criteria studentMatch = new Criteria().orOperator(studentOrs.toArray(new Criteria[0]));
+            ors.add(Criteria.where("studentId").is(sidNum));
+            ors.add(Criteria.where("Student_ID").is(sidNum));
+            ors.add(Criteria.where("Student_Id").is(sidNum));
+            ors.add(Criteria.where("student_id").is(sidNum));
+        } catch (NumberFormatException ignore) { }
+        return new Criteria().orOperator(ors.toArray(new Criteria[0]));
+    }
 
-        // academyNumber: 단일 필드/배열, 숫자/문자 모두 대응
+    private Criteria anyAcademyNumber(int academyNumber) {
         String anStr = String.valueOf(academyNumber);
-        List<Criteria> academyOrs = new ArrayList<>();
-        academyOrs.add(Criteria.where("academyNumber").is(academyNumber));
-        academyOrs.add(Criteria.where("academyNumber").is(anStr));
-        academyOrs.add(Criteria.where("Academy_Number").is(academyNumber));
-        academyOrs.add(Criteria.where("Academy_Number").is(anStr));
-        academyOrs.add(Criteria.where("academy_numbers").in(academyNumber, anStr));
-        academyOrs.add(Criteria.where("Academy_Numbers").in(academyNumber, anStr));
-        Criteria academyMatch = new Criteria().orOperator(academyOrs.toArray(new Criteria[0]));
-
-        Query q = new Query(new Criteria().andOperator(academyMatch, studentMatch)).limit(1);
-        return mongoTemplate.findOne(q, Document.class, "waiting_room");
+        List<Criteria> ors = new ArrayList<>();
+        ors.add(Criteria.where("academyNumber").is(academyNumber));
+        ors.add(Criteria.where("academyNumber").is(anStr));
+        ors.add(Criteria.where("Academy_Number").is(academyNumber));
+        ors.add(Criteria.where("Academy_Number").is(anStr));
+        ors.add(Criteria.where("academy_numbers").in(academyNumber, anStr));
+        ors.add(Criteria.where("Academy_Numbers").in(academyNumber, anStr));
+        return new Criteria().orOperator(ors.toArray(new Criteria[0]));
     }
 }

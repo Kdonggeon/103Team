@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.List;
 
-@Document(collection = "attendances")
+@Document(collection = "attendance")
 // Class_ID + Date로 빠른 조회 (하루 1문서 전략)
 @CompoundIndex(name = "class_date_idx", def = "{'Class_ID': 1, 'Date': 1}", unique = true)
 public class Attendance {

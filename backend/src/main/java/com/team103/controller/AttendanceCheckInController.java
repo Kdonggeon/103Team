@@ -49,13 +49,15 @@ public class AttendanceCheckInController {
             return ResponseEntity.badRequest().body("classId / studentId 필요");
         }
 
+        // ✅ 컬렉션명은 매핑(@Document)에서 자동으로 가져오기
+        final String COLL = mongoTemplate.getCollectionName(Attendance.class);
+
         ZoneId KST = ZoneId.of("Asia/Seoul");
         ZonedDateTime now = ZonedDateTime.now(KST);
         LocalDate today = now.toLocalDate();
         int dow = now.getDayOfWeek().getValue(); // 1=월..7=일
 
-        Course course = courseRepository.findByClassId(req.getClassId())
-                .orElse(null);
+        Course course = courseRepository.findByClassId(req.getClassId()).orElse(null);
         if (course == null) {
             return ResponseEntity.badRequest().body("수업을 찾을 수 없음");
         }
@@ -75,12 +77,11 @@ public class AttendanceCheckInController {
         LocalTime S = LocalTime.parse(sStr, HHMM);
         LocalTime E = (eStr != null && !eStr.isEmpty()) ? LocalTime.parse(eStr, HHMM) : S.plusMinutes(50);
 
-        LocalDateTime sDateTime = LocalDateTime.of(today, S);
-        LocalDateTime nowLt = now.toLocalDateTime();
-
-        LocalDateTime openFrom     = sDateTime.minusMinutes(5);
-        LocalDateTime presentUntil = sDateTime.plusMinutes(lateAfterMin);
-        LocalDateTime lateUntil    = sDateTime.plusMinutes(absentAfterMin);
+        LocalDateTime sDateTime   = LocalDateTime.of(today, S);
+        LocalDateTime nowLt       = now.toLocalDateTime();
+        LocalDateTime openFrom    = sDateTime.minusMinutes(5);
+        LocalDateTime presentUntil= sDateTime.plusMinutes(lateAfterMin);
+        LocalDateTime lateUntil   = sDateTime.plusMinutes(absentAfterMin);
 
         if (nowLt.isBefore(openFrom)) return ResponseEntity.status(409).body("아직 출석 오픈 전");
         if (nowLt.isAfter(lateUntil)) return ResponseEntity.status(409).body("결석 시간: 출석 불가");
@@ -90,15 +91,21 @@ public class AttendanceCheckInController {
         String classId = req.getClassId();
         String date = ymd;
 
+        // 필드명은 모델의 @Field 이름과 일치해야 함
         Query q = new Query(Criteria.where("Class_ID").is(classId).and("Date").is(date));
 
+        // 문서 껍데기(upsert)
         Update up = new Update()
+                .setOnInsert("Class_ID", classId)
+                .setOnInsert("Date", date)
                 .setOnInsert("Session_Start", sStr)
                 .setOnInsert("Session_End", (eStr != null && !eStr.isEmpty()) ? eStr : E.format(HHMM))
                 .set("updatedAt", java.util.Date.from(now.toInstant()));
 
-        mongoTemplate.upsert(q, up, "attendances");
+        // ⬇ 컬렉션 이름을 하드코딩하지 말고 COLL 사용
+        mongoTemplate.upsert(q, up, COLL);
 
+        // 기존 학생 항목 상태/시간 갱신
         Update setEntry = new Update()
                 .set("Attendance_List.$[s].Status", status)
                 .set("Attendance_List.$[s].CheckIn_Time", nowLt.format(DateTimeFormatter.ISO_LOCAL_TIME))
@@ -106,8 +113,9 @@ public class AttendanceCheckInController {
                 .filterArray(Criteria.where("s.Student_ID").is(req.getStudentId()));
 
         FindAndModifyOptions opts = FindAndModifyOptions.options().upsert(true).returnNew(true);
-        Attendance updated = mongoTemplate.findAndModify(q, setEntry, opts, Attendance.class, "attendances");
+        Attendance updated = mongoTemplate.findAndModify(q, setEntry, opts, Attendance.class, COLL);
 
+        // 학생 항목이 없으면 push
         if (!hasStudentEntry(updated, req.getStudentId())) {
             Update pushEntry = new Update().push("Attendance_List", new HashMap<String, Object>() {{
                 put("Student_ID", req.getStudentId());
@@ -115,7 +123,7 @@ public class AttendanceCheckInController {
                 put("CheckIn_Time", nowLt.format(DateTimeFormatter.ISO_LOCAL_TIME));
                 put("Source", "app");
             }});
-            mongoTemplate.findAndModify(q, pushEntry, opts, Attendance.class, "attendances");
+            mongoTemplate.findAndModify(q, pushEntry, opts, Attendance.class, COLL);
         }
 
         CheckInResponse res = new CheckInResponse();

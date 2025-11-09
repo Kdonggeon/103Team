@@ -11,6 +11,9 @@ import DirectorRoomsPanel from "@/components/rooms/director/DirectorRoomsPanel";
 import TeacherManagePanel from "@/components/manage/TeacherManagePanel";
 import TeacherSchedulePanelInline from "@/components/manage/TeacherSchedulePanelInline";
 import DirectorPeoplePanel from "@/components/manage/director/DirectorPeoplePanel";
+import DirectorOverviewPanel from "@/components/manage/DirectorOverviewPanel";
+
+
 
 // ✅ QnA
 import { getRecentQna } from "@/lib/qna";
@@ -19,37 +22,22 @@ import TeacherQnaPanel from "./qna/TeacherQnaPanel";
 
 // ✅ QR 생성 패널
 import QRGeneratorPanel from "@/app/teacher/QRGeneratorPanel";
+import TeacherMainPanel from "@/components/manage/TeacherMainPanel";
 
 /** 색상 토큰 */
 const colors = { green: "#65E478", grayBg: "#F2F4F7" };
 
-/* ================== API URL 유틸 (rooms.vector.ts와 동일 규칙) ================== */
-/**
- * API_BASE: 백엔드가 다른 오리진(예: 9090)일 때 절대 URL 앞부분
- * BACKEND_PREFIX: 프록시를 /backend 로 태울 때만 "/backend", 아니면 ""(빈값)
- *
- * 예시1) 직통(CORS):
- *   NEXT_PUBLIC_API_BASE=http://localhost:9090
- *   NEXT_PUBLIC_BACKEND_PREFIX=
- *
- * 예시2) 프록시(/backend → 9090):
- *   NEXT_PUBLIC_API_BASE=
- *   NEXT_PUBLIC_BACKEND_PREFIX=/backend
- */
+/* ================== API URL 유틸 ================== */
 const API_BASE =
   (typeof window !== "undefined" && (window as any).__API_BASE__) ||
   process.env.NEXT_PUBLIC_API_BASE ||
   "";
 const BACKEND_PREFIX = process.env.NEXT_PUBLIC_BACKEND_PREFIX ?? "/backend";
-
-/** 항상 절대/정규화된 URL을 만든다 */
 function absUrl(path: string) {
   const p = path.startsWith("/") ? path : `/${path}`;
   const withPrefix = `${BACKEND_PREFIX}${p}`.replace(/\/{2,}/g, "/");
   return API_BASE ? `${API_BASE}${withPrefix}` : withPrefix;
 }
-
-/** GET 전용 fetch 래퍼 (Authorization 자동 주입) */
 async function apiGet<T>(path: string): Promise<T> {
   const session = getSession();
   const token = session?.token ?? null;
@@ -64,9 +52,7 @@ async function apiGet<T>(path: string): Promise<T> {
     },
   });
   const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText}${text ? " | " + text : ""}`);
-  }
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? " | " + text : ""}`);
   return text ? (JSON.parse(text) as T) : ({} as T);
 }
 
@@ -103,7 +89,6 @@ const toYmd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate()
   ).padStart(2, "0")}`;
-
 const isSameDate = (isoOrYmd: string, base = new Date()) => {
   try {
     if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrYmd)) return isoOrYmd === toYmd(base);
@@ -146,85 +131,386 @@ function NavTabs({
   );
 }
 
-/** 프로필 드롭다운 */
-function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, []);
-
-  const initial = user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
-
+/* =========================================================
+ * 공통 모달 베이스 (검은 텍스트/버튼)
+ * ======================================================= */
+function ModalBase({
+  open,
+  onClose,
+  title,
+  children,
+  maxWidth = "max-w-2xl",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  children?: React.ReactNode;
+  maxWidth?: string;
+}) {
+  if (!open) return null;
   return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((p) => !p)}
-        className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="프로필 메뉴 열기"
-      >
-        {initial}
-      </button>
-
-      {open && (
-        <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
-          <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
-            {user?.name || user?.username}
+    <div className="fixed inset-0 z-[1200]">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className={`w-full ${maxWidth} bg-white rounded-2xl border border-gray-300 shadow-2xl p-5`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-lg font-semibold text-gray-900">{title}</div>
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded border border-gray-300 text-gray-900 hover:bg-gray-50"
+            >
+              닫기
+            </button>
           </div>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/notifications");
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-          >
-            🔔 내 알림
-          </button>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings/theme");
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-          >
-            🎨 테마 설정
-          </button>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings");
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-          >
-            ⚙️ 환경 설정
-          </button>
+          {children}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-/** 사이드 프로필 */
+/* =========================================================
+ * 개인정보 수정 모달 (검은색 스타일)
+ * ======================================================= */
+function ProfileEditModal({
+  open,
+  user,
+  onClose,
+}: {
+  open: boolean;
+  user: NonNullable<LoginResponse> | null;
+  onClose: () => void;
+}) {
+  const role = user?.role ?? "guest";
+
+  const [name, setName] = useState(user?.name ?? "");
+  const [phone, setPhone] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+
+  // teacher
+  const [teacherSubjects, setTeacherSubjects] = useState<string>("");
+  const [teacherBio, setTeacherBio] = useState<string>("");
+  const [teacherAcademyNumbers, setTeacherAcademyNumbers] = useState<Array<number | string>>(
+    Array.isArray(user?.academyNumbers) ? user!.academyNumbers! : []
+  );
+
+  // student
+  const [school, setSchool] = useState<string>("");
+  const [grade, setGrade] = useState<number | "">("");
+  const [gender, setGender] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
+
+  // parent
+  const [childrenIds, setChildrenIds] = useState<string>("");
+
+  // director
+  const [directorAcademyNumbers, setDirectorAcademyNumbers] = useState<Array<number | string>>(
+    Array.isArray(user?.academyNumbers) ? user!.academyNumbers! : []
+  );
+
+  // security
+  const [oldPw, setOldPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+
+  const [tab, setTab] = useState<"basic" | "contact" | "role" | "security">("basic");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const inputCls =
+    "border border-gray-300 rounded px-2 py-1 w-full text-gray-900 placeholder-gray-400";
+
+  useEffect(() => {
+    if (!open) return;
+    setName(user?.name ?? "");
+    setPhone("");
+    setEmail("");
+    setTeacherSubjects("");
+    setTeacherBio("");
+    setTeacherAcademyNumbers(Array.isArray(user?.academyNumbers) ? user!.academyNumbers! : []);
+    setSchool("");
+    setGrade("");
+    setGender("");
+    setAddress("");
+    setChildrenIds("");
+    setDirectorAcademyNumbers(Array.isArray(user?.academyNumbers) ? user!.academyNumbers! : []);
+    setOldPw("");
+    setNewPw("");
+    setNewPw2("");
+    setTab("basic");
+    setMsg(null);
+    setErr(null);
+  }, [open, user]);
+
+  const badge = (label: string) => (
+    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-900 ring-1 ring-gray-200">
+      {label}
+    </span>
+  );
+
+  const renderRoleFields = () => {
+    if (role === "teacher")
+      return (
+        <div className="space-y-3">
+          <div className="text-sm text-gray-900">{badge("교사")}</div>
+          <input className={inputCls} placeholder="담당 과목" value={teacherSubjects} onChange={(e) => setTeacherSubjects(e.target.value)} />
+          <textarea className={inputCls} placeholder="소개" value={teacherBio} onChange={(e) => setTeacherBio(e.target.value)} />
+          <input
+            className={inputCls}
+            placeholder="학원번호(콤마로 구분)"
+            value={String(teacherAcademyNumbers.join(","))}
+            onChange={(e) => setTeacherAcademyNumbers(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))}
+          />
+        </div>
+      );
+
+    if (role === "student")
+      return (
+        <div className="space-y-3">
+          <div className="text-sm text-gray-900">{badge("학생")}</div>
+          <input className={inputCls} placeholder="학교" value={school} onChange={(e) => setSchool(e.target.value)} />
+          <input
+            className={inputCls}
+            placeholder="학년"
+            value={grade}
+            onChange={(e) => setGrade(e.target.value === "" ? "" : Number(e.target.value))}
+          />
+          <select className={inputCls} value={gender} onChange={(e) => setGender(e.target.value)}>
+            <option value="">성별 선택</option>
+            <option value="M">남</option>
+            <option value="F">여</option>
+          </select>
+          <input className={inputCls} placeholder="주소" value={address} onChange={(e) => setAddress(e.target.value)} />
+        </div>
+      );
+
+    if (role === "parent")
+      return (
+        <div className="space-y-3">
+          <div className="text-sm text-gray-900">{badge("학부모")}</div>
+          <input
+            className={inputCls}
+            placeholder="자녀 ID (콤마로 구분)"
+            value={childrenIds}
+            onChange={(e) => setChildrenIds(e.target.value)}
+          />
+        </div>
+      );
+
+    if (role === "director")
+      return (
+        <div className="space-y-3">
+          <div className="text-sm text-gray-900">{badge("원장")}</div>
+          <input
+            className={inputCls}
+            placeholder="관리 학원번호(콤마로 구분)"
+            value={String(directorAcademyNumbers.join(","))}
+            onChange={(e) =>
+              setDirectorAcademyNumbers(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))
+            }
+          />
+        </div>
+      );
+
+    return <div className="text-sm text-gray-900">별도 설정 항목 없음</div>;
+  };
+
+  const submitProfile = async () => {
+    setLoading(true);
+    try {
+      // TODO: 실제 API 연동
+      setMsg("저장 완료");
+      setTimeout(() => setMsg(null), 1200);
+    } catch (e: any) {
+      setErr(e?.message ?? "저장 실패");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitPassword = async () => {
+    if (!newPw || newPw !== newPw2) {
+      setErr("새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    setLoading(true);
+    try {
+      // TODO: 실제 API 연동
+      setMsg("비밀번호 변경 완료");
+      setTimeout(() => setMsg(null), 1200);
+    } catch (e: any) {
+      setErr(e?.message ?? "변경 실패");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ModalBase open={open} onClose={onClose} title="개인정보 수정" maxWidth="max-w-3xl">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {([
+          ["basic", "기본"],
+          ["contact", "연락처"],
+          ["role", "역할별"],
+          ["security", "보안"],
+        ] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={`px-3 py-1.5 rounded-full text-sm ring-1 ring-gray-300 ${
+              tab === k ? "bg-gray-900 text-white" : "bg-white text-gray-900"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-6 text-gray-900">
+        {tab === "basic" && (
+          <>
+            <input className={`${inputCls} bg-gray-100`} disabled value={user?.username ?? ""} />
+            <input className={inputCls} placeholder="이름" value={name} onChange={(e) => setName(e.target.value)} />
+          </>
+        )}
+
+        {tab === "contact" && (
+          <>
+            <input className={inputCls} placeholder="전화번호" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <input className={inputCls} placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </>
+        )}
+
+        {tab === "role" && renderRoleFields()}
+
+        {tab === "security" && (
+          <>
+            <input
+              type="password"
+              className={inputCls}
+              placeholder="현재 비밀번호"
+              value={oldPw}
+              onChange={(e) => setOldPw(e.target.value)}
+            />
+            <input
+              type="password"
+              className={inputCls}
+              placeholder="새 비밀번호"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+            />
+            <input
+              type="password"
+              className={inputCls}
+              placeholder="새 비밀번호 확인"
+              value={newPw2}
+              onChange={(e) => setNewPw2(e.target.value)}
+            />
+            <button
+              onClick={submitPassword}
+              disabled={loading}
+              className="px-4 py-1.5 rounded border border-gray-300 text-gray-900 hover:bg-gray-50 disabled:opacity-50"
+            >
+              비밀번호 변경
+            </button>
+          </>
+        )}
+
+        {err && <div className="text-sm text-red-600">{err}</div>}
+        {msg && <div className="text-sm text-emerald-700">{msg}</div>}
+
+        <div className="pt-2 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 rounded border border-gray-300 text-gray-900 hover:bg-gray-50"
+          >
+            닫기
+          </button>
+          <button
+            onClick={submitProfile}
+            disabled={loading}
+            className="px-4 py-1.5 rounded border border-gray-300 text-gray-900 hover:bg-gray-50 disabled:opacity-50"
+          >
+            저장
+          </button>
+        </div>
+      </div>
+    </ModalBase>
+  );
+}
+
+/* =========================================================
+ * 계정탈퇴 모달 (검은 텍스트/버튼)
+ * ======================================================= */
+function AccountDeleteModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [agree, setAgree] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const submit = () => {
+    if (!agree) return alert("동의 필요");
+    // TODO: 실제 API 연동
+    setMsg("탈퇴 완료");
+    setTimeout(onClose, 600);
+  };
+
+  const inputCls =
+    "border border-gray-300 rounded px-2 py-1 w-full text-gray-900 placeholder-gray-400";
+
+  return (
+    <ModalBase open={open} onClose={onClose} title="계정 탈퇴" maxWidth="max-w-xl">
+      <div className="space-y-4 text-gray-900">
+        <input
+          type="password"
+          className={inputCls}
+          placeholder="비밀번호 확인"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={agree}
+            onChange={(e) => setAgree(e.target.checked)}
+          />
+          <span>계정 삭제에 동의합니다.</span>
+        </label>
+        {msg && <div className="text-sm text-emerald-700">{msg}</div>}
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 rounded border border-gray-300 text-gray-900 hover:bg-gray-50"
+          >
+            취소
+          </button>
+          <button
+            onClick={submit}
+            disabled={!agree}
+            className="px-4 py-1.5 rounded border border-red-500 text-gray-900 hover:bg-red-50 disabled:opacity-50"
+          >
+            탈퇴
+          </button>
+        </div>
+      </div>
+    </ModalBase>
+  );
+}
+
+/** 사이드 프로필 — 모달 오픈 콜백 사용 */
 function SidebarProfile({
   user,
   onLogout,
   onOpenRecentQna,
+  onOpenProfileEdit,
+  onOpenAccountDelete,
 }: {
   user: {
     role?: "student" | "teacher" | "parent" | "director" | string;
@@ -234,8 +520,9 @@ function SidebarProfile({
   } | null;
   onLogout: () => void;
   onOpenRecentQna?: () => void;
+  onOpenProfileEdit: () => void;
+  onOpenAccountDelete: () => void;
 }) {
-  const router = useRouter();
   const role = user?.role;
 
   const roleColor =
@@ -308,13 +595,13 @@ function SidebarProfile({
 
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => router.push("/settings/profile")}
+              onClick={onOpenProfileEdit}
               className="rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-xs font-medium text-gray-800"
             >
               개인정보 수정
             </button>
             <button
-              onClick={() => router.push("/account/delete")}
+              onClick={onOpenAccountDelete}
               className="rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-xs font-medium text-gray-800"
             >
               계정탈퇴
@@ -334,12 +621,6 @@ function SidebarProfile({
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4 space-y-3 mt-4">
         <div className="text-sm font-semibold text-gray-900">빠른 실행</div>
         <div className="grid gap-2">
-          <button
-            onClick={() => router.push("/settings")}
-            className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
-          >
-            환경 설정
-          </button>
           <button
             onClick={onOpenRecentQna}
             className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
@@ -455,6 +736,72 @@ function summarizeAttendance<T extends { status: string }>(rows: T[]) {
   return { present, late, absent };
 }
 
+/** 프로필 드롭다운 (우측 상단) */
+function ProfileMenu({
+  user,
+  onOpenProfileEdit,
+  onOpenAccountDelete,
+}: {
+  user: NonNullable<LoginSession> | null;
+  onOpenProfileEdit: () => void;
+  onOpenAccountDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  const initial = user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((p) => !p)}
+        className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="프로필 메뉴 열기"
+      >
+        {initial}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
+          <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
+            {user?.name || user?.username}
+          </div>
+          <button
+            onClick={() => { setOpen(false); onOpenProfileEdit(); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            ✏️ 개인정보 수정
+          </button>
+          <button
+            onClick={() => { setOpen(false); onOpenAccountDelete(); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
+          >
+            🗑️ 계정탈퇴
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 메인 대시보드 */
 export default function GreenAcademyDashboard() {
   const router = useRouter();
@@ -479,6 +826,10 @@ export default function GreenAcademyDashboard() {
   // QnA
   const [forcedQnaId, setForcedQnaId] = useState<string | null>(null);
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
+
+  // 모달 상태
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [accountDeleteOpen, setAccountDeleteOpen] = useState(false);
 
   /** 세션 로드 & 가드 */
   useEffect(() => {
@@ -724,96 +1075,107 @@ export default function GreenAcademyDashboard() {
           </div>
 
           <NavTabs active={activeTab} onChange={handleTab} role={user?.role} />
-          <ProfileMenu user={user} />
+
+          {/* 우측 프로필 메뉴 → 모달 오픈 */}
+          <ProfileMenu
+            user={user}
+            onOpenProfileEdit={() => setProfileOpen(true)}
+            onOpenAccountDelete={() => setAccountDeleteOpen(true)}
+          />
         </div>
       </header>
 
       {/* 본문 */}
       <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        <SidebarProfile user={user} onLogout={handleLogout} onOpenRecentQna={handleOpenRecentQna} />
+        <SidebarProfile
+          user={user}
+          onLogout={handleLogout}
+          onOpenRecentQna={handleOpenRecentQna}
+          onOpenProfileEdit={() => setProfileOpen(true)}
+          onOpenAccountDelete={() => setAccountDeleteOpen(true)}
+        />
 
         {/* 탭별 콘텐츠 */}
         {activeTab === "종합정보" && (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium" />
-              </div>
+  <div className="space-y-6">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
+          {Array.isArray(user?.academyNumbers)
+  ? `학원 번호: ${user.academyNumbers[0]}`
+  : "학원 정보 없음"}
 
-              {showTeacherStats && (
-                <div className="flex gap-3">
-                  <StatCard title="금일 출석 학생 수" value={present} />
-                  <StatCard title="금일 지각 학생 수" value={late} />
-                  <StatCard title="금일 미출석 학생 수" value={absent} />
-                </div>
-              )}
-            </div>
+        </span>
+      </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-6">
-              <WaitingList
-                title={user!.role === "teacher" ? "내 반 목록" : "오늘 일정"}
-                list={list}
-                loading={loading}
-                error={err}
-              />
-
-              {user?.role === "teacher" ? (
-                <SeatGrid seats={seats} />
-              ) : (
-                <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
-                  좌석 데이터가 연결되어 있지 않습니다. (수업 선택 후 좌석 API를 연동해 주세요)
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === "관리" && (
-  // ✅ Fragment 대신 단일 div로 감싸서 "그리드 두 번째 칸"에 통째로 들어가게 함
-  <div className="space-y-4">
-    {/* 교사: QR + 패널 */}
-    {user?.role === "teacher" && (
-      <div className="space-y-4">
-        <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">QR 생성</h2>
-          <QRGeneratorPanel user={user} />
+      {showTeacherStats && (
+        <div className="flex gap-3">
+          <StatCard title="금일 출석 학생 수" value={present} />
+          <StatCard title="금일 지각 학생 수" value={late} />
+          <StatCard title="금일 미출석 학생 수" value={absent} />
         </div>
-        <TeacherManagePanel user={user} />
-      </div>
-    )}
+      )}
+    </div>
 
-    {/* 원장: ✅ QR → 강의실 관리 순서 */}
-    {user?.role === "director" && (
-      <div className="space-y-4">
-        {/* 1) QR 토글/패널 */}
-        <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
-          <button
-            onClick={() => setShowQr((v) => !v)}
-            className="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm hover:bg-emerald-700"
-          >
-            {showQr ? "QR 생성 닫기" : "QR 생성 열기"}
-          </button>
-        </div>
-        {showQr && (
-          <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
-            <QRGeneratorPanel user={user} />
-          </div>
-        )}
-
-        {/* 2) 강의실 관리 */}
-        <DirectorRoomsPanel user={user} />
-      </div>
-    )}
-
-    {(user?.role === "student" || user?.role === "parent") && (
-      <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">관리</h2>
-        <p className="text-sm text-gray-700">이 역할에는 관리 메뉴가 없습니다.</p>
-      </div>
+    {/* ✅ 역할별 분기 */}
+    {user?.role === "teacher" ? (
+      <TeacherMainPanel user={user} />
+    ) : user?.role === "director" ? (
+      // ✅ 원장 전용 종합 정보 패널
+      <DirectorOverviewPanel user={user} />
+    ) : (
+      <>
+        <WaitingList title="오늘 일정" list={list} loading={loading} error={err} />
+        <SeatGrid seats={seats} />
+      </>
     )}
   </div>
 )}
 
+
+
+        {activeTab === "관리" && (
+          <div className="space-y-4">
+            {/* 교사: QR + 패널 */}
+            {user?.role === "teacher" && (
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-3">QR 생성</h2>
+                  <QRGeneratorPanel user={user} />
+                </div>
+                <TeacherManagePanel user={user} />
+              </div>
+            )}
+
+            {/* 원장: QR 토글 + 강의실 관리 */}
+            {user?.role === "director" && (
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
+                  <button
+                    onClick={() => setShowQr((v) => !v)}
+                    className="px-3 py-1.5 rounded border border-gray-300 text-gray-900 hover:bg-gray-50 text-sm"
+                  >
+                    {showQr ? "QR 생성 닫기" : "QR 생성 열기"}
+                  </button>
+                </div>
+                {showQr && (
+                  <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
+                    <QRGeneratorPanel user={user} />
+                  </div>
+                )}
+
+                <DirectorRoomsPanel user={user} />
+              </div>
+            )}
+
+            {(user?.role === "student" || user?.role === "parent") && (
+              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">관리</h2>
+                <p className="text-sm text-gray-700">이 역할에는 관리 메뉴가 없습니다.</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 원장 전용: 출결확인 */}
         {user?.role === "director" && activeTab === "출결확인" && <DirectorPeoplePanel />}
@@ -874,6 +1236,10 @@ export default function GreenAcademyDashboard() {
           </div>
         )}
       </main>
+
+      {/* 모달들: 전역에서 열고 닫음 */}
+      <ProfileEditModal open={profileOpen} user={user} onClose={() => setProfileOpen(false)} />
+      <AccountDeleteModal open={accountDeleteOpen} onClose={() => setAccountDeleteOpen(false)} />
     </div>
   );
 }
