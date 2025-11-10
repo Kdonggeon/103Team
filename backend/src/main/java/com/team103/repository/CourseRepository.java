@@ -33,4 +33,5 @@ public interface CourseRepository extends MongoRepository<Course, String> {
     default Course getByClassIdOrNull(String classId) {
         return findByClassId(classId).orElse(null);
     }
+    
 }

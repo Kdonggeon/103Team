@@ -1,4 +1,3 @@
-// C:\project\103Team-sub\web\greenacademy_web\src\app\family-portal\page.tsx
 "use client";
 
 import ParentProfileCard from "../parent/ParentProfileCard";
@@ -11,6 +10,9 @@ import QnaPanel from "../qna/QnaPanel";
 import TeacherQnaPanel from "../qna/TeacherQnaPanel";
 import ChildAttendancePanel from "../parent/ChildAttendancePanel";
 import ChildSchedulePanel from "../parent/ChildSchedulePanel";
+
+// ✅ 신설: 공지패널
+import NoticePanel from "../notice/NoticePanel";
 
 // ✅ 학생 컴포넌트
 import StudentProfileCard from "../student/StudentProfileCard";
@@ -106,10 +108,14 @@ function SLUG_TO_TAB(slug?: string | null): string {
 }
 
 /** 마이페이지 item <-> 슬러그 (URL 파라미터 my 값) */
+// ✅ 버그 수정: “내 정보”는 역할에 따라 slug 분기
 function toSlug(item: string | null, role: Role | null): string | null {
   if (!item) return null;
-  if (item === "내 정보") return "student-info";
-  if (item === "내 정보") return "parent-info";
+  if (item === "내 정보") {
+    if (role === "student") return "student-info";
+    if (role === "parent") return "parent-info";
+    return null;
+  }
   if (item === "자녀 상세 보기") return "child-detail";
   if (item === "출결관리" || item === "자녀 출결 확인") return "attendance";
   return null;
@@ -346,10 +352,10 @@ function SidebarProfile({
       params.set("my", "parent-info");
     } else {
       // 교사/원장: 설정으로 이동(기존 동작 유지)
-      router.push("/settings/profile"); // ✅ 고정된 router 사용
+      router.push("/settings/profile");
       return;
     }
-    router.replace(`?${params.toString()}`); // ✅ 고정된 router 사용
+    router.replace(`?${params.toString()}`);
   };
 
   return (
@@ -643,7 +649,7 @@ export default function FamilyPortalPage() {
       setMyPageItem(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabParam, myParam, qnaParam, roleKey]); // ✅ 항상 4개 고정
+  }, [tabParam, myParam, qnaParam, roleKey]);
 
   // 탭 배열
   const tabs = useMemo(() => {
@@ -656,11 +662,9 @@ export default function FamilyPortalPage() {
   // 마이페이지 드롭다운 항목(요구사항 적용)
   const menu = useMemo(() => {
     if (user?.role === "student") {
-      // 학생: 드롭다운에는 "출결관리"만 (내정보는 사이드바 전용)
       return { 마이페이지: ["출결관리"] } as Record<string, string[]>;
     }
     if (user?.role === "parent") {
-      // 학부모: 드롭다운에 "자녀 상세 보기", "자녀 출결 확인"
       return {
         마이페이지: ["자녀 상세 보기", "자녀 출결 확인"],
       } as Record<string, string[]>;
@@ -753,7 +757,7 @@ export default function FamilyPortalPage() {
     }
   };
 
-  // Q&A 탭 진입 시 최근 스레드 오픈 (의존성 고정)
+  // Q&A 탭 진입 시 최근 스레드 오픈
   useEffect(() => {
     if (activeTab !== "Q&A") return;
     if (forcedQnaId) return;
@@ -780,9 +784,9 @@ export default function FamilyPortalPage() {
       aborted = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, forcedQnaId]); // ✅ 길이 2 고정
+  }, [activeTab, forcedQnaId]);
 
-  // 탭 클릭: URL에 항상 tab 슬러그 유지(텔포 방지), my는 마이페이지일 때만 유지
+  // 탭 클릭: URL에 항상 tab 슬러그 유지
   const onChangeTab = (tab: string) => {
     setActiveTab(tab);
     const params = new URLSearchParams(window.location.search);
@@ -799,7 +803,7 @@ export default function FamilyPortalPage() {
     router.replace(`?${params.toString()}`);
   };
 
-  // 드롭다운에서 항목 선택 시 URL/상태 동기화(단방향)
+  // 드롭다운에서 항목 선택 시 URL/상태 동기화
   const onPickMyPageItem = (label: string) => {
     setMyPageItem(label);
     const slug = toSlug(label, user?.role ?? null);
@@ -984,13 +988,11 @@ export default function FamilyPortalPage() {
 
         {activeTab === "공지사항" && (
           <div className="space-y-4">
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">공지사항</h2>
-              <p className="text-sm text-gray-700">공지 API 또는 CMS를 연결하세요.</p>
-            </div>
+            {/* ✅ 공지패널 삽입: 학원/과목 스피너 + 목록 */}
+            <NoticePanel />
           </div>
         )}
-ㄴ
+
         {activeTab === "가이드" && (
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">

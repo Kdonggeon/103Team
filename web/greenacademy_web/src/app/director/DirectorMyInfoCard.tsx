@@ -11,7 +11,12 @@ type DirectorMe = {
   phone?: string;
   academyNumbers: number[];
 };
-type Academy = { academyNumber: number; name: string; address?: string; phone?: string };
+type Academy = {
+  academyNumber: number;
+  name: string;
+  address?: string;
+  phone?: string;
+};
 
 /** /backend 프록시 + Authorization 자동 주입(GET 전용) */
 async function apiGet<T>(path: string): Promise<T> {
@@ -52,6 +57,26 @@ async function patchAcademy(
   return text ? (JSON.parse(text) as Academy) : null;
 }
 
+/** POST: 원장 전용 학원 생성(랜덤 4자리 번호, 서버에서 중복 방지) */
+async function postCreateAcademyForDirector(
+  username: string,
+  payload: { name: string; phone?: string; address?: string }
+): Promise<Academy> {
+  const token = getSession()?.token ?? null;
+  const res = await fetch(`/backend/api/academy/directors/${encodeURIComponent(username)}`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Academy create failed: ${res.status} ${res.statusText}${text ? " | " + text : ""}`);
+  return JSON.parse(text) as Academy;
+}
+
 export default function DirectorMyInfoCard() {
   const router = useRouter();
 
@@ -64,6 +89,14 @@ export default function DirectorMyInfoCard() {
   const [editing, setEditing] = React.useState<number | null>(null);
   const [form, setForm] = React.useState<{ name?: string; address?: string; phone?: string }>({});
   const [saving, setSaving] = React.useState(false);
+
+  // 새 학원 추가 상태
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [addName, setAddName] = React.useState("");
+  const [addPhone, setAddPhone] = React.useState("");
+  const [addAddress, setAddAddress] = React.useState("");
+  const [adding, setAdding] = React.useState(false);
+  const [addErr, setAddErr] = React.useState<string | null>(null);
 
   const reload = React.useCallback(async () => {
     setLoading(true);
@@ -121,6 +154,49 @@ export default function DirectorMyInfoCard() {
     }
   };
 
+  const handleAdd = async () => {
+    try {
+      setAddErr(null);
+      if (!me) throw new Error("세션 정보가 없습니다.");
+      if (!addName.trim()) {
+        setAddErr("학원 이름을 입력하세요.");
+        return;
+      }
+      setAdding(true);
+      const created = await postCreateAcademyForDirector(me.username, {
+        name: addName.trim(),
+        phone: addPhone.trim() || undefined,
+        address: addAddress.trim() || undefined,
+      });
+
+      // 목록/내 정보에 즉시 반영
+      setAcademies((prev) => [
+        {
+          academyNumber: created.academyNumber,
+          name: created.name,
+          address: created.address,
+          phone: created.phone,
+        },
+        ...prev,
+      ]);
+      setMe((prev) =>
+        prev
+          ? { ...prev, academyNumbers: [...new Set([created.academyNumber, ...(prev.academyNumbers || [])])] }
+          : prev
+      );
+
+      // 폼 리셋
+      setAddName("");
+      setAddPhone("");
+      setAddAddress("");
+      setAddOpen(false);
+    } catch (e: any) {
+      setAddErr(e?.message ?? "생성 실패");
+    } finally {
+      setAdding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {err && <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg">{err}</div>}
@@ -175,6 +251,62 @@ export default function DirectorMyInfoCard() {
               </dd>
             </div>
           </dl>
+        )}
+      </section>
+
+      {/* 새 학원 추가 */}
+      <section className="bg-white ring-1 ring-black/5 rounded-2xl p-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-black">새 학원 추가</h3>
+          <button
+            className="text-sm underline text-black"
+            onClick={() => setAddOpen((v) => !v)}
+            aria-expanded={addOpen}
+          >
+            {addOpen ? "닫기" : "열기"}
+          </button>
+        </div>
+
+        {addOpen && (
+          <div className="mt-3 grid gap-3">
+            <label className="grid gap-1">
+              <span className="text-xs text-gray-500">학원 이름 *</span>
+              <input
+                className="px-3 py-2 rounded-lg border bg-white text-black outline-none"
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                placeholder="예) 103학"
+              />
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs text-gray-500">대표번호</span>
+              <input
+                className="px-3 py-2 rounded-lg border bg-white text-black outline-none"
+                value={addPhone}
+                onChange={(e) => setAddPhone(e.target.value)}
+                placeholder="예) 8221234567"
+              />
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs text-gray-500">주소</span>
+              <input
+                className="px-3 py-2 rounded-lg border bg-white text-black outline-none"
+                value={addAddress}
+                onChange={(e) => setAddAddress(e.target.value)}
+                placeholder="예) 인천광역시 중"
+              />
+            </label>
+            {addErr && <p className="text-sm text-red-600">{addErr}</p>}
+            <div>
+              <button
+                onClick={handleAdd}
+                disabled={adding}
+                className="px-4 py-2 rounded-lg bg-emerald-500/90 hover:bg-emerald-500 text-white disabled:opacity-60"
+              >
+                {adding ? "추가 중…" : "학원 추가"}
+              </button>
+            </div>
+          </div>
         )}
       </section>
 

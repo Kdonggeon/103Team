@@ -53,6 +53,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
                 .requestMatchers("/api/signup/**", "/api/login/**").permitAll()
 
+                // ✅ 정적 파일(업로드 이미지) 공개
+                .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
+
                 // (기존 공개 POST 유지 필요 시)
                 .requestMatchers(HttpMethod.POST, "/api/*/find_id").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
@@ -63,6 +66,25 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/teacher").permitAll()
+
+                /* ====== 공지: 읽기(로그인), 쓰기/수정/삭제(교사·원장) ====== */
+                .requestMatchers(HttpMethod.GET,
+                    "/api/notices", "/api/notices/**"
+                ).authenticated()
+                .requestMatchers(HttpMethod.POST,
+                    "/api/notices", "/api/notices/**"
+                ).hasAnyRole("TEACHER","DIRECTOR")
+                .requestMatchers(HttpMethod.PUT,
+                    "/api/notices/**"
+                ).hasAnyRole("TEACHER","DIRECTOR")
+                .requestMatchers(HttpMethod.PATCH,
+                    "/api/notices/**"
+                ).hasAnyRole("TEACHER","DIRECTOR")
+                .requestMatchers(HttpMethod.DELETE,
+                    "/api/notices/**"
+                ).hasAnyRole("TEACHER","DIRECTOR")
+                
+                .requestMatchers(HttpMethod.GET, "/api/lookup/classes/**").authenticated()
 
                 /* ====== 교사/원장 공통 보호 엔드포인트 ====== */
                 .requestMatchers("/api/teachers/**").hasAnyRole("TEACHER","DIRECTOR")
@@ -80,17 +102,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/admin/rooms/**").hasRole("DIRECTOR")
 
                 /* ====== 원장 전용 관리 패널(API 분리: /api/manage/**) ====== */
-                // 학생/교사 목록 & 삭제
                 .requestMatchers(HttpMethod.GET,    "/api/manage/students").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.DELETE, "/api/manage/students/*").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.GET,    "/api/manage/teachers").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.DELETE, "/api/manage/teachers/*").hasRole("DIRECTOR")
-
-                // 학생의 수업/출결 조회(원장 화면에서 다른 학생 조회)
                 .requestMatchers(HttpMethod.GET, "/api/manage/students/*/classes").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.GET, "/api/manage/students/*/attendance").hasRole("DIRECTOR")
-
-                // 교사의 수업/출결(오늘자/특정일)
                 .requestMatchers(HttpMethod.GET, "/api/manage/teachers/*/classes").hasAnyRole("DIRECTOR","TEACHER")
                 .requestMatchers(HttpMethod.GET, "/api/manage/teachers/classes/*/attendance").hasAnyRole("DIRECTOR","TEACHER")
 
