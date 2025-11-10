@@ -4,7 +4,30 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+// ✅ 환경변수 없을 때도 자동으로 백엔드(9090)로 붙도록 폴백
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ??
+  (typeof window !== "undefined" ? `${location.protocol}//${location.hostname}:9090` : "");
+
+// ✅ Next 404 HTML을 받았을 때 9090으로 한 번 더 재시도하는 래퍼
+async function fetchApi(path: string, init: RequestInit) {
+  const url = `${API_BASE}${path}`;
+  let res = await fetch(url, init);
+  const ct = res.headers.get("content-type") || "";
+
+  // Next 라우터의 404 HTML을 받는 경우(개발환경) 한 번 더 9090으로 재시도
+  if (res.status === 404 && ct.includes("text/html") && typeof window !== "undefined") {
+    try {
+      const devUrl = `${location.protocol}//${location.hostname}:9090${path}`;
+      const retry = await fetch(devUrl, init);
+      return retry;
+    } catch {
+      // 재시도 실패 시 원 응답 반환
+      return res;
+    }
+  }
+  return res;
+}
 
 type Role = "student" | "parent" | "teacher" | "director";
 type Session = {
@@ -122,6 +145,7 @@ export default function ProfileSettingsPage() {
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error(await res.text());
+
       }
 
       if (session.role === "director") {
@@ -138,6 +162,7 @@ export default function ProfileSettingsPage() {
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error(await res.text());
+
       }
 
       // 세션 업데이트
@@ -166,6 +191,15 @@ export default function ProfileSettingsPage() {
       setSaving(false);
     }
   };
+
+  // 응답 본문 안전 추출(HTML 404일 때도 문자열로 에러 메시지 만들기 위함)
+  async function safeText(res: Response) {
+    try {
+      return await res.text();
+    } catch {
+      return `HTTP ${res.status}`;
+    }
+  }
 
   if (loading || !session) return null;
 
@@ -252,7 +286,7 @@ export default function ProfileSettingsPage() {
       )}
 
       {session.role === "director" && (
-        <section className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+        <section className="rounded-2xl bg-white ring-1 ring-black/5 shadowsm p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">원장 정보</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field

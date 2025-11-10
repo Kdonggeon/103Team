@@ -30,6 +30,10 @@ import TeacherQnaPanel from "./qna/TeacherQnaPanel";
 // QR 생성
 import QRGeneratorPanel from "@/app/teacher/QRGeneratorPanel";
 
+
+// ✅ 공지 패널 임포트 (학원/과목 스피너 + 목록)
+import NoticePanel from "./notice/NoticePanel";
+
 /* ================== API URL 유틸 ================== */
 const API_BASE =
   (typeof window !== "undefined" && (window as any).__API_BASE__) ||
@@ -122,10 +126,10 @@ function NavTabs({
 
   const manageItems =
     role === "director"
-      ? (["내정보", "학생관리", "반 관리", "학원관리", "QR 생성"] as const)
+      ? (["학생관리", "반 관리", "학원관리", "QR 생성"] as const)
       : role === "teacher"
-      ? (["내정보", "학생관리", "반 관리", "QR 생성"] as const)
-      : (["내정보", "학생관리", "반 관리"] as const);
+      ? (["학생관리", "반 관리", "QR 생성"] as const)
+      : (["학생관리", "반 관리"] as const);
 
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -182,6 +186,7 @@ function NavTabs({
                 <button
                   key={item}
                   onClick={() => {
+                    // ✅ 이제 별도 라우팅 없이 관리 탭 내부에서 패널 교체
                     onSelectManage(item);
                     setOpen(false);
                   }}
@@ -259,6 +264,7 @@ function SidebarProfile({
   user,
   onLogout,
   onOpenRecentQna,
+  onOpenMyInfo,
 }: {
   user: {
     role?: "student" | "teacher" | "parent" | "director" | string;
@@ -268,6 +274,7 @@ function SidebarProfile({
   } | null;
   onLogout: () => void;
   onOpenRecentQna?: () => void;
+  onOpenMyInfo?: () => void;
 }) {
   const router = useRouter();
   const role = user?.role;
@@ -301,7 +308,7 @@ function SidebarProfile({
             </div>
             {role && (
               <span
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ring-1 ${roleColor}`}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${roleColor}`}
                 title={`role: ${role}`}
               >
                 <span className="inline-block w-2 h-2 rounded-full bg-current opacity-70" />
@@ -347,6 +354,7 @@ function SidebarProfile({
               className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
             >
               환경 설정
+
             </button>
             <button
               onClick={onOpenRecentQna}
@@ -719,6 +727,7 @@ export default function GreenAcademyDashboard() {
             role={user?.role ?? null}
             manageMenu={manageMenu}
             onSelectManage={(item) => {
+              // ✅ 별도 페이지 이동 없이 관리 탭 내부에서 패널 표시
               setActiveTab("관리");
               setManageMenu(item);
             }}
@@ -730,7 +739,19 @@ export default function GreenAcademyDashboard() {
 
       {/* 본문 */}
       <main className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        <SidebarProfile user={user} onLogout={handleLogout} onOpenRecentQna={handleOpenRecentQna} />
+        <SidebarProfile
+          user={user}
+          onLogout={handleLogout}
+          onOpenRecentQna={handleOpenRecentQna}
+          onOpenMyInfo={() => {
+            if (user?.role === "teacher" || user?.role === "director") {
+              setActiveTab("관리");
+              setManageMenu("내정보");
+            } else {
+              router.push("/settings/profile");
+            }
+          }}
+        />
 
         {/* 탭별 콘텐츠 */}
         {activeTab === "종합정보" && (
@@ -778,9 +799,18 @@ export default function GreenAcademyDashboard() {
             {manageMenu === "내정보" && user?.role === "teacher" && <TeacherProfileCard user={user} />}
             {manageMenu === "내정보" && user?.role === "director" && <DirectorMyInfoCard />}
 
-            {/* 학생/반 관리 */}
-            {manageMenu === "학생관리" && <TeacherStudentManage />}
+            {/* 학생관리 */}
+            {manageMenu === "학생관리" && user?.role === "teacher" && <TeacherStudentManage />}
+            {manageMenu === "학생관리" && user?.role === "director" && <DirectorPeoplePanel />}
+
+            {/* 반 관리 */}
             {manageMenu === "반 관리" && user?.role === "teacher" && <TeacherManagePanel user={user} />}
+            {manageMenu === "반 관리" && user?.role !== "teacher" && (
+              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">반 관리</h2>
+                <p className="text-sm text-gray-700">현재 역할에서는 이 항목을 사용할 수 없습니다.</p>
+              </div>
+            )}
 
             {/* 학원관리 */}
             {manageMenu === "학원관리" && user?.role === "director" && <DirectorRoomsPanel user={user} />}
@@ -795,11 +825,18 @@ export default function GreenAcademyDashboard() {
             {manageMenu === "QR 생성" && (user?.role === "teacher" || user?.role === "director") && (
               <QRGeneratorPanel user={user} />
             )}
+            {manageMenu === "QR 생성" && !(user?.role === "teacher" || user?.role === "director") && (
+              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">QR 생성</h2>
+                <p className="text-sm text-gray-700">현재 역할에서는 이 항목을 사용할 수 없습니다.</p>
+              </div>
+            )}
           </>
         )}
 
         {/* 원장 전용: 출결확인 */}
         {activeTab === "출결확인" && user?.role === "director" && <DirectorPeoplePanel />}
+
 
         {/* 시간표 */}
         {activeTab === "시간표" && user?.role !== "director" && (
@@ -835,13 +872,9 @@ export default function GreenAcademyDashboard() {
           </div>
         )}
 
-        {/* 공지/가이드 */}
         {activeTab === "공지사항" && (
           <div className="space-y-4">
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">공지사항</h2>
-              <p className="text-sm text-gray-700">공지 API 또는 CMS를 연결하세요.</p>
-            </div>
+            <NoticePanel/>
           </div>
         )}
 

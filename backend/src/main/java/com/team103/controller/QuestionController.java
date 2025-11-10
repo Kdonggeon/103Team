@@ -26,6 +26,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+// 💡 추가 import
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.domain.Sort;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -46,6 +54,9 @@ public class QuestionController {
     @Autowired private ParentRepository parentRepository;
     @Autowired private FollowUpRepository followUpRepository; // ★ 유지
     @Autowired private JwtUtil jwtUtil; // ★ 유지
+
+    // 💡 추가 주입: MongoTemplate (중복 존재해도 안전한 조회/업서트에 사용)
+    @Autowired private MongoTemplate mongo;
 
     // === JWT → 세션 보완 (기존 기능 유지, 세션 없을 때만 채움) ===
     private static final String BEARER = "Bearer ";
@@ -80,6 +91,29 @@ public class QuestionController {
         return q != null
                 && q.getRoomParentId() != null
                 && q.getRoomParentId().equals(parentId);
+    }
+
+    // 💡 추가 유틸: 최신 1건의 lastReadAt만 안전하게 조회(중복 문서가 있어도 예외 없음)
+    private Date findLastReadAt(String questionId, String userId) {
+        Query q = new Query(Criteria.where("questionId").is(questionId)
+                .and("userId").is(userId));
+        q.with(Sort.by(Sort.Direction.DESC, "lastReadAt"));
+        q.limit(1);
+        QuestionReadState rs = mongo.findOne(q, QuestionReadState.class);
+        return (rs != null) ? rs.getLastReadAt() : null;
+    }
+
+    // 💡 추가 유틸: 읽음 상태를 원자적 upsert로 기록(경합/중복 insert 방지)
+    private void upsertReadState(String questionId, String userId, Date when) {
+        Query q = new Query(Criteria.where("questionId").is(questionId)
+                .and("userId").is(userId));
+        Update up = new Update()
+                .set("questionId", questionId)
+                .set("userId", userId)
+                .set("lastReadAt", when);
+        mongo.findAndModify(q, up,
+                FindAndModifyOptions.options().upsert(true).returnNew(true),
+                QuestionReadState.class);
     }
 
     // ID 하나로 학생/학부모 방 자동 판별 후 조회/생성 (교사/원장 전용)
@@ -407,10 +441,7 @@ public class QuestionController {
         return ResponseEntity.noContent().build();
     }
 
-    // ★★★ 중복 매핑 제거: Follow-up 조회 메서드 삭제됨 ★★★
-    // (FollowUp 조회는 FollowUpController의 GET /api/questions/{qId}/followups 로 일원화)
-
-    // 단건 (학부모는 본인 방만 접근 가능)
+    // 단건 (학부모는 본인 방만 접근 가능; 403 → 404로 노출 최소화)
     @GetMapping("/{id}")
     public ResponseEntity<Question> getQuestionById(@PathVariable String id, HttpSession session) {
         String role = (String) session.getAttribute("role");
@@ -421,7 +452,6 @@ public class QuestionController {
 
         Question q = opt.get();
 
-        // 🔧 변경: 부모가 남의 방을 보려 하면 403 → 404
         if ("parent".equalsIgnoreCase(role) && !isParentOwnsRoom(q, userId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
@@ -430,7 +460,8 @@ public class QuestionController {
         if (userId != null) computeUnreadForUser(q, userId, role);
         return ResponseEntity.ok(q);
     }
- // 부가정보(학원명, 교사이름들, 최신시각) 채우기
+
+    // 부가정보(학원명, 교사이름들, 최신시각) 채우기
     private void populateExtras(Question q) {
         if (q == null) return;
 
@@ -475,7 +506,7 @@ public class QuestionController {
             q.setLastAnswerAt(lastAnsAt);
         } catch (Exception ignore) {}
 
-        // 🔑 팔로업(학생/학부모 메시지) → 최신 시각
+        // 팔로업(학생/학부모 메시지) → 최신 시각
         try {
             List<FollowUp> fus = followUpRepository.findByQuestionIdAndDeletedFalse(q.getId());
             for (FollowUp fu : fus) {
@@ -502,8 +533,8 @@ public class QuestionController {
     private void computeUnreadForUser(Question q, String userId, String role){
         if (q == null || userId == null) return;
 
-        Optional<QuestionReadState> rsOpt = readRepo.findByQuestionIdAndUserId(q.getId(), userId);
-        Date lastRead = rsOpt.map(QuestionReadState::getLastReadAt).orElse(null);
+        // 🔧 변경: 중복 문서가 있어도 최신 1건만 안전 조회
+        Date lastRead = findLastReadAt(q.getId(), userId);
 
         int cnt = 0;
 
@@ -586,15 +617,8 @@ public class QuestionController {
             }
         }
 
-        QuestionReadState rs = readRepo.findByQuestionIdAndUserId(id, userId)
-                .orElseGet(() -> {
-                    QuestionReadState n = new QuestionReadState();
-                    n.setQuestionId(id);
-                    n.setUserId(userId);
-                    return n;
-                });
-        rs.setLastReadAt(new Date());
-        readRepo.save(rs);
+        // 🔧 변경: 원자적 upsert로 읽음 상태 기록(중복 insert/경합 방지)
+        upsertReadState(id, userId, new Date());
         return ResponseEntity.noContent().build();
     }
 
