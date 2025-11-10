@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/manage")   
+@RequestMapping("/api/manage/director")   // ✅ feature10 기준으로 고정
 @CrossOrigin(origins = "*")
 public class DirectorPeopleController {
 
@@ -43,9 +43,8 @@ public class DirectorPeopleController {
 
     /** Course → ClassLite 변환 (요일은 정수 리스트로 표준화) */
     private static ClassLite toClassLite(Course c) {
-        // 근본 해결: 혼재 타입 사용 금지. 항상 1~7 정수 배열로 변환된 값을 사용
+        // 항상 1~7 정수 배열로 변환된 값을 사용(코스 쪽에서 표준화 제공)
         List<Integer> days = c.getDaysOfWeekInt();
-
         return new ClassLite(
                 nz(c.getId()),
                 nz(getClassName(c)),
@@ -89,7 +88,7 @@ public class DirectorPeopleController {
     public static final class ClassLite {
         public String classId;
         public String className;
-        public List<Integer> dayOfWeek; // ← 정수 리스트(1=월 … 7=일)로 고정
+        public List<Integer> dayOfWeek; // 1=월 … 7=일
         public String startTime;
         public String endTime;
         public Object roomNumber;
@@ -130,7 +129,13 @@ public class DirectorPeopleController {
     @DeleteMapping("/students/{studentId}")
     @PreAuthorize("hasRole('DIRECTOR')")
     public ResponseEntity<?> deleteStudent(@PathVariable String studentId) {
-        studentRepo.deleteByStudentId(studentId);
+        // 레포에 deleteByStudentId가 있으면 그대로 사용, 없으면 find→delete로 대체
+        try {
+            studentRepo.deleteByStudentId(studentId);
+        } catch (Throwable t) {
+            Student s = studentRepo.findByStudentId(studentId);
+            if (s != null) studentRepo.delete(s);
+        }
         return ResponseEntity.ok(Map.of("status","ok"));
     }
 
@@ -154,7 +159,12 @@ public class DirectorPeopleController {
     @DeleteMapping("/teachers/{teacherId}")
     @PreAuthorize("hasRole('DIRECTOR')")
     public ResponseEntity<?> deleteTeacher(@PathVariable String teacherId) {
-        teacherRepo.deleteByTeacherId(teacherId);
+        try {
+            teacherRepo.deleteByTeacherId(teacherId);
+        } catch (Throwable t) {
+            Teacher tch = teacherRepo.findByTeacherId(teacherId);
+            if (tch != null) teacherRepo.delete(tch);
+        }
         return ResponseEntity.ok(Map.of("status","ok"));
     }
 

@@ -1,7 +1,12 @@
-"use client";
-
+// src/app/teacher/classes/[classId]/page.tsx
 import ClassDetailClient from "./ClassDetailClient";
 
-export default function Page({ params }: { params: { classId: string } }) {
-  return <ClassDetailClient classId={params.classId} />;
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ classId: string }>;
+}) {
+  // ✅ Next.js 15: params는 Promise — 언랩해서 사용
+  const { classId } = await params;
+  return <ClassDetailClient classId={classId} />;
 }

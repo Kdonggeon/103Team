@@ -1,268 +1,367 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, type CourseLite, type LoginResponse } from "@/app/lib/api";
-import { roomsApi, type Room } from "@/app/lib/rooms";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
-export default function TeacherManagePanel({ user }: { user: NonNullable<LoginResponse> }) {
+// ====== 타입 ======
+type TeacherClassLite = {
+  classId: string;
+  className: string;
+  roomNumber?: number;
+  startTime?: string;
+  endTime?: string;
+};
+
+type SeatBoardResponse = {
+  currentClass?: { classId: string; className: string };
+  date: string;
+  layoutType?: "grid" | "vector";
+  rows?: number;
+  cols?: number;
+  seats: Array<{
+    seatNumber?: number | null;
+    row?: number | null;
+    col?: number | null;
+    disabled?: boolean;
+    studentId?: string | null;
+    studentName?: string | null;        // ✅ 이름 우선 표시
+    attendanceStatus?: string | null;   // "출석" | "지각" | "결석" | "이동" | "미기록" | ...
+    occupiedAt?: string | null;
+  }>;
+  waiting?: Array<{
+    studentId: string;
+    studentName?: string | null;
+    status?: string | null;      // LOBBY / MOVING / BREAK ...
+    checkedInAt?: string | null; // ISO-8601
+  }>;
+  // (선택) 카운트 필드가 오면 사용
+  presentCount?: number;
+  lateCount?: number;
+  absentCount?: number;
+  moveOrBreakCount?: number;
+  notRecordedCount?: number;
+};
+
+// ====== API 래퍼 ======
+async function fetchTodayClasses(teacherId: string, ymd?: string): Promise<TeacherClassLite[]> {
+  const url = ymd
+    ? `/api/teachermain/teachers/${encodeURIComponent(teacherId)}/classes/today?date=${ymd}`
+    : `/api/teachermain/teachers/${encodeURIComponent(teacherId)}/classes/today`;
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(`today classes ${r.status}`);
+  return r.json();
+}
+
+async function fetchSeatBoard(classId: string, ymd?: string): Promise<SeatBoardResponse> {
+  const url = ymd
+    ? `/api/teachermain/seat-board/${encodeURIComponent(classId)}?date=${ymd}`
+    : `/api/teachermain/seat-board/${encodeURIComponent(classId)}`;
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(`seat board ${r.status}`);
+  return r.json();
+}
+
+// 날짜 유틸
+const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
+const todayYmd = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+
+// 상태 → 뱃지 스타일
+function statusClass(s?: string | null) {
+  switch (s) {
+    case "출석":
+      return "bg-emerald-100 text-emerald-700 border-emerald-300";
+    case "지각":
+      return "bg-yellow-100 text-yellow-700 border-yellow-300";
+    case "결석":
+      return "bg-rose-100 text-rose-700 border-rose-300";
+    case "이동":
+    case "휴식":
+      return "bg-blue-100 text-blue-700 border-blue-300";
+    case "미기록":
+    default:
+      return "bg-gray-100 text-gray-700 border-gray-300";
+  }
+}
+
+type Props = {
+  user: { username: string }; // LoginResponse 에서 username = teacherId
+};
+
+export default function TeacherMainPanel({ user }: Props) {
   const teacherId = user.username;
-  const academyNumber = user.academyNumbers?.[0] ?? 0;
+  const [ymd, setYmd] = useState<string>(todayYmd());
 
-  const [items, setItems] = useState<CourseLite[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [className, setClassName] = useState("");
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
-  const [q, setQ] = useState("");
-  const [grade, setGrade] = useState("");
-  const [hits, setHits] = useState<any[]>([]);
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  // 왼쪽: 오늘 수업
+  const [classes, setClasses] = useState<TeacherClassLite[]>([]);
+  const [loadingLeft, setLoadingLeft] = useState(false);
+  const [leftErr, setLeftErr] = useState<string | null>(null);
 
-  // ✅ 강의실 목록 불러오기
+  // 선택 클래스
+  const [selected, setSelected] = useState<TeacherClassLite | null>(null);
+
+  // 오른쪽: 좌석 현황
+  const [board, setBoard] = useState<SeatBoardResponse | null>(null);
+  const [loadingRight, setLoadingRight] = useState(false);
+  const [rightErr, setRightErr] = useState<string | null>(null);
+
+  // 폴링(실시간)
+  const pollRef = useRef<number | null>(null);
+
+  // 왼쪽 로드
   useEffect(() => {
     (async () => {
+      setLoadingLeft(true);
+      setLeftErr(null);
       try {
-        const list = await roomsApi.listRooms(academyNumber);
-        setRooms(list || []);
+        const list = await fetchTodayClasses(teacherId, ymd);
+        setClasses(list);
+        // 자동 선택(첫 항목)
+        if (list.length > 0) setSelected((prev) => prev?.classId ? prev : list[0]);
+        else {
+          setSelected(null);
+          setBoard(null);
+        }
       } catch (e: any) {
-        setErr("강의실 목록 불러오기 실패: " + e.message);
+        setLeftErr(e.message || "오늘 수업 불러오기 실패");
+      } finally {
+        setLoadingLeft(false);
       }
     })();
-  }, [academyNumber]);
+  }, [teacherId, ymd]);
 
-  // ✅ 반 목록 불러오기
-  const load = async () => {
-    try {
-      setLoading(true);
-      const res = await api.listMyClasses(teacherId);
-      setItems(res || []);
-    } catch (e: any) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 오른쪽 로드(선택/폴링)
+  useEffect(() => {
+    if (!selected) return;
 
-  useEffect(() => { load(); }, []);
-
-  // ✅ 학생 검색
-  const search = async () => {
-    try {
-      const res = await api.searchStudents(
-        academyNumber,
-        q,
-        grade ? Number(grade) : undefined
-      );
-      setHits(res);
-    } catch (e: any) {
-      setErr(e.message);
-    }
-  };
-
-  // ✅ 학생 선택/해제
-  const toggleStudent = (sid: string) => {
-    setSelectedStudents(prev =>
-      prev.includes(sid) ? prev.filter(x => x !== sid) : [...prev, sid]
-    );
-  };
-
-  // ✅ 방 선택/해제
-  const toggleRoom = (roomNumber: string) => {
-    setSelectedRooms(prev =>
-      prev.includes(roomNumber)
-        ? prev.filter(r => r !== roomNumber)
-        : [...prev, roomNumber]
-    );
-  };
-
-  // ✅ 반 만들기 (여러 방에 생성)
-  const createClass = async () => {
-    if (!className.trim()) {
-      setErr("반 이름을 입력하세요.");
-      return;
-    }
-    if (selectedRooms.length === 0) {
-      setErr("하나 이상의 강의실을 선택하세요.");
-      return;
-    }
-
-    try {
-      setErr(null);
-      setMsg(null);
-
-      for (const rnStr of selectedRooms) {
-        const rn = Number(rnStr);
-        const created = await api.createClass({
-          className,
-          teacherId,
-          academyNumber,
-          roomNumber: rn,
-        });
-
-        // 선택된 학생도 자동 추가
-        if (created?.classId && selectedStudents.length > 0) {
-          for (const sid of selectedStudents) {
-            await api.addStudentToClass(created.classId, sid);
-          }
-        }
+    const load = async () => {
+      setLoadingRight(true);
+      setRightErr(null);
+      try {
+        const res = await fetchSeatBoard(selected.classId, ymd);
+        setBoard(res);
+      } catch (e: any) {
+        setRightErr(e.message || "좌석 현황 불러오기 실패");
+      } finally {
+        setLoadingRight(false);
       }
+    };
 
-      setMsg("반이 성공적으로 생성되었습니다!");
-      setClassName("");
-      setSelectedRooms([]);
-      setSelectedStudents([]);
-      setHits([]);
-      setQ("");
-      setGrade("");
-      await load();
-    } catch (e: any) {
-      setErr("반 생성 실패: " + e.message);
+    // 즉시 1회
+    load();
+
+    // 5초 폴링
+    if (pollRef.current) window.clearInterval(pollRef.current);
+    pollRef.current = window.setInterval(load, 5000);
+
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+  }, [selected?.classId, ymd]);
+
+  // 좌석 정렬 & 레이아웃
+  const seats = useMemo(() => {
+    const items = board?.seats ?? [];
+    // seatNumber → 오름차순, 없으면 뒤로
+    const sorted = [...items].sort((a, b) => {
+      const na = a.seatNumber ?? 99999;
+      const nb = b.seatNumber ?? 99999;
+      return na - nb;
+    });
+    return sorted;
+  }, [board]);
+
+  const gridCols = useMemo(() => {
+    if (!board) return 10; // 폴백
+    if (board.layoutType === "grid" && board.cols && board.cols > 0) return board.cols;
+    // vector라도 표시를 위해 seatNumber 기준으로 자동 10열
+    return 10;
+  }, [board]);
+
+  // 통계 (백엔드에서 오면 사용, 없으면 계산)
+  const counts = useMemo(() => {
+    if (!board?.seats) return { present: 0, late: 0, absent: 0, move: 0, none: 0 };
+    if (
+      typeof board.presentCount === "number" ||
+      typeof board.lateCount === "number" ||
+      typeof board.absentCount === "number" ||
+      typeof board.moveOrBreakCount === "number" ||
+      typeof board.notRecordedCount === "number"
+    ) {
+      return {
+        present: board.presentCount ?? 0,
+        late: board.lateCount ?? 0,
+        absent: board.absentCount ?? 0,
+        move: board.moveOrBreakCount ?? 0,
+        none: board.notRecordedCount ?? 0,
+      };
     }
-  };
+    // 프론트 계산
+    let present = 0, late = 0, absent = 0, move = 0, none = 0;
+    for (const s of board.seats) {
+      switch (s.attendanceStatus) {
+        case "출석": present++; break;
+        case "지각": late++; break;
+        case "결석": absent++; break;
+        case "이동":
+        case "휴식": move++; break;
+        default: none++; break;
+      }
+    }
+    return { present, late, absent, move, none };
+  }, [board]);
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-6">
-        <h1 className="text-2xl font-bold text-black">반 관리</h1>
+    <div className="p-6">
+      <div className="mb-4 flex items-center gap-3">
+        <h1 className="text-xl font-bold text-black">오늘 수업 / 좌석 현황</h1>
+        <input
+          type="date"
+          value={ymd}
+          onChange={(e) => setYmd(e.target.value)}
+          className="border border-gray-300 rounded px-2 py-1 text-black"
+        />
+      </div>
 
-        {/* === 반 생성 섹션 === */}
-        <div className="border border-gray-200 rounded-xl p-5 space-y-4 bg-white">
-          <div className="grid sm:grid-cols-2 gap-4">
-            {/* 반 이름 */}
-            <div>
-              <label className="block text-sm font-semibold text-black mb-1">반 이름</label>
-              <input
-                value={className}
-                onChange={(e) => setClassName(e.target.value)}
-                placeholder="예) 3학년 수학 A반"
-                className="border border-gray-300 rounded px-3 py-2 w-full text-black focus:ring-emerald-500 focus:ring-2"
-              />
-            </div>
-
-            {/* 강의실 선택 */}
-            <div>
-              <label className="block text-sm font-semibold text-black mb-1">
-                강의실 선택 (여러 개)
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {rooms.map((r) => {
-                  const rn = String((r as any).roomNumber ?? (r as any).Room_Number);
-                  const selected = selectedRooms.includes(rn);
-                  return (
-                    <button
-                      key={rn}
-                      onClick={() => toggleRoom(rn)}
-                      className={`px-4 py-1 rounded-full border transition ${
-                        selected
-                          ? "bg-emerald-100 border-emerald-400 text-emerald-700"
-                          : "bg-white border-gray-400 text-black hover:bg-gray-50"
-                      }`}
-                    >
-                      Room {rn}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="text-xs text-black mt-1">방 {rooms.length}개</div>
-            </div>
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* ========== 왼쪽: 오늘 수업 ========== */}
+        <section className="bg-white rounded-2xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-black">오늘 수업</h2>
+            {loadingLeft && <span className="text-sm text-gray-500">불러오는 중…</span>}
           </div>
 
-          {/* 학생 검색 */}
-          <div>
-            <label className="block text-sm font-semibold text-black mb-1">
-              학생 추가 (선택)
-            </label>
-            <div className="flex gap-2 mb-2">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="이름 검색"
-                className="border border-gray-300 rounded px-3 py-1 text-black"
-              />
-              <input
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-                placeholder="학년(선택)"
-                className="border border-gray-300 rounded px-3 py-1 text-black w-28"
-              />
-              <button
-                onClick={search}
-                className="bg-emerald-600 text-white px-4 py-1 rounded hover:bg-emerald-700"
-              >
-                검색
-              </button>
+          {leftErr && (
+            <div className="mb-3 text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded px-3 py-2">
+              {leftErr}
             </div>
+          )}
 
-            {/* 검색 결과 */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {hits.map((h) => {
-                const picked = selectedStudents.includes(h.studentId);
-                return (
-                  <button
-                    key={h.studentId}
-                    onClick={() => toggleStudent(h.studentId)}
-                    className={`text-left border rounded px-3 py-2 ${
-                      picked
-                        ? "bg-emerald-50 border-emerald-400"
-                        : "bg-white border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="font-medium text-black">
-                      {h.studentName ?? h.studentId}
-                      {picked && (
-                        <span className="ml-2 text-emerald-600 text-xs">선택됨</span>
-                      )}
-                    </div>
-                    <div className="text-xs text-black">
-                      ID: {h.studentId} · 학년: {h.grade ?? "-"}
-                    </div>
-                  </button>
-                );
-              })}
-              {hits.length === 0 && (
-                <div className="text-gray-500">검색 결과 없음</div>
+          <div className="space-y-2">
+            {classes.map((c) => {
+              const active = selected?.classId === c.classId;
+              return (
+                <button
+                  key={c.classId}
+                  onClick={() => setSelected(c)}
+                  className={`w-full text-left rounded-xl border px-4 py-3 transition ${
+                    active
+                      ? "border-emerald-400 bg-emerald-50"
+                      : "border-gray-200 bg-white hover:bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-black">{c.className}</div>
+                    <span className="text-xs rounded-full px-2 py-0.5 border border-emerald-300 text-emerald-700 bg-emerald-50">
+                      진행
+                    </span>
+                  </div>
+                  <div className="text-sm text-black mt-1">
+                    {(c.startTime && c.endTime) ? `${c.startTime} ~ ${c.endTime}` : "??:?? ~ ??:??"}
+                    <span className="mx-2">·</span>
+                    {c.roomNumber ? `강의실 ${c.roomNumber}` : "강의실 ?"}
+                  </div>
+                </button>
+              );
+            })}
+            {!loadingLeft && classes.length === 0 && (
+              <div className="text-gray-500">오늘 수업이 없습니다.</div>
+            )}
+          </div>
+        </section>
+
+        {/* ========== 오른쪽: 좌석 현황 ========== */}
+        <section className="bg-white rounded-2xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-black">
+              {board?.currentClass?.className ?? (selected?.className ?? "좌석 현황")}
+              <span className="ml-2 text-sm text-gray-500">{board?.date ?? ymd}</span>
+            </h2>
+            {loadingRight && <span className="text-sm text-gray-500">새로고침 중…</span>}
+          </div>
+
+          {/* 범례 */}
+          <div className="flex flex-wrap gap-3 mb-4 items-center text-sm">
+            <Badge label="출석" className="bg-emerald-100 text-emerald-700 border-emerald-300" />
+            <Badge label="지각" className="bg-yellow-100 text-yellow-700 border-yellow-300" />
+            <Badge label="결석" className="bg-rose-100 text-rose-700 border-rose-300" />
+            <Badge label="대기/이동/휴식" className="bg-blue-100 text-blue-700 border-blue-300" />
+            <Badge label="미기록" className="bg-gray-100 text-gray-700 border-gray-300" />
+            <span className="ml-auto text-xs text-gray-500">
+              출석 {counts.present} · 지각 {counts.late} · 결석 {counts.absent} · 이동/휴식 {counts.move} · 미기록 {counts.none}
+            </span>
+          </div>
+
+          {rightErr && (
+            <div className="mb-3 text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded px-3 py-2">
+              {rightErr}
+            </div>
+          )}
+
+          {/* 좌석 그리드 */}
+          <div
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
+          >
+            {(seats ?? []).map((s, idx) => {
+              const label =
+                s.studentName?.trim() ||
+                s.studentId?.trim() ||
+                (s.seatNumber ? `#${s.seatNumber}` : `Seat ${idx + 1}`);
+              return (
+                <div
+                  key={`${s.seatNumber ?? idx}-${s.studentId ?? ""}`}
+                  className={`rounded-xl border px-2 py-2 text-xs text-center truncate ${
+                    s.disabled ? "opacity-50" : ""
+                  } ${statusClass(s.attendanceStatus)}`}
+                  title={
+                    s.studentName
+                      ? `${s.studentName} (${s.studentId ?? ""})`
+                      : label
+                  }
+                >
+                  <div className="font-semibold">{label}</div>
+                  {s.seatNumber ? (
+                    <div className="opacity-70">좌석 {s.seatNumber}</div>
+                  ) : (
+                    <div className="opacity-70">&nbsp;</div>
+                  )}
+                </div>
+              );
+            })}
+            {!loadingRight && (!seats || seats.length === 0) && (
+              <div className="text-gray-500">좌석 데이터가 없습니다.</div>
+            )}
+          </div>
+
+          {/* 웨이팅룸 */}
+          <div className="mt-5">
+            <div className="text-sm font-semibold text-black mb-2">대기/이동/휴식 명단</div>
+            <div className="flex flex-wrap gap-2">
+              {(board?.waiting ?? []).map((w) => (
+                <span
+                  key={w.studentId}
+                  className="text-xs rounded-full border px-2 py-1 bg-blue-50 text-blue-700 border-blue-200"
+                  title={w.checkedInAt ?? ""}
+                >
+                  {w.studentName ?? w.studentId} {w.status ? `· ${w.status}` : ""}
+                </span>
+              ))}
+              {(board?.waiting?.length ?? 0) === 0 && (
+                <span className="text-xs text-gray-500">현재 대기/이동/휴식 학생 없음</span>
               )}
             </div>
           </div>
-
-          <button
-            onClick={createClass}
-            className="bg-emerald-600 text-white px-5 py-2 rounded hover:bg-emerald-700"
-          >
-            반 만들기
-          </button>
-
-          {msg && <div className="text-emerald-600 font-medium">{msg}</div>}
-          {err && <div className="text-red-600 font-medium">{err}</div>}
-        </div>
-
-        {/* === 반 목록 === */}
-        <div>
-          <h2 className="text-lg font-semibold text-black mb-2">내 반 목록</h2>
-          {loading && <div className="text-sm text-gray-500">불러오는 중…</div>}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {items.map((c) => (
-              <a
-                key={c.classId}
-                href={`/teacher/classes/${encodeURIComponent(c.classId)}`}
-                className="bg-white border border-gray-300 rounded-xl p-3 hover:shadow transition"
-              >
-                <div className="font-semibold text-black">{c.className}</div>
-                <div className="text-sm text-black">Room #{c.roomNumber ?? "-"}</div>
-                <div className="text-sm text-black">
-                  학생 수: {c.students?.length ?? 0}
-                </div>
-                <div className="text-emerald-600 text-sm mt-1">학생 관리 · 시간표</div>
-              </a>
-            ))}
-            {items.length === 0 && (
-              <div className="text-gray-600 text-sm">아직 생성된 반이 없습니다.</div>
-            )}
-          </div>
-        </div>
+        </section>
       </div>
     </div>
+  );
+}
+
+// 공통 뱃지
+function Badge({ label, className = "" }: { label: string; className?: string }) {
+  return (
+    <span className={`rounded-full border px-2 py-0.5 ${className}`}>{label}</span>
   );
 }

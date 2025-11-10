@@ -7,10 +7,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Document(collection = "classes")
 public class Course {
@@ -27,7 +24,7 @@ public class Course {
     @Field("Teacher_ID")
     private String teacherId;
 
-    /** 
+    /**
      * ✅ DB에는 숫자/문자 혼재 가능 → 원본은 Object로 받는다.
      *    JSON(프론트)에는 항상 문자열 배열로 내려준다.
      */
@@ -75,6 +72,10 @@ public class Course {
     @Field("Date_Room_Overrides")   // { "2025-10-27": 403, ... }
     private Map<String, Integer> dateRoomOverrides;
 
+    /* ✅ 추가: 좌석 배정 맵 (roomNumber -> (seatLabel -> studentId)) */
+    @Field("Seat_Map")
+    private Map<Integer, Map<String, String>> seatMap;
+
     /* ===== Getters / Setters ===== */
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -105,6 +106,7 @@ public class Course {
         } else {
             this.studentsRaw = new ArrayList<>(students);
         }
+        ;
     }
 
     public Integer getRoomNumber() { return roomNumber; }
@@ -142,6 +144,9 @@ public class Course {
 
     public Map<String, Integer> getDateRoomOverrides() { return dateRoomOverrides; }
     public void setDateRoomOverrides(Map<String, Integer> dateRoomOverrides) { this.dateRoomOverrides = dateRoomOverrides; }
+
+    public Map<Integer, Map<String, String>> getSeatMap() { return seatMap; }
+    public void setSeatMap(Map<Integer, Map<String, String>> seatMap) { this.seatMap = seatMap; }
 
     /* ===== 편의 유틸 ===== */
 
@@ -221,6 +226,40 @@ public class Course {
     }
 
     private static String nullSafe(String s) { return (s == null || s.isBlank()) ? null : s; }
+
+    /* ===== 좌석배정 헬퍼 ===== */
+
+    public String getAssignedStudentId(Integer roomNumber, String label){
+        if (seatMap == null || roomNumber == null || label == null) return null;
+        Map<String,String> m = seatMap.get(roomNumber);
+        return (m == null) ? null : m.get(label);
+    }
+
+    /** 동일 학생 중복 배정 방지: 같은 room에서 기존 배정 제거 후 새 label에 배정 */
+    public void assignSeat(Integer roomNumber, String label, String studentId){
+        if (roomNumber == null || label == null) return;
+        if (seatMap == null) seatMap = new HashMap<>();
+        seatMap.computeIfAbsent(roomNumber, k -> new HashMap<>());
+        Map<String,String> m = seatMap.get(roomNumber);
+
+        // 해제
+        if (studentId == null || studentId.isBlank()) {
+            m.remove(label);
+            return;
+        }
+
+        // 기존 좌석에서 해당 학생 제거
+        m.entrySet().removeIf(e -> studentId.equals(e.getValue()));
+        // 새 좌석에 배정
+        m.put(label, studentId);
+    }
+
+    public void clearSeatStudent(Integer roomNumber, String studentId){
+        if (seatMap == null || roomNumber == null || studentId == null) return;
+        Map<String,String> m = seatMap.get(roomNumber);
+        if (m == null) return;
+        m.entrySet().removeIf(e -> studentId.equals(e.getValue()));
+    }
 
     /* ===== 내장 타입 ===== */
     public static class DailyTime {

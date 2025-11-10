@@ -17,6 +17,7 @@ public class RoomVectorLayoutRequest {
         private Double x, y, w, h;
         private Double r;
         private Boolean disabled;
+        private String studentId;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -34,6 +35,8 @@ public class RoomVectorLayoutRequest {
         public void setR(Double r) { this.r = r; }
         public Boolean getDisabled() { return disabled; }
         public void setDisabled(Boolean disabled) { this.disabled = disabled; }
+        public String getStudentId() { return studentId; }
+        public void setStudentId(String studentId) { this.studentId = studentId; }
     }
 
     public Integer getAcademyNumber() { return academyNumber; }

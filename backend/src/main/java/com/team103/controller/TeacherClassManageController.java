@@ -1,12 +1,15 @@
+// src/main/java/com/team103/controller/TeacherClassManageController.java
 package com.team103.controller;
 
 import com.team103.dto.CreateClassRequest;
 import com.team103.dto.ScheduleItem;
 import com.team103.dto.StudentSearchResponse;
 import com.team103.dto.UpdateClassRequest;
+import com.team103.model.Attendance;
 import com.team103.model.Course;
 import com.team103.model.Student;
 import com.team103.model.Teacher;
+import com.team103.repository.AttendanceRepository;
 import com.team103.repository.CourseRepository;
 import com.team103.repository.StudentRepository;
 import com.team103.repository.TeacherRepository;
@@ -22,32 +25,40 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * 교사용 반/학생/스케줄 관리 컨트롤러 (원장도 접근 가능)
+ * 프론트 경로 혼재 대응: /api/teachers/** 와 /api/manage/teachers/** 동시 지원
+ */
 @RestController
-@RequestMapping("/api/teachers") // ★★ 기존 /api/manage/teachers → /api/teachers 로 변경
+@RequestMapping({"/api/teachers", "/api/manage/teachers"})
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('TEACHER','DIRECTOR')") // 클래스 전체 권한
+@PreAuthorize("hasAnyRole('TEACHER','DIRECTOR')")
 public class TeacherClassManageController {
 
     private final CourseRepository courseRepo;
     private final StudentRepository studentRepo;
     private final TeacherRepository teacherRepo;
     private final MongoTemplate mongo;
+    private final AttendanceRepository attRepo;
 
     public TeacherClassManageController(CourseRepository courseRepo,
                                         StudentRepository studentRepo,
                                         TeacherRepository teacherRepo,
-                                        MongoTemplate mongo) {
+                                        MongoTemplate mongo,
+                                        AttendanceRepository attRepo) {
         this.courseRepo = courseRepo;
         this.studentRepo = studentRepo;
         this.teacherRepo = teacherRepo;
         this.mongo = mongo;
+        this.attRepo = attRepo;
     }
 
-    /* ===================== 공통 가드 ===================== */
+    /* ===================== 공통 가드/유틸 ===================== */
 
     private boolean hasRole(Authentication auth, String role) {
         if (auth == null) return false;
@@ -75,13 +86,15 @@ public class TeacherClassManageController {
     }
 
     /* ===================== 반 목록 (교사별) ===================== */
+
     @GetMapping("/{teacherId}/classes")
     public List<Course> listMyClasses(@PathVariable String teacherId, Authentication auth) {
         guardTeacherId(teacherId, auth);
         return courseRepo.findByTeacherId(teacherId);
     }
 
-    /* ===================== 반 생성 ===================== */
+    /* ===================== 반 생성 (출석 자동 시딩 포함) ===================== */
+
     @PostMapping("/classes")
     public ResponseEntity<?> createClass(@RequestBody CreateClassRequest req, Authentication auth) {
         if (req.getTeacherId() == null || req.getClassName() == null || req.getAcademyNumber() == null) {
@@ -99,7 +112,7 @@ public class TeacherClassManageController {
         List<Integer> allowed = (t.getAcademyNumbers() != null && !t.getAcademyNumbers().isEmpty())
                 ? t.getAcademyNumbers()
                 : Collections.emptyList();
-        if (req.getAcademyNumber() == null || !allowed.contains(req.getAcademyNumber())) {
+        if (!allowed.contains(req.getAcademyNumber())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("학원번호 권한 없음");
         }
 
@@ -112,7 +125,6 @@ public class TeacherClassManageController {
         c.setAcademyNumber(req.getAcademyNumber());
         c.setStudents(new ArrayList<>());
 
-
         // ✅ 강의실(여러개) 처리: roomNumbers 우선, 없으면 roomNumber
         if (req.getRoomNumbers() != null && !req.getRoomNumbers().isEmpty()) {
             c.setRoomNumbers(new ArrayList<>(req.getRoomNumbers()));
@@ -124,16 +136,23 @@ public class TeacherClassManageController {
             }
         }
 
-        // 기본 시간표 필드(있으면 저장)
+        // 시간표(있으면 저장)
         c.setStartTime(req.getStartTime());
         c.setEndTime(req.getEndTime());
         if (req.getDaysOfWeek() != null) c.setDaysOfWeek(new ArrayList<>(req.getDaysOfWeek()));
         c.setSchedule(req.getSchedule());
 
-        return ResponseEntity.ok(courseRepo.save(c));
+        // 먼저 코스 저장
+        Course saved = courseRepo.save(c);
+
+        // ✅ 출석(attendances) 문서 자동 시딩 (오늘 포함 +30일, 정규 수업일만)
+        seedAttendanceForNewClass(saved, 30);
+
+        return ResponseEntity.ok(saved);
     }
 
     /* ===================== 반 상세 ===================== */
+
     @GetMapping("/classes/{classId}")
     public ResponseEntity<Course> getClassDetail(@PathVariable String classId, Authentication auth) {
         return courseRepo.findByClassId(classId)
@@ -145,6 +164,7 @@ public class TeacherClassManageController {
     }
 
     /* ===================== 반 수정 (이름/방/학원 + 시간표) ===================== */
+
     @PatchMapping("/classes/{classId}")
     public ResponseEntity<?> updateClass(@PathVariable String classId,
                                          @RequestBody UpdateClassRequest req,
@@ -177,6 +197,7 @@ public class TeacherClassManageController {
     }
 
     /* ===================== 반 삭제 ===================== */
+
     @DeleteMapping("/classes/{classId}")
     public ResponseEntity<?> deleteClass(@PathVariable String classId, Authentication auth) {
         return courseRepo.findByClassId(classId).map(c -> {
@@ -187,10 +208,24 @@ public class TeacherClassManageController {
     }
 
     /* ===================== 반에 학생 추가/제거 ===================== */
+
+    /** 쿼리파라미터 방식 (?studentId=) */
     @PostMapping("/classes/{classId}/students")
     public ResponseEntity<?> addStudent(@PathVariable String classId,
                                         @RequestParam String studentId,
                                         Authentication auth) {
+        return addStudentInternal(classId, studentId, auth);
+    }
+
+    /** 경로변수 방식 (/students/{studentId}) */
+    @PostMapping("/classes/{classId}/students/{studentId}")
+    public ResponseEntity<?> addStudentPath(@PathVariable String classId,
+                                            @PathVariable String studentId,
+                                            Authentication auth) {
+        return addStudentInternal(classId, studentId, auth);
+    }
+
+    private ResponseEntity<?> addStudentInternal(String classId, String studentId, Authentication auth) {
         return courseRepo.findByClassId(classId).map(c -> {
             guardCourseOwner(c, auth);
             List<String> st = (c.getStudents() == null) ? new ArrayList<>() : new ArrayList<>(c.getStudents());
@@ -211,6 +246,12 @@ public class TeacherClassManageController {
                 c.setStudents(c.getStudents().stream()
                         .filter(id -> !studentId.equals(id))
                         .collect(Collectors.toList()));
+                // 좌석 배정도 함께 제거
+                if (c.getSeatMap() != null) {
+                    for (Map<String,String> m : c.getSeatMap().values()) {
+                        m.entrySet().removeIf(e -> studentId.equals(e.getValue()));
+                    }
+                }
                 courseRepo.save(c);
             }
             return ResponseEntity.ok().build();
@@ -218,6 +259,7 @@ public class TeacherClassManageController {
     }
 
     /* ===================== 학생 검색 ===================== */
+
     @GetMapping("/students/search")
     public List<StudentSearchResponse> searchStudents(@RequestParam Integer academyNumber,
                                                       @RequestParam(required = false, defaultValue = "") String q,
@@ -298,7 +340,7 @@ public class TeacherClassManageController {
                 courseRepo.save(c);
             }
 
-            // 4-3) 부모 문서의 관련 필드 교체 — 위치 연산자($) 사용 (배열 매치 조건은 is)
+            // 4-3) 부모 문서의 관련 필드 교체 — 위치 연산자($) 사용
             mongo.updateMulti(
                     new Query(Criteria.where("Student_ID_List").is(studentId)),
                     new Update().set("Student_ID_List.$", newId),
@@ -339,6 +381,7 @@ public class TeacherClassManageController {
     }
 
     /* ===================== 교사용: 학부모 정보 수정 ===================== */
+
     @PatchMapping("/parents/{parentId}")
     public ResponseEntity<?> updateParentByTeacher(@PathVariable String parentId,
                                                    @RequestBody Map<String, Object> body,
@@ -351,6 +394,7 @@ public class TeacherClassManageController {
                 Criteria.where("parentsId").is(parentId),
                 Criteria.where("parentId").is(parentId)
         ));
+        @SuppressWarnings("rawtypes")
         Map parentDoc = mongo.findOne(findQ, Map.class, "parents");
         if (parentDoc == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("parent not found");
 
@@ -418,6 +462,11 @@ public class TeacherClassManageController {
         return ResponseEntity.ok(newPid != null ? Map.of("parentId", newPid) : Map.of("ok", true));
     }
 
+    /* ======================================================================
+     *                           스케줄 섹션
+     *  schedules 컬렉션 없이 Course만으로 계산해서 내려줌 + 날짜(추가/취소) 토글
+     * ====================================================================== */
+
     @GetMapping("/{teacherId}/schedules")
     public List<ScheduleItem> listSchedules(@PathVariable String teacherId,
                                             @RequestParam(required = false) String date, // YYYY-MM-DD
@@ -469,10 +518,8 @@ public class TeacherClassManageController {
                     si.setTitle(c.getClassName());
                     si.setStartTime(c.getStartTime());
                     si.setEndTime(c.getEndTime());
-
                     // ✅ 여러 강의실 중 1순위로 표시
                     si.setRoomNumber(c.getPrimaryRoomNumber());
-
                     out.add(si);
                 }
             }
@@ -506,5 +553,122 @@ public class TeacherClassManageController {
 
         courseRepo.save(c);
         return ResponseEntity.ok().build();
+    }
+
+    /* ===================== 좌석 배정 섹션 ===================== */
+
+    public static class SeatAssignDTO {
+        public Integer roomNumber;
+        public String seatLabel;
+        public String studentId; // null => unassign
+    }
+    public static class SeatAssignBulkDTO {
+        public Integer roomNumber;
+        public List<SeatAssignDTO> items;
+    }
+
+    @GetMapping("/classes/{classId}/seats")
+    public ResponseEntity<?> getSeatMap(@PathVariable String classId,
+                                        @RequestParam Integer roomNumber,
+                                        Authentication auth) {
+        return courseRepo.findByClassId(classId).map(c -> {
+            guardCourseOwner(c, auth);
+            Map<Integer,Map<String,String>> seatMap = c.getSeatMap();
+            Map<String,String> map = (seatMap==null)? Map.of() : seatMap.getOrDefault(roomNumber, Map.of());
+            return ResponseEntity.ok(Map.of("roomNumber", roomNumber, "map", map));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/classes/{classId}/seats")
+    public ResponseEntity<?> assignSeat(@PathVariable String classId,
+                                        @RequestBody SeatAssignDTO req,
+                                        Authentication auth){
+        if (req.roomNumber == null || req.seatLabel == null) {
+            return ResponseEntity.badRequest().body("roomNumber, seatLabel 필요");
+        }
+        return courseRepo.findByClassId(classId).map(c -> {
+            guardCourseOwner(c, auth);
+            if (req.studentId != null && !req.studentId.isBlank()) {
+                c.clearSeatStudent(req.roomNumber, req.studentId);
+                c.assignSeat(req.roomNumber, req.seatLabel, req.studentId);
+            } else {
+                c.assignSeat(req.roomNumber, req.seatLabel, null); // unassign
+            }
+            courseRepo.save(c);
+            return ResponseEntity.ok().build();
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/classes/{classId}/seats/bulk")
+    public ResponseEntity<?> assignSeatBulk(@PathVariable String classId,
+                                            @RequestBody SeatAssignBulkDTO req,
+                                            Authentication auth){
+        if (req.roomNumber == null) {
+            return ResponseEntity.badRequest().body("roomNumber 필요");
+        }
+        return courseRepo.findByClassId(classId).map(c -> {
+            guardCourseOwner(c, auth);
+            if (c.getSeatMap() == null) c.setSeatMap(new HashMap<>());
+
+            Map<String,String> map = new HashMap<>();
+            if (req.items != null) {
+                Map<String,String> lastByStudent = new HashMap<>();
+                for (SeatAssignDTO item : req.items) {
+                    if (item == null) continue;
+                    if (item.seatLabel == null) continue;
+                    if (item.studentId == null || item.studentId.isBlank()) continue;
+                    lastByStudent.put(item.studentId, item.seatLabel);
+                }
+                for (var e : lastByStudent.entrySet()){
+                    map.put(e.getValue(), e.getKey());
+                }
+            }
+            c.getSeatMap().put(req.roomNumber, map);
+            courseRepo.save(c);
+            return ResponseEntity.ok().build();
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    /* ===================== 출석 시딩 유틸 ===================== */
+
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+    private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    /**
+     * 새로 생성된 수업에 대해 오늘 포함 앞으로 N일 동안
+     * 정규 수업일(요일 매칭)만 빈 출석 문서를 미리 생성합니다.
+     *
+     * - 이미 존재하는 (classId, date)는 건너뜀.
+     * - Attendance 필드는 프로젝트 스키마에 맞춰 조정하세요.
+     */
+    private void seedAttendanceForNewClass(Course c, int daysForward) {
+        if (c == null || c.getClassId() == null) return;
+
+        final LocalDate today = LocalDate.now(SEOUL);
+        final LocalDate endEx = today.plusDays(Math.max(daysForward, 0));
+        final List<Integer> dows = (c.getDaysOfWeekInt() != null) ? c.getDaysOfWeekInt() : List.of();
+
+        for (LocalDate d = today; d.isBefore(endEx); d = d.plusDays(1)) {
+            final String ymd = d.format(YMD);
+            final int dow = d.getDayOfWeek().getValue(); // 1~7 ISO (1=월)
+
+            // 정규 수업일만 생성
+            if (!dows.contains(dow)) continue;
+
+            // 이미 있으면 skip
+            if (attRepo.findFirstByClassIdAndDate(c.getClassId(), ymd) != null) continue;
+
+            Attendance att = new Attendance();
+            att.setClassId(c.getClassId());
+            att.setDate(ymd);
+            att.setAttendanceList(new ArrayList<>());   // e.g., [{Student_ID, Status}, ...]
+
+            // 선택 필드(프로젝트에 있으면 세팅)
+            try {
+                att.getClass().getMethod("setSeatAssignments", List.class).invoke(att, new ArrayList<>());
+            } catch (Exception ignore) { /* 없음 */ }
+
+            attRepo.save(att);
+        }
     }
 }

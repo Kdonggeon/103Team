@@ -1,4 +1,4 @@
-// backend/src/main/java/com/team103/repository/CourseRepository.java
+// src/main/java/com/team103/repository/CourseRepository.java
 package com.team103.repository;
 
 import com.team103.model.Course;
@@ -12,24 +12,31 @@ import java.util.Optional;
 @Repository
 public interface CourseRepository extends MongoRepository<Course, String> {
 
-    // 교사별 조회 (Course에 @Field("Teacher_ID")로 매핑돼 있다고 가정)
+    /** ✅ 교사별 조회 */
     List<Course> findByTeacherId(String teacherId);
 
-    // ✅ 핵심 수정: 파생쿼리 → 명시 쿼리
-    // Students 배열이 ["12345", ...] 또는 [{ Student_ID: "12345", ... }, ...] 두 형태 모두 지원
+    /** ✅ Students 배열이 문자열 또는 객체 배열 두 형태 모두 지원 */
     @Query(value = "{ $or: [ { 'Students': ?0 }, { 'Students': { $elemMatch: { 'Student_ID': ?0 } } } ] }")
     List<Course> findByStudentsContaining(String studentId);
 
+    /** ✅ Room + Academy 동시 매칭 */
     List<Course> findByRoomNumberAndAcademyNumber(Integer roomNumber, Integer academyNumber);
 
-    /** DB 실제 필드가 Class_ID 이므로 명시 쿼리 */
+    /** ✅ Class_ID 기반 조회 (Mongo 필드명 명시) */
     @Query("{ 'Class_ID': ?0 }")
     Optional<Course> findByClassId(String classId);
 
-    /** 같은 방 번호의 코스 목록 */
+    /** ✅ 학원번호 기반 전체 코스 조회 (원장 종합뷰용) */
+    @Query("{ 'Academy_Number': ?0 }")
+    List<Course> findByAcademyNumber(int academyNumber);
+
+    /** ✅ 단일 방 번호 */
     List<Course> findByRoomNumber(Integer roomNumber);
 
-    /** 편의 메서드 */
+    /** ✅ 복수 Room_Numbers 배열 내 포함 검색 */
+    List<Course> findByRoomNumbersContaining(Integer roomNumber);
+
+    /** ✅ Null-safe 헬퍼 */
     default Course getByClassIdOrNull(String classId) {
         return findByClassId(classId).orElse(null);
     }

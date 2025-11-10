@@ -60,7 +60,7 @@ export default function ProfileSettingsPage() {
     }
   }, [router]);
 
-  // 항상 true 로직은 유지(원하면 isDirty 로 대체 가능)
+  // 항상 true(원하면 isDirty 로 바꿔도 됨)
   const dirty = useMemo(() => true, [form, stuExtra, tchExtra, dirExtra]);
 
   const onSave = async () => {
@@ -78,16 +78,17 @@ export default function ProfileSettingsPage() {
         const payload = {
           studentId: session.username,
           studentName: form.name,
-          studentPhoneNumber: form.phone, // 통일
+          studentPhoneNumber: form.phone,
           address: stuExtra.address ?? "",
           school: stuExtra.school ?? "",
           grade: Number(stuExtra.grade ?? 0) || 0,
           gender: stuExtra.gender ?? "",
         };
-        const res = await fetch(
-          `${API_BASE}/api/students/${encodeURIComponent(session.username)}`,
-          { method: "PUT", headers, body: JSON.stringify(payload) }
-        );
+        const res = await fetch(`${API_BASE}/api/students/${encodeURIComponent(session.username)}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(payload),
+        });
         if (!res.ok) throw new Error(await res.text());
       }
 
@@ -97,10 +98,11 @@ export default function ProfileSettingsPage() {
           parentsName: form.name,
           parentsPhoneNumber: form.phone,
         };
-        const res = await fetch(
-          `${API_BASE}/api/parents/${encodeURIComponent(session.username)}`,
-          { method: "PUT", headers, body: JSON.stringify(payload) }
-        );
+        const res = await fetch(`${API_BASE}/api/parents/${encodeURIComponent(session.username)}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(payload),
+        });
         if (!res.ok) throw new Error(await res.text());
       }
 
@@ -114,10 +116,11 @@ export default function ProfileSettingsPage() {
           teacherPhoneNumber: form.phone,
           ...(academyNumber != null ? { academyNumber } : {}),
         };
-        const res = await fetch(
-          `${API_BASE}/api/teachers/${encodeURIComponent(session.username)}`,
-          { method: "PUT", headers, body: JSON.stringify(payload) }
-        );
+        const res = await fetch(`${API_BASE}/api/teachers/${encodeURIComponent(session.username)}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(payload),
+        });
         if (!res.ok) throw new Error(await res.text());
       }
 
@@ -129,23 +132,26 @@ export default function ProfileSettingsPage() {
           directorPhoneNumber: form.phone,
           academyNumbers: nums,
         };
-        const res = await fetch(
-          `${API_BASE}/api/directors/${encodeURIComponent(session.username)}`,
-          { method: "PUT", headers, body: JSON.stringify(payload) }
-        );
+        const res = await fetch(`${API_BASE}/api/directors/${encodeURIComponent(session.username)}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(payload),
+        });
         if (!res.ok) throw new Error(await res.text());
       }
 
-      // 로컬 세션 업데이트
+      // 세션 업데이트
       const next = {
         ...session,
         name: form.name,
         phone: form.phone,
         ...(session.role === "teacher"
-          ? { academyNumbers: (() => {
-              const n = Number(tchExtra.academyNumber);
-              return Number.isFinite(n) && n > 0 ? [n] : [];
-            })() }
+          ? {
+              academyNumbers: (() => {
+                const n = Number(tchExtra.academyNumber);
+                return Number.isFinite(n) && n > 0 ? [n] : [];
+              })(),
+            }
           : {}),
         ...(session.role === "director" ? { academyNumbers: toNums(dirExtra.academyNumbersText) } : {}),
       };
@@ -164,35 +170,35 @@ export default function ProfileSettingsPage() {
   if (loading || !session) return null;
 
   const roleLabel =
-    session.role === "student"
-      ? "학생"
-      : session.role === "parent"
-      ? "학부모"
-      : session.role === "teacher"
-      ? "교사"
-      : "원장";
+    session.role === "student" ? "학생" : session.role === "parent" ? "학부모" : session.role === "teacher" ? "교사" : "원장";
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* 상단 헤더 + 대시보드로 버튼 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">개인정보 수정</h1>
-          <p className="text-sm text-gray-900 mt-1">
+          <h1 className="text-2xl font-bold text-white">개인정보 수정</h1>
+          <p className="text-sm text-gray-200 mt-1">
             역할: <span className="font-semibold">{roleLabel}</span> / 아이디:{" "}
             <span className="font-semibold">{session.username}</span>
           </p>
         </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 h-10 px-3 rounded-xl border border-white/30 text-white hover:bg-white/10 transition"
+          >
+            ← 대시보드로
+          </Link>
+        </div>
       </div>
 
       {msg && (
-        <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">
-          {msg}
-        </div>
+        <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">{msg}</div>
       )}
       {err && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
-          {err}
-        </div>
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{err}</div>
       )}
 
       {/* 기본 정보 */}
@@ -200,11 +206,7 @@ export default function ProfileSettingsPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">기본 정보</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field
-            label="이름"
-            value={form.name}
-            onChange={(v) => setForm((p) => ({ ...p, name: v }))}
-          />
+          <Field label="이름" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} />
           <ReadOnly label="아이디(수정불가)" value={session.username} />
 
           <Field
@@ -217,32 +219,20 @@ export default function ProfileSettingsPage() {
         </div>
       </section>
 
-      {/* 역할별 추가(개인정보 범주) */}
+      {/* 역할별 섹션 */}
       {session.role === "student" && (
         <section className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">학생 정보</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field
-              label="주소"
-              value={stuExtra.address ?? ""}
-              onChange={(v) => setStuExtra((p) => ({ ...p, address: v }))}
-            />
-            <Field
-              label="학교"
-              value={stuExtra.school ?? ""}
-              onChange={(v) => setStuExtra((p) => ({ ...p, school: v }))}
-            />
+            <Field label="주소" value={stuExtra.address ?? ""} onChange={(v) => setStuExtra((p) => ({ ...p, address: v }))} />
+            <Field label="학교" value={stuExtra.school ?? ""} onChange={(v) => setStuExtra((p) => ({ ...p, school: v }))} />
             <Field
               type="number"
               label="학년"
               value={String(stuExtra.grade ?? "")}
               onChange={(v) => setStuExtra((p) => ({ ...p, grade: v }))}
             />
-            <Field
-              label="성별"
-              value={stuExtra.gender ?? ""}
-              onChange={(v) => setStuExtra((p) => ({ ...p, gender: v }))}
-            />
+            <Field label="성별" value={stuExtra.gender ?? ""} onChange={(v) => setStuExtra((p) => ({ ...p, gender: v }))} />
           </div>
         </section>
       )}
@@ -275,7 +265,7 @@ export default function ProfileSettingsPage() {
         </section>
       )}
 
-      {/* 저장 + 계정탈퇴 이동 */}
+      {/* 저장 + 계정탈퇴 */}
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={onSave}
@@ -286,9 +276,7 @@ export default function ProfileSettingsPage() {
         </button>
         <Link
           href="/account/delete"
-          className="inline-flex w-32 h-11 items-center justify-center rounded-xl
-                  border-2 border-red-600 text-red-600 font-semibold
-                  hover:bg-red-600 hover:text-white transition"
+          className="inline-flex w-32 h-11 items-center justify-center rounded-xl border-2 border-red-600 text-red-600 font-semibold hover:bg-red-600 hover:text-white transition"
         >
           계정탈퇴
         </Link>
@@ -297,7 +285,7 @@ export default function ProfileSettingsPage() {
   );
 }
 
-/* 재사용 필드 */
+/* 재사용 입력 컴포넌트 */
 function Field({
   label,
   value,
@@ -324,15 +312,12 @@ function Field({
     </label>
   );
 }
+
 function ReadOnly({ label, value }: { label: string; value: string }) {
   return (
     <label className="block">
       <span className="block text-sm text-gray-900 mb-1">{label}</span>
-      <input
-        className="w-full h-11 rounded-xl border border-gray-300 px-3 bg-gray-50 text-gray-900"
-        value={value}
-        readOnly
-      />
+      <input className="w-full h-11 rounded-xl border border-gray-300 px-3 bg-gray-50 text-gray-900" value={value} readOnly />
     </label>
   );
 }

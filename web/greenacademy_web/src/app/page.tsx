@@ -1,4 +1,4 @@
-// C:\project\103Team-sub\web\greenacademy_web\src\app\page.tsx
+// src/app/page.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -9,24 +9,57 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, clearSession } from "@/app/lib/session";
 import api, { type LoginResponse } from "@/app/lib/api";
 
+// 관리 패널
+import DirectorRoomsPanel from "@/components/rooms/director/DirectorRoomsPanel";
+import TeacherManagePanel from "@/components/manage/TeacherManagePanel";
+import TeacherSchedulePanelInline from "@/components/manage/TeacherSchedulePanelInline";
+import DirectorPeoplePanel from "@/components/manage/director/DirectorPeoplePanel";
+import DirectorOverviewPanel from "@/components/manage/DirectorOverviewPanel";
+import TeacherMainPanel from "@/components/manage/TeacherMainPanel";
+
+// HEAD 쪽에서 쓰던 컴포넌트(드롭다운 항목들)
+import TeacherProfileCard from "@/app/teacher/TeacherProfileCard";
+import TeacherStudentManage from "@/app/teacher/StudentManage";
+import DirectorMyInfoCard from "@/app/director/DirectorMyInfoCard";
+
 // QnA
 import { getRecentQna } from "@/lib/qna";
 import QnaPanel from "./qna/QnaPanel";
 import TeacherQnaPanel from "./qna/TeacherQnaPanel";
 
-// 관리 패널(외부 컴포넌트 사용)
-import TeacherProfileCard from "@/app/teacher/TeacherProfileCard";
-import TeacherStudentManage from "@/app/teacher/StudentManage";
+// QR 생성
 import QRGeneratorPanel from "@/app/teacher/QRGeneratorPanel";
-import DirectorRoomsPanel from "@/components/rooms/director/DirectorRoomsPanel";
-import TeacherManagePanel from "@/components/manage/TeacherManagePanel";
-import TeacherSchedulePanelInline from "@/components/manage/TeacherSchedulePanelInline";
-import DirectorMyInfoCard from "@/app/director/DirectorMyInfoCard";
 
-/** 색상 토큰 */
-const colors = { green: "#65E478", grayBg: "#F2F4F7" };
+/* ================== API URL 유틸 ================== */
+const API_BASE =
+  (typeof window !== "undefined" && (window as any).__API_BASE__) ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "";
+const BACKEND_PREFIX = process.env.NEXT_PUBLIC_BACKEND_PREFIX ?? "/backend";
+function absUrl(path: string) {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const withPrefix = `${BACKEND_PREFIX}${p}`.replace(/\/{2,}/g, "/");
+  return API_BASE ? `${API_BASE}${withPrefix}` : withPrefix;
+}
+async function apiGet<T>(path: string): Promise<T> {
+  const session = getSession();
+  const token = session?.token ?? null;
+  const url = absUrl(path);
+  const res = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? " | " + text : ""}`);
+  return text ? (JSON.parse(text) as T) : ({} as T);
+}
 
-/** 타입 */
+/** 타입들 */
 type LoginSession = LoginResponse | null;
 
 type StudentAttendanceRow = {
@@ -51,13 +84,12 @@ type SeatCell = {
   id: number | string;
   name?: string;
   seatNumber?: number | string;
-  attendance?: string; // PRESENT | LATE | ABSENT | ...
+  attendance?: string;
 };
 
 /** 날짜 유틸 */
 const toYmd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
 const isSameDate = (isoOrYmd: string, base = new Date()) => {
   try {
     if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrYmd)) return isoOrYmd === toYmd(base);
@@ -68,36 +100,7 @@ const isSameDate = (isoOrYmd: string, base = new Date()) => {
   }
 };
 
-/** /backend 프록시 + Authorization 자동 주입(GET 전용 간단 래퍼) */
-async function apiGet<T>(path: string): Promise<T> {
-  const session = getSession();
-  const token = session?.token ?? null;
-  const url = path.startsWith("/backend") ? path : `/backend${path}`;
-  const res = await fetch(url, {
-    method: "GET",
-    credentials: "include",
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? " | " + text : ""}`);
-  return text ? (JSON.parse(text) as T) : ({} as T);
-}
-
-/** 통계 카드 */
-function StatCard({ title, value }: { title: string; value: number }) {
-  return (
-    <div className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5 px-6 py-4 text-center min-w-[220px]">
-      <div className="text-sm text-gray-700 mb-1">{title}</div>
-      <div className="text-2xl font-semibold text-gray-900">{value}</div>
-    </div>
-  );
-}
-
-/** 상단 탭(통합) + 관리 드롭다운 */
+/** ✅ HEAD 버전 NavTabs: ‘관리’ 드롭다운 포함 */
 function NavTabs({
   active,
   onChange,
@@ -114,7 +117,7 @@ function NavTabs({
   const left = ["종합정보"] as const;
   const right =
     role === "director"
-      ? (["관리", "시간표", "출결확인", "Q&A", "공지사항", "가이드"] as const)
+      ? (["관리", "출결확인", "Q&A", "공지사항", "가이드"] as const) // 원장: ‘출결확인’
       : (["관리", "시간표", "Q&A", "공지사항", "가이드"] as const);
 
   const manageItems =
@@ -200,12 +203,17 @@ function NavTabs({
   );
 }
 
-/** 프로필 드롭다운 메뉴 */
-function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
-  const router = useRouter();
+/* ================= 공용 UI ================= */
+const colors = { green: "#65E478", grayBg: "#F2F4F7" };
+
+/** 프로필 드롭다운(우상단) — 필요시 유지 */
+function ProfileMenu({
+  user,
+}: {
+  user: NonNullable<LoginSession> | null;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (!ref.current) return;
@@ -221,9 +229,7 @@ function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
       document.removeEventListener("keydown", onKey);
     };
   }, []);
-
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.username?.[0]?.toUpperCase() ?? "?";
-
   return (
     <div className="relative" ref={ref}>
       <button
@@ -237,44 +243,18 @@ function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
+        <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
           <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
             {user?.name || user?.username}
           </div>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/notifications");
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-          >
-            🔔 내 알림
-          </button>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings/theme");
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-          >
-            🎨 테마 설정
-          </button>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings");
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-          >
-            ⚙️ 환경 설정
-          </button>
+          {/* 필요하면 메뉴 항목 추가 */}
         </div>
       )}
     </div>
   );
 }
 
-/** 사이드 프로필 */
+/** ✅ HEAD 버전 SidebarProfile (환경설정/최근QnA 버튼 포함) */
 function SidebarProfile({
   user,
   onLogout,
@@ -361,18 +341,18 @@ function SidebarProfile({
 
           <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-2" />
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-2">
             <button
-              onClick={() => router.push("/settings/profile")}
-              className="rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-xs font-medium text-gray-800"
+              onClick={() => router.push("/settings")}
+              className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
             >
-              개인정보 수정
+              환경 설정
             </button>
             <button
-              onClick={() => router.push("/account/delete")}
-              className="rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-xs font-medium text-gray-800"
+              onClick={onOpenRecentQna}
+              className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
             >
-              계정탈퇴
+              최근 QnA 바로가기
             </button>
           </div>
 
@@ -385,32 +365,11 @@ function SidebarProfile({
           </button>
         </div>
       </div>
-
-      <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4 space-y-3 mt-4">
-        <div className="text-sm font-semibold text-gray-900">빠른 실행</div>
-        <div className="grid gap-2">
-          <button
-            onClick={() => router.push("/settings")}
-            className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
-          >
-            환경 설정
-          </button>
-
-          <div className="flex flex-col gap-1">
-            <button
-              onClick={onOpenRecentQna}
-              className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
-            >
-              최근 QnA 바로가기
-            </button>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 }
 
-/** 역할별 리스트 */
+/** 리스트 카드 */
 function WaitingList({
   title,
   list,
@@ -452,11 +411,10 @@ function SeatGrid({ seats }: { seats: SeatCell[] | null }) {
   if (!seats || seats.length === 0) {
     return (
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
-        현재 시간 수업의 좌석/출석 데이터가 없습니다.
+        현재 시간 수업의 좌석·출석 현황
       </div>
     );
   }
-
   const badge = (att?: string) => {
     if (!att) return null;
     const upper = att.toUpperCase();
@@ -470,7 +428,6 @@ function SeatGrid({ seats }: { seats: SeatCell[] | null }) {
       upper.includes("ABS") || upper.includes("ABSENT") ? "결석" : upper.includes("LATE") ? "지각" : "출석";
     return <span className={`mt-1 inline-block text-[10px] px-2 py-0.5 rounded ring-1 ${cls}`}>{label}</span>;
   };
-
   return (
     <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
       <div className="grid grid-cols-5 gap-3">
@@ -507,7 +464,7 @@ function summarizeAttendance<T extends { status: string }>(rows: T[]) {
   return { present, late, absent };
 }
 
-/** 유틸: 요일/시간 포맷 → 부제(subtitle) */
+/** subtitle 포맷 */
 const formatSubtitle = (c: Partial<RawClass>) => {
   if (c.scheduleText) return c.scheduleText;
   const days = Array.isArray(c.dayOfWeek)
@@ -542,7 +499,7 @@ const formatSubtitle = (c: Partial<RawClass>) => {
   return combo ? `${combo}${room}` : room ? String(room).slice(3) : undefined;
 };
 
-/** 유틸: 지금 시간에 해당 수업인지 대략 판정(정보 없으면 false) */
+/** 지금 시간 수업인지 대략 판정 */
 const isNowIn = (c: Partial<RawClass>) => {
   if (!c.startTime || !c.endTime) return false;
   const now = new Date();
@@ -568,46 +525,28 @@ const isNowIn = (c: Partial<RawClass>) => {
   return now >= start && now <= end;
 };
 
-/** 현재 수업 좌석/출석 가져오기(교사용) */
+/** 현재 수업 출석(교사용) — attendance만 호출 */
 const fetchCurrentClassSeats = async (classes: RawClass[], setSeats: (s: SeatCell[] | null) => void) => {
   setSeats(null);
   if (!classes || classes.length === 0) return;
 
   const current = classes.find((c) => isNowIn(c)) || classes[0];
   const today = toYmd(new Date());
-  try {
-    const seatRows = await apiGet<
-      Array<{ id?: number | string; seatNumber?: number | string; name?: string; attendance?: string }>
-    >(`/teachers/classes/${encodeURIComponent(current.classId)}/seats?date=${encodeURIComponent(today)}`);
 
-    const mapped: SeatCell[] = (seatRows || []).map((s, idx) => ({
-      id: s.id ?? s.seatNumber ?? idx,
-      seatNumber: s.seatNumber ?? idx + 1,
-      name: s.name ?? "",
-      attendance: s.attendance,
-    }));
-    setSeats(mapped);
-    return;
-  } catch {
-    try {
-      const atts = await apiGet<
-        Array<{ studentId?: string; studentName?: string; seatNumber?: number | string; status?: string }>
-      >(`/teachers/classes/${encodeURIComponent(current.classId)}/attendance?date=${encodeURIComponent(today)}`);
+  const atts = await apiGet<Array<{ studentId?: string; studentName?: string; status?: string }>>(
+    `/api/teachers/classes/${encodeURIComponent(current.classId)}/attendance?date=${encodeURIComponent(today)}`
+  );
 
-      const mapped: SeatCell[] = (atts || []).map((a, idx) => ({
-        id: a.seatNumber ?? a.studentId ?? idx,
-        seatNumber: a.seatNumber ?? idx + 1,
-        name: a.studentName ?? a.studentId ?? "",
-        attendance: a.status,
-      }));
-      setSeats(mapped);
-    } catch {
-      setSeats([]);
-    }
-  }
+  const mapped: SeatCell[] = (atts || []).map((a, idx) => ({
+    id: a.studentId ?? idx,
+    seatNumber: idx + 1,
+    name: a.studentName ?? a.studentId ?? "",
+    attendance: a.status,
+  }));
+  setSeats(mapped);
 };
 
-/** 메인 대시보드(통합) */
+/** 메인 대시보드 */
 export default function GreenAcademyDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -628,10 +567,8 @@ export default function GreenAcademyDashboard() {
   const [list, setList] = useState<Array<{ label: string; sub?: string }>>([]);
   const [seats, setSeats] = useState<SeatCell[] | null>(null);
 
-  // QnA 최근 강제 오픈
+  // QnA
   const [forcedQnaId, setForcedQnaId] = useState<string | null>(null);
-
-  // 학생/학부모 QnA용 학원번호
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
 
   /** 세션 로드 & 가드 */
@@ -645,7 +582,7 @@ export default function GreenAcademyDashboard() {
     setReady(true);
   }, [router]);
 
-  /** 최초 진입 시 쿼리 탭 반영 */
+  /** ?tab=... 초기 라우팅 */
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (!tab) return;
@@ -663,7 +600,7 @@ export default function GreenAcademyDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** 학원번호 초기화 (학생/학부모 전용) */
+  /** 학원번호 초기화 (학생/학부모) */
   useEffect(() => {
     if (!user) return;
     if (
@@ -671,13 +608,13 @@ export default function GreenAcademyDashboard() {
       Array.isArray(user.academyNumbers) &&
       user.academyNumbers.length > 0
     ) {
-      setAcademyNumber(user.academyNumbers[0]);
+      setAcademyNumber(Number(user.academyNumbers[0]));
     } else {
       setAcademyNumber(null);
     }
   }, [user]);
 
-  /** 역할별 데이터 로딩 (종합정보 탭) */
+  /** 역할별 데이터 로딩 (종합정보) */
   useEffect(() => {
     if (!ready || !user) return;
     if (activeTab !== "종합정보") return;
@@ -693,15 +630,12 @@ export default function GreenAcademyDashboard() {
           const classes: RawClass[] = await api.listMyClasses(user.username);
           setList((classes || []).map((c) => ({ label: c.className, sub: formatSubtitle(c) })));
           await fetchCurrentClassSeats(classes || [], setSeats);
-          setPresent(0);
-          setLate(0);
-          setAbsent(0);
           return;
         }
 
         if (user.role === "parent") {
-          const target = user.childStudentId || user.username;
-          const rows = await apiGet<StudentAttendanceRow[]>(`/parents/${encodeURIComponent(target)}/attendance`);
+          const target = (user as any).childStudentId || user.username;
+          const rows = await apiGet<StudentAttendanceRow[]>(`/api/parents/${encodeURIComponent(target)}/attendance`);
           const todayRows = rows.filter((r) => isSameDate(r.date));
           const sum = summarizeAttendance(todayRows);
           setPresent(sum.present);
@@ -711,7 +645,7 @@ export default function GreenAcademyDashboard() {
           setSeats(null);
         } else if (user.role === "student") {
           const rows = await apiGet<StudentAttendanceRow[]>(
-            `/students/${encodeURIComponent(user.username)}/attendance`
+            `/api/students/${encodeURIComponent(user.username)}/attendance`
           );
           const todayRows = rows.filter((r) => isSameDate(r.date));
           const sum = summarizeAttendance(todayRows);
@@ -735,7 +669,7 @@ export default function GreenAcademyDashboard() {
     })();
   }, [ready, user, activeTab]);
 
-  /** 최근 QnA 버튼: 탭 전환 + 미확인 우선 최신 스레드 강제 오픈 */
+  /** QnA: 최근 스레드 열기 */
   const handleOpenRecentQna = async () => {
     try {
       const recent = await getRecentQna();
@@ -750,33 +684,19 @@ export default function GreenAcademyDashboard() {
     }
   };
 
-  /** 사용자가 Q&A 탭으로 들어갔을 때 자동으로 최근 스레드 열기(미지정 시) */
-  useEffect(() => {
-    if (activeTab !== "Q&A") return;
-    if (forcedQnaId) return;
-
-    let aborted = false;
-    (async () => {
-      try {
-        const recent = await getRecentQna();
-        if (aborted) return;
-        if (recent?.questionId) setForcedQnaId(recent.questionId);
-      } catch {
-        /* ignore */
-      }
-    })();
-
-    return () => {
-      aborted = true;
-    };
-  }, [activeTab, forcedQnaId]);
-
   const handleLogout = () => {
     clearSession();
     router.replace("/login");
   };
+  const handleTab = (t: string) => {
+    setActiveTab(t);
+    if (t !== "Q&A") setForcedQnaId(null);
+    if (t !== "관리") setManageMenu(null); // 관리 벗어나면 드롭다운 선택 해제
+  };
 
   if (!ready) return null;
+
+  const showTeacherStats = user?.role !== "teacher"; // 선생이면 통계 숨김
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.grayBg }}>
@@ -795,10 +715,7 @@ export default function GreenAcademyDashboard() {
 
           <NavTabs
             active={activeTab}
-            onChange={(tab) => {
-              setActiveTab(tab);
-              if (tab !== "Q&A") setForcedQnaId(null);
-            }}
+            onChange={handleTab}
             role={user?.role ?? null}
             manageMenu={manageMenu}
             onSelectManage={(item) => {
@@ -821,11 +738,11 @@ export default function GreenAcademyDashboard() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
-                  강의실 찾기 추가 예정
+                  {Array.isArray(user?.academyNumbers) ? `학원 번호: ${user!.academyNumbers![0]}` : "학원 정보 없음"}
                 </span>
               </div>
 
-              {user?.role !== "teacher" && (
+              {showTeacherStats && (
                 <div className="flex gap-3">
                   <StatCard title="금일 출석 학생 수" value={present} />
                   <StatCard title="금일 지각 학생 수" value={late} />
@@ -834,17 +751,17 @@ export default function GreenAcademyDashboard() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-6">
-              <WaitingList title={user!.role === "teacher" ? "내 반 목록" : "오늘 일정"} list={list} loading={loading} error={err} />
-
-              {user?.role === "teacher" ? (
+            {/* 역할별 분기 */}
+            {user?.role === "teacher" ? (
+              <TeacherMainPanel user={user} />
+            ) : user?.role === "director" ? (
+              <DirectorOverviewPanel user={user} />
+            ) : (
+              <>
+                <WaitingList title="오늘 일정" list={list} loading={loading} error={err} />
                 <SeatGrid seats={seats} />
-              ) : (
-                <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
-                  좌석 데이터가 연결되어 있지 않습니다. (수업 선택 후 좌석 API를 연동해 주세요)
-                </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )}
 
@@ -881,19 +798,14 @@ export default function GreenAcademyDashboard() {
           </>
         )}
 
-        {/* 원장 전용: 출결확인 탭 */}
-        {activeTab === "출결확인" && user?.role === "director" && <DirectorMyInfoCard/>}
+        {/* 원장 전용: 출결확인 */}
+        {activeTab === "출결확인" && user?.role === "director" && <DirectorPeoplePanel />}
 
-        {/* 시간표 탭 */}
-        {activeTab === "시간표" && (
+        {/* 시간표 */}
+        {activeTab === "시간표" && user?.role !== "director" && (
           <>
             {user?.role === "teacher" ? (
               <TeacherSchedulePanelInline user={user} />
-            ) : user?.role === "director" ? (
-              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">시간표</h2>
-                <p className="text-sm text-gray-700">원장은 ‘출결확인’ 탭도 함께 사용할 수 있습니다.</p>
-              </div>
             ) : (
               <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">시간표</h2>
@@ -903,7 +815,7 @@ export default function GreenAcademyDashboard() {
           </>
         )}
 
-        {/* Q&A 탭 */}
+        {/* QnA */}
         {activeTab === "Q&A" && (
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
@@ -923,6 +835,7 @@ export default function GreenAcademyDashboard() {
           </div>
         )}
 
+        {/* 공지/가이드 */}
         {activeTab === "공지사항" && (
           <div className="space-y-4">
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
@@ -934,13 +847,23 @@ export default function GreenAcademyDashboard() {
 
         {activeTab === "가이드" && (
           <div className="space-y-4">
-            <div className="space-y-4 rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">가이드</h2>
               <p className="text-sm text-gray-700">사용 설명서/튜토리얼 문서를 표시합니다.</p>
             </div>
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+/** 통계 카드 */
+function StatCard({ title, value }: { title: string; value: number }) {
+  return (
+    <div className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5 px-6 py-4 text-center min-w-[220px]">
+      <div className="text-sm text-gray-700 mb-1">{title}</div>
+      <div className="text-2xl font-semibold text-gray-900">{value}</div>
     </div>
   );
 }

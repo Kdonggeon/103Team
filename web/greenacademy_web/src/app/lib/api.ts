@@ -1,3 +1,4 @@
+// src/app/lib/api.ts
 import { getSession } from "@/app/lib/session";
 
 export type Role = "student" | "teacher" | "parent" | "director";
@@ -249,7 +250,7 @@ function getAuthToken(): string | null {
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as any) };
 
-  if (init.body && !(init.body instanceof FormData) && !headers["Content-Type"]) {
+  if (init.body && !isFormData(init.body) && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
 
@@ -275,6 +276,8 @@ export const todayISO = () => new Date().toISOString().slice(0, 10);
 /* =============================================================================
  * 실제 API
  * ========================================================================== */
+
+/** ───────── 로그인/계정 ───────── */
 export const api = {
   /* 로그인 */
   login: (body: LoginRequest) =>
@@ -290,7 +293,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  /* 반 관리 */
+  /** ───────── 반 관리 ───────── */
   listMyClasses: (teacherId: string) =>
     request<CourseLite[]>(
       `${TEACHER_PREFIX}/${encodeURIComponent(teacherId)}/classes`
@@ -340,7 +343,7 @@ export const api = {
     );
   },
 
-  /* ---- 스케줄 API ---- */
+  /** ───────── 스케줄 ───────── */
   getDaySchedules: (teacherId: string, date: string) =>
     request<ScheduleItem[]>(
       `${TEACHER_PREFIX}/${encodeURIComponent(
@@ -378,10 +381,10 @@ export const api = {
 
   deleteScheduleByClassDate: (teacherId: string, classId: string, date: string) =>
     request<void>(
-      `${TEACHER_PREFIX}/${encodeURIComponent(teacherId)}/schedules/${encodeURIComponent(`${classId}_${date}`)}`,
+      `${TEACHER_PREFIX}/${encodeURIComponent(teacherId)}/schedules/${encodeURIComponent(`${classId}_${date}`)}`
     ),
 
-  /* ---- 좌석/강의실 ---- */
+  /** ───────── 좌석/강의실(보드/관리) ───────── */
   getSeatBoard: (classId: string, date: string) =>
     request<SeatBoardResponse>(
       `${TEACHER_PREFIX}/classes/${encodeURIComponent(
@@ -401,6 +404,62 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+
+  /** ───────── 좌석 배치/배정 (새 구조) ───────── */
+
+  // 좌석 배정 맵 조회: label -> studentId
+  getSeatMap: (classId: string, roomNumber: number) =>
+    request<{ classId: string; roomNumber: number; map: Record<string, string> }>(
+      `${TEACHER_PREFIX}/classes/${encodeURIComponent(classId)}/seatmap?roomNumber=${encodeURIComponent(roomNumber)}`
+    ),
+
+  // 단건 배정/해제 (객체형 & 옛 4~5 인자형 둘다 허용)
+  assignSeat: (() => {
+    type AssignSeatFn =
+      ((classId: string, opts: { roomNumber: number; seatLabel: string | number; studentId: string | null; academyNumber?: number }) => Promise<void>) &
+      ((classId: string, roomNumber: number, seatIdOrLabel: string | number, studentId: string | null, academyNumber?: number) => Promise<void>);
+
+    const impl: AssignSeatFn = (async function (...args: any[]): Promise<void> {
+      const [classId, arg2, arg3, arg4] = args;
+      let roomNumber: number;
+      let seatLabel: string | number;
+      let sid: string | null;
+
+      if (typeof arg2 === "object" && arg2 !== null) {
+        roomNumber = Number(arg2.roomNumber);
+        seatLabel = arg2.seatLabel;
+        sid = (arg2.studentId ?? null) as string | null;
+      } else {
+        roomNumber = Number(arg2);
+        seatLabel = arg3 as string | number;
+        sid = (arg4 ?? null) as string | null;
+      }
+
+      if (!Number.isFinite(roomNumber)) throw new ApiError(400, "roomNumber is required");
+      if (seatLabel === undefined || seatLabel === null) throw new ApiError(400, "seatLabel is required");
+
+      await request<void>(
+        `${TEACHER_PREFIX}/classes/${encodeURIComponent(classId)}/seatmap`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            roomNumber,
+            seatLabel: String(seatLabel),
+            studentId: sid, // null이면 해제
+          }),
+        }
+      );
+    }) as AssignSeatFn;
+
+    return impl;
+  })(),
+
+  // (선택) 벌크 저장
+  putSeatMap: (classId: string, body: { roomNumber: number; map: Record<string, string> }) =>
+    request<void>(
+      `${TEACHER_PREFIX}/classes/${encodeURIComponent(classId)}/seatmap`,
+      { method: "PUT", body: JSON.stringify(body) }
+    ),
 };
 
 export default api;

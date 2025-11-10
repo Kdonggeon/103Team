@@ -1,3 +1,4 @@
+// src/components/manage/DirectorPeoplePanel.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -208,7 +209,7 @@ export default function DirectorPeoplePanel() {
             key={k}
             onClick={() => setTab(k)}
             className={`px-4 py-2 rounded-full font-medium ring-1 ring-black/5 transition
-              ${tab === k ? "bg-[#8CF39B] text-gray-900" : "bg-[#CFF9D6] text-gray-700 hover:bg-[#B7F2C0]"}`}
+              ${tab === k ? "bg-[#8CF39B] text-black" : "bg-[#CFF9D6] text-black hover:bg-[#B7F2C0]"}`}
           >
             {k === "students" ? "학생 명단" : "선생 명단"}
           </button>
@@ -219,14 +220,14 @@ export default function DirectorPeoplePanel() {
         {/* 좌측 목록 */}
         <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-semibold text-gray-900">{tab === "students" ? "학생 목록" : "선생 목록"}</div>
-            {loadingList && <div className="text-xs text-gray-500">불러오는 중…</div>}
+            <div className="text-sm font-semibold text-black">{tab === "students" ? "학생 목록" : "선생 목록"}</div>
+            {loadingList && <div className="text-xs text-black/70">불러오는 중…</div>}
           </div>
           {errList && <div className="text-sm text-red-600 mb-2">오류: {errList}</div>}
 
           <div className="rounded-xl overflow-hidden ring-1 ring-black/5">
             {(tab === "students" ? students : teachers).length === 0 && !loadingList ? (
-              <div className="px-3 py-2 text-sm text-gray-500">표시할 항목이 없습니다.</div>
+              <div className="px-3 py-2 text-sm text-black/80">표시할 항목이 없습니다.</div>
             ) : (
               (tab === "students" ? students : teachers).map((p: any) => (
                 <div
@@ -234,10 +235,10 @@ export default function DirectorPeoplePanel() {
                   className="px-3 py-2 border-b last:border-none bg-white text-sm flex items-center justify-between gap-2"
                 >
                   <div className="min-w-0">
-                    <div className="font-medium text-gray-900 truncate">
+                    <div className="font-medium text-black truncate">
                       {tab === "students" ? p.name || p.studentId : p.name || p.teacherId}
                     </div>
-                    <div className="text-xs text-gray-600 truncate">
+                    <div className="text-xs text-black/80 truncate">
                       {tab === "students"
                         ? `${p.studentId}${p.school ? ` · ${p.school}` : ""}${
                             p.grade != null ? ` · ${p.grade}학년` : ""
@@ -251,7 +252,7 @@ export default function DirectorPeoplePanel() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => (tab === "students" ? loadStudentDetail(p) : loadTeacherDetail(p))}
-                      className="rounded-lg px-2.5 py-1.5 text-xs ring-1 ring-gray-300 bg-gray-50 hover:bg-gray-100"
+                      className="rounded-lg px-2.5 py-1.5 text-xs ring-1 ring-gray-300 bg-gray-50 hover:bg-gray-100 text-black"
                     >
                       {tab === "students" ? "출결/일정" : "출결"}
                     </button>
@@ -274,21 +275,21 @@ export default function DirectorPeoplePanel() {
           {selectedStudent && (
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="text-sm font-semibold text-gray-900">
+                <div className="text-sm font-semibold text-black">
                   {selectedStudent.name || selectedStudent.studentId} 님의 수업 일정
                 </div>
-                {loadingDetail && <div className="text-xs text-gray-500">불러오는 중…</div>}
+                {loadingDetail && <div className="text-xs text-black/70">불러오는 중…</div>}
               </div>
               {errDetail && <div className="text-sm text-red-600 mb-2">오류: {errDetail}</div>}
 
               <div className="rounded-xl overflow-hidden ring-1 ring-black/5">
                 {classes.length === 0 && !loadingDetail ? (
-                  <div className="px-3 py-2 text-sm text-gray-500">수업 일정이 없습니다.</div>
+                  <div className="px-3 py-2 text-sm text-black/80">수업 일정이 없습니다.</div>
                 ) : (
                   classes.map((c) => (
                     <div key={c.classId} className="px-3 py-2 border-b last:border-none bg-white">
-                      <div className="font-medium text-gray-900">{c.className}</div>
-                      <div className="text-xs text-gray-600">{fmtSchedule(c)}</div>
+                      <div className="font-medium text-black">{c.className}</div>
+                      <div className="text-xs text-black/80">{fmtSchedule(c)}</div>
                     </div>
                   ))
                 )}
@@ -300,31 +301,31 @@ export default function DirectorPeoplePanel() {
           {(selectedStudent || selectedTeacher) && (
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="text-sm font-semibold text-gray-900">
+                <div className="text-sm font-semibold text-black">
                   출결 내역 {selectedTeacher ? `(오늘 기준, 담당 반 합산)` : ""}
                 </div>
-                {loadingDetail && <div className="text-xs text-gray-500">불러오는 중…</div>}
+                {loadingDetail && <div className="text-xs text-black/70">불러오는 중…</div>}
               </div>
               {errDetail && <div className="text-sm text-red-600 mb-2">오류: {errDetail}</div>}
 
               <div className="rounded-xl overflow-hidden ring-1 ring-black/5">
                 {attendance.length === 0 && !loadingDetail ? (
-                  <div className="px-3 py-2 text-sm text-gray-500">출결 기록이 없습니다.</div>
+                  <div className="px-3 py-2 text-sm text-black/80">출결 기록이 없습니다.</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-700">날짜</th>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-700">수업명</th>
-                          <th className="px-3 py-2 text-left font-semibold text-gray-700">상태</th>
+                          <th className="px-3 py-2 text-left font-semibold text-black">날짜</th>
+                          <th className="px-3 py-2 text-left font-semibold text-black">수업명</th>
+                          <th className="px-3 py-2 text-left font-semibold text-black">상태</th>
                         </tr>
                       </thead>
                       <tbody>
                         {attendance.map((r, i) => (
                           <tr key={`${r.date}-${r.classId}-${i}`} className="border-t">
-                            <td className="px-3 py-2">{r.date}</td>
-                            <td className="px-3 py-2">{r.className}</td>
+                            <td className="px-3 py-2 text-black">{r.date}</td>
+                            <td className="px-3 py-2 text-black">{r.className}</td>
                             <td className="px-3 py-2">
                               <span
                                 className={`px-2 py-0.5 rounded text-xs ring-1
@@ -352,7 +353,7 @@ export default function DirectorPeoplePanel() {
           )}
 
           {!selectedStudent && !selectedTeacher && (
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
+            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-black">
               왼쪽 목록에서 학생 또는 선생을 선택하면 상세(수업/출결)를 보여줍니다.
             </div>
           )}

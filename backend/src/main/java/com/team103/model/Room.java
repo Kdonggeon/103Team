@@ -1,11 +1,12 @@
+// src/main/java/com/team103/model/Room.java
 package com.team103.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
-import org.springframework.data.annotation.Transient;
 
 import java.time.Instant;
 import java.util.List;
@@ -29,37 +30,39 @@ public class Room {
     @Field("Academy_Number")
     private int academyNumber;
 
-    // ===== 레거시 그리드(필요시만 사용; DB 매핑 X) =====
+    /* ================= 레거시 그리드 (DB 비저장) ================= */
     @Transient
     private Integer rows;
 
     @Transient
     private Integer cols;
 
+    /** 과거 코드 호환용: grid 레이아웃(저장 안 함) */
     @Transient
-    private List<SeatCell> legacyGridLayout; // DB에 저장하지 않음
+    private List<SeatCell> legacyGridLayout;
 
-    // ===== 현재 수업/기존 Seats =====
+    /* ================= 현재 수업/기존 Seats ================= */
     @Field("Current_Class")
-    private CurrentClass currentClass;  // 현재 진행 중인 수업 정보
+    private CurrentClass currentClass;    // 현재 진행 중인 수업 정보
 
     @Field("Seats")
-    private List<Seat> seats;  // (기존 구조 유지: null일 수 있음)
+    private List<Seat> seats;             // (기존 구조 유지: null일 수 있음)
 
-    // ===== 벡터 기반(✅ DB 매핑) =====
+    /* ================= 벡터 기반 자유 배치 (DB 저장) ================= */
     @Field("vectorVersion")
     private Integer vectorVersion;        // e.g., 1
 
     @Field("vectorCanvasW")
-    private Double vectorCanvasW;         // ✅ Double 로 통일
+    private Double vectorCanvasW;         // 권장 1.0
 
     @Field("vectorCanvasH")
-    private Double vectorCanvasH;         // ✅ Double 로 통일
+    private Double vectorCanvasH;         // 권장 1.0
 
+    /** ✅ 실제 사용: VectorSeat를 DB의 "vectorLayout"에 저장/로드 (layout2의 단일 소스) */
     @Field("vectorLayout")
-    private List<VectorSeat> vectorLayout;  // ✅ 반드시 VectorSeat 로 매핑
+    private List<VectorSeat> vectorLayout;
 
-    // ---------- 내부 타입 ----------
+    /* ================= 내부 타입들 ================= */
     /** 레거시 그리드용(저장 안함) */
     public static class SeatCell {
         private Integer seatNumber;
@@ -109,19 +112,19 @@ public class Room {
         public void setStudentId(String studentId) { this.studentId = studentId; }
     }
 
-    /** ✅ 벡터 좌석 스키마: DB의 vectorLayout 요소 구조와 1:1 */
+    /** ✅ VectorSeat: VectorSeatEditor/rooms.vector.ts와 1:1 매핑 */
     public static class VectorSeat {
         private String id;         // 영구 식별자 (uuid 등)
-        private String label;      // 화면 표기용
-        private Double x, y, w, h; // 0..canvas 범위 (비율 권장: 0..1)
+        private String label;      // 좌석 라벨(표기)
+        private Double x, y, w, h; // 0..canvas 범위(비율 권장: 0..1)
         private Double r;          // 회전 (deg) nullable
-        private Boolean disabled;  // 통로 등
+        private Boolean disabled;  // 통로/비활성 등
 
         @Field("Student_ID")
-        private String studentId;  // ✅ QR 체크인 시 주입되는 필드 수용
+        private String studentId;  // QR 체크인/배정 시 저장
 
         @Field("occupiedAt")
-        private Instant occupiedAt; // 선택
+        private Instant occupiedAt; // 선택(점유 시각)
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -145,7 +148,7 @@ public class Room {
         public void setOccupiedAt(Instant occupiedAt) { this.occupiedAt = occupiedAt; }
     }
 
-    // ---------- Getters / Setters ----------
+    /* ================= Getters / Setters ================= */
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -154,6 +157,12 @@ public class Room {
 
     public int getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+
+    public CurrentClass getCurrentClass() { return currentClass; }
+    public void setCurrentClass(CurrentClass currentClass) { this.currentClass = currentClass; }
+
+    public List<Seat> getSeats() { return seats; }
+    public void setSeats(List<Seat> seats) { this.seats = seats; }
 
     public Integer getVectorVersion() { return vectorVersion; }
     public void setVectorVersion(Integer vectorVersion) { this.vectorVersion = vectorVersion; }
@@ -164,16 +173,20 @@ public class Room {
     public Double getVectorCanvasH() { return vectorCanvasH; }
     public void setVectorCanvasH(Double vectorCanvasH) { this.vectorCanvasH = vectorCanvasH; }
 
+    /** 자유 배치 레이아웃(실제 DB 저장 필드; layout2) */
     public List<VectorSeat> getVectorLayout() { return vectorLayout; }
     public void setVectorLayout(List<VectorSeat> vectorLayout) { this.vectorLayout = vectorLayout; }
 
-    public CurrentClass getCurrentClass() { return currentClass; }
-    public void setCurrentClass(CurrentClass currentClass) { this.currentClass = currentClass; }
+    /* ---- 과거 코드/서비스 호환용 alias 메서드들 ---- */
 
-    public List<Seat> getSeats() { return seats; }
-    public void setSeats(List<Seat> seats) { this.seats = seats; }
+    /** 일부 서비스가 리플렉션으로 부르는 getVectorLayoutV2() 대응 → 동일 데이터 반환 */
+    public List<VectorSeat> getVectorLayoutV2() { return getVectorLayout(); }
 
-    // 레거시 그리드(저장 안함)
+    /** (grid) 예전 코드가 room.getLayout()을 호출하는 경우가 있어 alias 제공 */
+    public List<SeatCell> getLayout() { return legacyGridLayout; }
+    public void setLayout(List<SeatCell> layout) { this.legacyGridLayout = layout; }
+
+    // 레거시 그리드 (비저장 필드 접근자)
     public Integer getRows() { return rows; }
     public void setRows(Integer rows) { this.rows = rows; }
     public Integer getCols() { return cols; }
