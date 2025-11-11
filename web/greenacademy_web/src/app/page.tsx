@@ -17,7 +17,7 @@ import DirectorPeoplePanel from "@/components/manage/director/DirectorPeoplePane
 import DirectorOverviewPanel from "@/components/manage/DirectorOverviewPanel";
 import TeacherMainPanel from "@/components/manage/TeacherMainPanel";
 
-// HEAD 쪽에서 쓰던 컴포넌트(드롭다운 항목들)
+// HEAD 사용 컴포넌트
 import TeacherProfileCard from "@/app/teacher/TeacherProfileCard";
 import TeacherStudentManage from "@/app/teacher/StudentManage";
 import DirectorMyInfoCard from "@/app/director/DirectorMyInfoCard";
@@ -30,8 +30,7 @@ import TeacherQnaPanel from "./qna/TeacherQnaPanel";
 // QR 생성
 import QRGeneratorPanel from "@/app/teacher/QRGeneratorPanel";
 
-
-// ✅ 공지 패널 임포트 (학원/과목 스피너 + 목록)
+// 공지
 import NoticePanel from "./notice/NoticePanel";
 
 /* ================== API URL 유틸 ================== */
@@ -70,7 +69,7 @@ type StudentAttendanceRow = {
   classId: string;
   className: string;
   date: string;
-  status: string; // PRESENT | LATE | ABSENT | ...
+  status: string;
 };
 
 type RawClass = {
@@ -104,7 +103,7 @@ const isSameDate = (isoOrYmd: string, base = new Date()) => {
   }
 };
 
-/** ✅ HEAD 버전 NavTabs: ‘관리’ 드롭다운 포함 */
+/** NavTabs (‘관리’ 드롭다운 포함) */
 function NavTabs({
   active,
   onChange,
@@ -121,12 +120,13 @@ function NavTabs({
   const left = ["종합정보"] as const;
   const right =
     role === "director"
-      ? (["관리", "출결확인", "Q&A", "공지사항", "가이드"] as const) // 원장: ‘출결확인’
+      ? (["관리", "출결확인", "Q&A", "공지사항", "가이드"] as const)
       : (["관리", "시간표", "Q&A", "공지사항", "가이드"] as const);
 
+  // ✅ 원장은 ‘학원관리/QR 생성’만 보이게
   const manageItems =
     role === "director"
-      ? (["학생관리", "반 관리", "학원관리", "QR 생성"] as const)
+      ? (["학원관리", "QR 생성"] as const)
       : role === "teacher"
       ? (["학생관리", "반 관리", "QR 생성"] as const)
       : (["학생관리", "반 관리"] as const);
@@ -169,8 +169,8 @@ function NavTabs({
         <div className="relative" ref={ref}>
           <button
             onClick={() => {
-              onChange("관리");
-              setOpen((p) => !p);
+              onChange("관리");        // 상위 handleTab("관리")
+              setOpen((p) => !p);      // 드롭다운 토글
             }}
             className={`px-5 py-2 rounded-full font-medium shadow-sm ring-1 ring-black/5 transition ${
               active === "관리" ? "bg-[#8CF39B] text-gray-900" : "bg-[#CFF9D6] text-gray-700 hover:bg-[#B7F2C0]"
@@ -186,7 +186,6 @@ function NavTabs({
                 <button
                   key={item}
                   onClick={() => {
-                    // ✅ 이제 별도 라우팅 없이 관리 탭 내부에서 패널 교체
                     onSelectManage(item);
                     setOpen(false);
                   }}
@@ -211,12 +210,8 @@ function NavTabs({
 /* ================= 공용 UI ================= */
 const colors = { green: "#65E478", grayBg: "#F2F4F7" };
 
-/** 프로필 드롭다운(우상단) — 필요시 유지 */
-function ProfileMenu({
-  user,
-}: {
-  user: NonNullable<LoginSession> | null;
-}) {
+/** 프로필 드롭다운 */
+function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -252,14 +247,13 @@ function ProfileMenu({
           <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
             {user?.name || user?.username}
           </div>
-          {/* 필요하면 메뉴 항목 추가 */}
         </div>
       )}
     </div>
   );
 }
 
-/** ✅ HEAD 버전 SidebarProfile (환경설정/최근QnA 버튼 포함) */
+/** 사이드 프로필 */
 function SidebarProfile({
   user,
   onLogout,
@@ -349,13 +343,12 @@ function SidebarProfile({
           <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-2" />
 
           <div className="grid gap-2">
-            <button
+            {/* <button
               onClick={() => router.push("/settings")}
               className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
             >
               환경 설정
-
-            </button>
+            </button> */}
             <button
               onClick={onOpenRecentQna}
               className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
@@ -458,7 +451,7 @@ function SeatGrid({ seats }: { seats: SeatCell[] | null }) {
   );
 }
 
-/** 통계 합산 (학생/학부모 용) */
+/** 통계 합산 */
 function summarizeAttendance<T extends { status: string }>(rows: T[]) {
   let present = 0,
     late = 0,
@@ -488,15 +481,7 @@ const formatSubtitle = (c: Partial<RawClass>) => {
           .map(
             (d) =>
               (
-                {
-                  MON: "월",
-                  TUE: "화",
-                  WED: "수",
-                  THU: "목",
-                  FRI: "금",
-                  SAT: "토",
-                  SUN: "일",
-                } as Record<string, string>
+                { MON: "월", TUE: "화", WED: "수", THU: "목", FRI: "금", SAT: "토", SUN: "일" } as Record<string, string>
               )[String(d).toUpperCase()] || d
           )
           .join("·")
@@ -575,7 +560,6 @@ export default function GreenAcademyDashboard() {
   const [list, setList] = useState<Array<{ label: string; sub?: string }>>([]);
   const [seats, setSeats] = useState<SeatCell[] | null>(null);
 
-  // QnA
   const [forcedQnaId, setForcedQnaId] = useState<string | null>(null);
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
 
@@ -641,34 +625,19 @@ export default function GreenAcademyDashboard() {
           return;
         }
 
-        if (user.role === "parent") {
-          const target = (user as any).childStudentId || user.username;
-          const rows = await apiGet<StudentAttendanceRow[]>(`/api/parents/${encodeURIComponent(target)}/attendance`);
-          const todayRows = rows.filter((r) => isSameDate(r.date));
-          const sum = summarizeAttendance(todayRows);
-          setPresent(sum.present);
-          setLate(sum.late);
-          setAbsent(sum.absent);
-          setList(todayRows.map((r) => ({ label: r.className, sub: `${r.status} • ${r.date}` })));
-          setSeats(null);
-        } else if (user.role === "student") {
-          const rows = await apiGet<StudentAttendanceRow[]>(
-            `/api/students/${encodeURIComponent(user.username)}/attendance`
-          );
-          const todayRows = rows.filter((r) => isSameDate(r.date));
-          const sum = summarizeAttendance(todayRows);
-          setPresent(sum.present);
-          setLate(sum.late);
-          setAbsent(sum.absent);
-          setList(todayRows.map((r) => ({ label: r.className, sub: `${r.status} • ${r.date}` })));
-          setSeats(null);
-        } else {
-          setPresent(0);
-          setLate(0);
-          setAbsent(0);
-          setList([]);
-          setSeats(null);
+        // 학생/학부모: 위젯 숨김 → 데이터 로딩 스킵
+        if (user.role === "student" || user.role === "parent") {
+          setPresent(0); setLate(0); setAbsent(0);
+          setList([]); setSeats(null);
+          return;
         }
+
+        // director 등 나머지
+        setPresent(0);
+        setLate(0);
+        setAbsent(0);
+        setList([]);
+        setSeats(null);
       } catch (e: any) {
         setErr(e?.message ?? "데이터를 불러오지 못했습니다.");
       } finally {
@@ -696,30 +665,48 @@ export default function GreenAcademyDashboard() {
     clearSession();
     router.replace("/login");
   };
+
+  /** 탭 라우팅: 기본 패널 지정 */
   const handleTab = (t: string) => {
     setActiveTab(t);
+
+    if (t === "관리") {
+      if (user?.role === "teacher") {
+        setManageMenu("학생관리");   // 교사 기본
+      } else if (user?.role === "director") {
+        setManageMenu("학원관리");   // ✅ 원장 기본
+      }
+    } else {
+      setManageMenu(null);            // 관리 벗어나면 초기화
+    }
+
     if (t !== "Q&A") setForcedQnaId(null);
-    if (t !== "관리") setManageMenu(null); // 관리 벗어나면 드롭다운 선택 해제
   };
 
   if (!ready) return null;
-
-  const showTeacherStats = user?.role !== "teacher"; // 선생이면 통계 숨김
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.grayBg }}>
       {/* 헤더 */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 ring-1 ring-black/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          {/* 로고 클릭 → 항상 새로고침 */}
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== "undefined") window.location.reload();
+            }}
+            className="flex items-center gap-3 group"
+            aria-label="페이지 새로고침"
+          >
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center ring-1 ring-black/5 overflow-hidden">
               <Image src="/logo.png" alt="Logo" width={40} height={40} className="object-contain" priority />
             </div>
-            <div className="leading-tight">
-              <div className="text-lg font-semibold text-gray-900">Green Academy</div>
+            <div className="leading-tight text-left">
+              <div className="text-lg font-semibold text-gray-900 group-hover:underline">Green Academy</div>
               <div className="text-sm text-gray-600 -mt-0.5">Partner</div>
             </div>
-          </div>
+          </button>
 
           <NavTabs
             active={activeTab}
@@ -727,7 +714,6 @@ export default function GreenAcademyDashboard() {
             role={user?.role ?? null}
             manageMenu={manageMenu}
             onSelectManage={(item) => {
-              // ✅ 별도 페이지 이동 없이 관리 탭 내부에서 패널 표시
               setActiveTab("관리");
               setManageMenu(item);
             }}
@@ -756,32 +742,15 @@ export default function GreenAcademyDashboard() {
         {/* 탭별 콘텐츠 */}
         {activeTab === "종합정보" && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              {/* <div className="flex items-center gap-2">
-                <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
-                  {Array.isArray(user?.academyNumbers) ? `학원 번호: ${user!.academyNumbers![0]}` : "학원 정보 없음"}
-                </span>
-              </div> */}
-
-              {/* {showTeacherStats && (
-                <div className="flex gap-3">
-                  <StatCard title="금일 출석 학생 수" value={present} />
-                  <StatCard title="금일 지각 학생 수" value={late} />
-                  <StatCard title="금일 미출석 학생 수" value={absent} />
-                </div>
-              )} */}
-            </div>
-
-            {/* 역할별 분기 */}
             {user?.role === "teacher" ? (
               <TeacherMainPanel user={user} />
             ) : user?.role === "director" ? (
               <DirectorOverviewPanel user={user} />
             ) : (
-              <>
-                <WaitingList title="오늘 일정" list={list} loading={loading} error={err} />
-                <SeatGrid seats={seats} />
-              </>
+              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">종합정보</h2>
+                <p className="text-sm text-gray-700">학생/학부모 대시보드에서는 ‘오늘 일정’과 ‘출석’ 위젯을 표시하지 않습니다.</p>
+              </div>
             )}
           </div>
         )}
@@ -801,16 +770,9 @@ export default function GreenAcademyDashboard() {
 
             {/* 학생관리 */}
             {manageMenu === "학생관리" && user?.role === "teacher" && <TeacherStudentManage />}
-            {manageMenu === "학생관리" && user?.role === "director" && <DirectorPeoplePanel />}
 
-            {/* 반 관리 */}
+            {/* 반 관리 — 교사만 */}
             {manageMenu === "반 관리" && user?.role === "teacher" && <TeacherManagePanel user={user} />}
-            {manageMenu === "반 관리" && user?.role !== "teacher" && (
-              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">반 관리</h2>
-                <p className="text-sm text-gray-700">현재 역할에서는 이 항목을 사용할 수 없습니다.</p>
-              </div>
-            )}
 
             {/* 학원관리 */}
             {manageMenu === "학원관리" && user?.role === "director" && <DirectorRoomsPanel user={user} />}
@@ -836,7 +798,6 @@ export default function GreenAcademyDashboard() {
 
         {/* 원장 전용: 출결확인 */}
         {activeTab === "출결확인" && user?.role === "director" && <DirectorPeoplePanel />}
-
 
         {/* 시간표 */}
         {activeTab === "시간표" && user?.role !== "director" && (
@@ -874,7 +835,7 @@ export default function GreenAcademyDashboard() {
 
         {activeTab === "공지사항" && (
           <div className="space-y-4">
-            <NoticePanel/>
+            <NoticePanel />
           </div>
         )}
 
@@ -891,7 +852,7 @@ export default function GreenAcademyDashboard() {
   );
 }
 
-/** 통계 카드 */
+/** 통계 카드 (미사용 보관) */
 function StatCard({ title, value }: { title: string; value: number }) {
   return (
     <div className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5 px-6 py-4 text-center min-w-[220px]">
