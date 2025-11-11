@@ -50,7 +50,7 @@
                     android:id="@+id/img_present"
                     android:layout_width="18dp"
                     android:layout_height="18dp"
-                    android:src="@drawable/ic_att_present"
+                    android:src="@drawable/ic_att_present2"
                     android:contentDescription="출석 아이콘" />
 
                 <TextView
@@ -87,7 +87,7 @@
                     android:id="@+id/img_late"
                     android:layout_width="18dp"
                     android:layout_height="18dp"
-                    android:src="@drawable/ic_att_late"
+                    android:src="@drawable/ic_att_late2"
                     android:contentDescription="지각 아이콘" />
 
                 <TextView
@@ -123,7 +123,7 @@
                     android:id="@+id/img_absent"
                     android:layout_width="18dp"
                     android:layout_height="18dp"
-                    android:src="@drawable/ic_att_absent"
+                    android:src="@drawable/ic_att_absent2"
                     android:contentDescription="결석 아이콘" />
 
                 <TextView

@@ -1,15 +1,18 @@
+// src/main/java/com/team103/controller/AttendanceCheckInController.java
 package com.team103.controller;
 
-import com.team103.dto.CheckInRequest;    
+import com.team103.dto.CheckInRequest;
 import com.team103.dto.CheckInResponse;
 import com.team103.model.Attendance;
 import com.team103.model.Course;
+import com.team103.model.Student;
 import com.team103.repository.AttendanceRepository;
 import com.team103.repository.CourseRepository;
+import com.team103.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.ResponseEntity;
@@ -17,9 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/attendance")
@@ -27,6 +28,7 @@ public class AttendanceCheckInController {
 
     private final CourseRepository courseRepository;
     private final AttendanceRepository attendanceRepository;
+    private final StudentRepository studentRepository;
     private final MongoTemplate mongoTemplate;
 
     @Value("${attendance.lateAfterMin:5}")
@@ -35,123 +37,187 @@ public class AttendanceCheckInController {
     @Value("${attendance.absentAfterMin:20}")
     private int absentAfterMin;
 
-    public AttendanceCheckInController(CourseRepository courseRepository,
-                                       AttendanceRepository attendanceRepository,
-                                       MongoTemplate mongoTemplate) {
+    public AttendanceCheckInController(
+            CourseRepository courseRepository,
+            AttendanceRepository attendanceRepository,
+            StudentRepository studentRepository,
+            MongoTemplate mongoTemplate
+    ) {
         this.courseRepository = courseRepository;
         this.attendanceRepository = attendanceRepository;
+        this.studentRepository = studentRepository;
         this.mongoTemplate = mongoTemplate;
     }
 
     @PostMapping("/check-in")
     public ResponseEntity<?> checkIn(@RequestBody CheckInRequest req) {
-        if (req == null || isEmpty(req.getClassId()) || isEmpty(req.getStudentId())) {
-            return ResponseEntity.badRequest().body("classId / studentId 필요");
+
+        if (req == null || req.getStudentId() == null) {
+            return ResponseEntity.badRequest().body("studentId 필요");
         }
 
-        // (1) 오늘 KST
+        String studentId = req.getStudentId();
+        String classId = req.getClassId(); // ✅ classId가 없으면 입구 출석 처리
+        Integer academyNumberFromReq = req.getAcademyNumber(); // ✅ 새로 추가된 학원번호
+
         ZoneId KST = ZoneId.of("Asia/Seoul");
         ZonedDateTime now = ZonedDateTime.now(KST);
         LocalDate today = now.toLocalDate();
+        LocalTime nowTime = now.toLocalTime();
+
+        // ✅ 학생 정보 조회
+        Student stu = studentRepository.findByStudentId(studentId);
+        if (stu == null) {
+            return ResponseEntity.badRequest().body("학생을 찾을 수 없음");
+        }
+
+        // ✅ classId가 없으면 학원 입구 출석 처리
+        if (classId == null || classId.isEmpty()) {
+            String ymd = today.toString();
+
+            // Attendance(입구 출석) 기록
+            Query q = new Query(Criteria.where("Date").is(ymd).and("Type").is("entrance"));
+            Update up = new Update()
+                    .setOnInsert("Type", "entrance")
+                    .setOnInsert("Date", ymd)
+                    .set("updatedAt", new Date());
+
+            mongoTemplate.upsert(q, up, "attendances");
+
+            Update pushEntry = new Update().push("Attendance_List", new HashMap<String, Object>() {{
+                put("Student_ID", studentId);
+                put("Status", "입구 출석");
+                put("CheckIn_Time", nowTime.toString());
+                put("Source", "tablet");
+            }});
+
+            mongoTemplate.findAndModify(q, pushEntry,
+                    FindAndModifyOptions.options().upsert(true).returnNew(true),
+                    Attendance.class, "attendances");
+
+            // ✅ waiting_room 컬렉션에도 추가
+            Map<String, Object> waitingEntry = new HashMap<>();
+            waitingEntry.put("studentId", stu.getStudentId());
+
+            Integer academyNumber = (academyNumberFromReq != null)
+                    ? academyNumberFromReq
+                    : ((stu.getAcademyNumbers() != null && !stu.getAcademyNumbers().isEmpty())
+                        ? stu.getAcademyNumbers().get(0)
+                        : null);
+
+            waitingEntry.put("academyNumber", academyNumber);
+            waitingEntry.put("studentName", stu.getStudentName());
+            waitingEntry.put("school", stu.getSchool());
+            waitingEntry.put("grade", String.valueOf(stu.getGrade()));
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+            String formattedTime = now.toLocalDateTime().format(formatter);
+            waitingEntry.put("checkedInAt", formattedTime);
+            waitingEntry.put("status", "LOBBY");
+
+            mongoTemplate.insert(waitingEntry, "waiting_room");
+
+            CheckInResponse res = new CheckInResponse();
+            res.setStatus("입구 출석");
+            res.setClassId(null);
+            res.setDate(ymd);
+            res.setSessionStart(null);
+            res.setSessionEnd(null);
+
+            return ResponseEntity.ok(res);
+        }
+
+        // ✅ 기존 QR 출석 로직
         int dow = now.getDayOfWeek().getValue(); // 1=월..7=일
+        List<Course> allCourses = courseRepository.findAll();
 
-        // (2) 수업 조회 (Optional 사용하지 않음)
-        Course course = courseRepository.findByClassId(req.getClassId());
-        if (course == null) {
-            return ResponseEntity.badRequest().body("수업을 찾을 수 없음");
-        }
-        List<Integer> daysOfWeek = course.getDaysOfWeek();
-        if (daysOfWeek == null || !daysOfWeek.contains(dow)) {
-            return ResponseEntity.status(409).body("오늘은 해당 수업이 없음");
+        // ✅ 오늘 해당 학생이 수강 중인 강의 필터링
+        List<Course> todayCourses = new ArrayList<>();
+        for (Course c : allCourses) {
+            if (c.getStudents().contains(studentId)
+                    && c.getDaysOfWeek() != null     // ✅ 수정됨
+                    && c.getDaysOfWeek().contains(dow)) { // ✅ 수정됨
+                todayCourses.add(c);
+            }
         }
 
-        // (3) 시작/끝 시각 계산
+        if (todayCourses.isEmpty()) {
+            return ResponseEntity.status(409).body("오늘은 해당 학생의 수업이 없음");
+        }
+
+        // ✅ 현재 시간 기준 매칭되는 강의 찾기
+        Course matched = null;
         DateTimeFormatter HHMM = DateTimeFormatter.ofPattern("HH:mm");
-        String sStr = course.getStartTime(); // "HH:mm"
-        String eStr = course.getEndTime();   // "HH:mm" or null
-        LocalTime S = LocalTime.parse(sStr, HHMM);
-        LocalTime E = (eStr != null && !eStr.isEmpty()) ? LocalTime.parse(eStr, HHMM) : S.plusMinutes(50);
 
-        LocalDateTime sDateTime = LocalDateTime.of(today, S);
-        LocalDateTime nowLt = now.toLocalDateTime();
+        for (Course c : todayCourses) {
+            LocalTime S = LocalTime.parse(c.getStartTime(), HHMM);
+            LocalTime lateUntil = S.plusMinutes(absentAfterMin);
+            LocalTime openFrom = S.minusMinutes(5);
 
-        LocalDateTime openFrom     = sDateTime.minusMinutes(5);
-        LocalDateTime presentUntil = sDateTime.plusMinutes(lateAfterMin);   // S+5
-        LocalDateTime lateUntil    = sDateTime.plusMinutes(absentAfterMin); // S+20
+            if (!nowTime.isBefore(openFrom) && !nowTime.isAfter(lateUntil)) {
+                matched = c;
+                break;
+            }
+        }
 
-        if (nowLt.isBefore(openFrom))             return ResponseEntity.status(409).body("아직 출석 오픈 전");
-        if (nowLt.isAfter(lateUntil))             return ResponseEntity.status(409).body("결석 시간: 출석 불가");
+        if (matched == null) {
+            return ResponseEntity.status(409).body("현재 시간에 해당하는 수업이 없음");
+        }
 
-        String status = (!nowLt.isAfter(presentUntil)) ? "present" : "late";
+        classId = matched.getClassId();
 
-        // (4) attendance upsert
-        String classId = req.getClassId();
-        String date = today.format(DateTimeFormatter.ISO_DATE);
+        // ✅ 출석/지각 상태 결정
+        LocalTime S = LocalTime.parse(matched.getStartTime(), HHMM);
+        LocalTime presentUntil = S.plusMinutes(lateAfterMin);
+        String status = !nowTime.isAfter(presentUntil) ? "출석" : "지각";
 
-        Query q = new Query(Criteria.where("Class_ID").is(classId).and("Date").is(date));
+        String ymd = today.toString();
+
+        Query q = new Query(Criteria.where("Class_ID").is(classId).and("Date").is(ymd));
         Update up = new Update()
-                .setOnInsert("Session_Start", sStr)
-                .setOnInsert("Session_End", (eStr != null && !eStr.isEmpty()) ? eStr : E.format(HHMM))
-                .set("updatedAt", java.util.Date.from(now.toInstant()));
+                .setOnInsert("Session_Start", matched.getStartTime())
+                .setOnInsert("Session_End", matched.getEndTime())
+                .set("updatedAt", new Date());
 
-        // upsert로 문서 보장
-        mongoTemplate.upsert(q, up, "attendance");
+        mongoTemplate.upsert(q, up, "attendances");
 
-        // arrayFilters로 엔트리 업데이트 시도
+        // ✅ 기존 학생 업데이트
         Update setEntry = new Update()
                 .set("Attendance_List.$[s].Status", status)
-                .set("Attendance_List.$[s].CheckIn_Time", nowLt.format(DateTimeFormatter.ISO_LOCAL_TIME))
-                .set("Attendance_List.$[s].Source", "app")
-                .filterArray(Criteria.where("s.Student_ID").is(req.getStudentId()));
+                .set("Attendance_List.$[s].CheckIn_Time", nowTime.toString())
+                .filterArray(Criteria.where("s.Student_ID").is(studentId));
 
         FindAndModifyOptions opts = FindAndModifyOptions.options().upsert(true).returnNew(true);
-        Attendance updated = mongoTemplate.findAndModify(q, setEntry, opts, Attendance.class, "attendance");
+        Attendance updated = mongoTemplate.findAndModify(q, setEntry, opts, Attendance.class, "attendances");
 
-        // 엔트리가 없으면 push
-        if (!hasStudentEntry(updated, req.getStudentId())) {
+        // ✅ 학생 엔트리가 없으면 새로 추가
+        if (!hasStudentEntry(updated, studentId)) {
             Update pushEntry = new Update().push("Attendance_List", new HashMap<String, Object>() {{
-                put("Student_ID", req.getStudentId());
+                put("Student_ID", studentId);
                 put("Status", status);
-                put("CheckIn_Time", nowLt.format(DateTimeFormatter.ISO_LOCAL_TIME));
+                put("CheckIn_Time", nowTime.toString());
                 put("Source", "app");
             }});
-            mongoTemplate.findAndModify(q, pushEntry, opts, Attendance.class, "attendance");
+            mongoTemplate.findAndModify(q, pushEntry, opts, Attendance.class, "attendances");
         }
 
-        // (5) 응답
         CheckInResponse res = new CheckInResponse();
         res.setStatus(status);
         res.setClassId(classId);
-        res.setDate(date);
-        res.setSessionStart(sStr);
-        res.setSessionEnd((eStr != null && !eStr.isEmpty()) ? eStr : E.format(HHMM));
+        res.setDate(ymd);
+        res.setSessionStart(matched.getStartTime());
+        res.setSessionEnd(matched.getEndTime());
+
         return ResponseEntity.ok(res);
     }
-
-    // ---- 유틸 (AttendanceEntry 중첩타입/톱레벨/Map 모든 경우 안전하게 동작) ----
 
     private boolean hasStudentEntry(Attendance att, String studentId) {
         if (att == null || att.getAttendanceList() == null) return false;
         for (Object e : att.getAttendanceList()) {
-            if (e == null) continue;
-
-            // 1) Map 형태로 역직렬화된 경우
-            if (e instanceof Map) {
-                Object sid = ((Map<?, ?>) e).get("Student_ID");
-                if (studentId.equals(sid)) return true;
-                continue;
+            if (e instanceof Map<?, ?> m) {
+                if (studentId.equals(String.valueOf(m.get("Student_ID")))) return true;
             }
-
-            // 2) POJO(톱레벨/중첩 상관없이)인 경우 - getter 리플렉션
-            try {
-                Object sid = e.getClass().getMethod("getStudentId").invoke(e);
-                if (studentId.equals(sid)) return true;
-            } catch (Exception ignored) {}
         }
         return false;
-    }
-
-    private boolean isEmpty(String s) {
-        return s == null || s.trim().isEmpty();
     }
 }

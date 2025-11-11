@@ -44,7 +44,7 @@
                     android:id="@+id/img_present"
                     android:layout_width="18dp"
                     android:layout_height="18dp"
-                    android:src="@drawable/ic_att_present" />
+                    android:src="@drawable/ic_att_present2" />
 
                 <TextView
                     android:id="@+id/tv_present_count"
@@ -79,7 +79,7 @@
                     android:id="@+id/img_late"
                     android:layout_width="18dp"
                     android:layout_height="18dp"
-                    android:src="@drawable/ic_att_late" />
+                    android:src="@drawable/ic_att_late2" />
 
                 <TextView
                     android:id="@+id/tv_late_count"
@@ -113,7 +113,7 @@
                     android:id="@+id/img_absent"
                     android:layout_width="18dp"
                     android:layout_height="18dp"
-                    android:src="@drawable/ic_att_absent" />
+                    android:src="@drawable/ic_att_absent2" />
 
                 <TextView
                     android:id="@+id/tv_absent_count"

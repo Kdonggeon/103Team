@@ -1,16 +1,12 @@
 package com.team103.repository;
 
 import com.team103.model.Student;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
-
 public interface StudentRepository extends MongoRepository<Student, String> {
-
-//    @Query("{ 'Student_ID': ?0, 'Student_PW': ?1 }")
-//    Student findByStudentIdAndStudentPw(String studentId, String studentPw);
 
     Student findByStudentId(String studentId);
 
@@ -19,11 +15,11 @@ public interface StudentRepository extends MongoRepository<Student, String> {
     List<Student> findByParentsNumber(String parentsNumber);
 
     List<Student> findByStudentIdIn(List<String> studentIds);
-    
-    
-    //  명시적 쿼리로 수정
+
     @Query("{ 'Student_Name': ?0, 'Student_Phone_Number': ?1 }")
     Student findByStudentNameAndStudentPhoneNumber(String name, String phoneNumber);
 
-
+    // ✅ 추가: 학원 번호로 학생 목록 조회
+    @Query("{ 'Academy_Numbers': ?0 }")
+    List<Student> findByAcademyNumber(int academyNumber);
 }

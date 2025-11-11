@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#65E478"> <!-- ✅ 전체 초록색 배경 -->
+
+    <!-- ✅ 로그아웃 버튼 (초록 배경 위, 오른쪽 상단 고정) -->
+    <Button
+        android:id="@+id/btn_logout"
+        android:layout_width="wrap_content"
+        android:layout_height="42dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="28dp"
+        android:layout_marginEnd="50dp"
+        android:backgroundTint="#FFFFFF"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:text="로그아웃"
+        android:textColor="#65E478"
+        android:textSize="15sp"
+        android:elevation="8dp" />
+
+    <!-- ✅ 안쪽 흰색 박스 (둥근 모서리 + 그림자) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_white_round_container"
+        android:layout_margin="70dp"
+        android:elevation="12dp"
+        android:fitsSystemWindows="true">
+
+        <!-- ✅ LEFT: QR 영역 (로고 + QR 둘 다 위로 올림) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="top|center_horizontal">
+
+            <!-- ✅ 로고 (상단으로 이동) -->
+            <ImageView
+                android:id="@+id/img_logo"
+                android:layout_width="300dp"
+                android:layout_height="300dp"
+                android:src="@drawable/logo"
+                android:layout_marginTop="-20dp"
+                android:layout_marginBottom="0dp"
+                android:scaleType="fitCenter" />
+
+            <!-- ✅ QR 코드 (더 위로 이동) -->
+            <ImageView
+                android:id="@+id/img_academy_qr"
+                android:layout_width="340dp"
+                android:layout_height="340dp"
+                android:scaleType="fitCenter"
+                android:layout_marginTop="-60dp" /> <!-- 🔼 기존 -40dp → -60dp -->
+
+        </LinearLayout>
+
+
+        <!-- ✅ RIGHT: 로그인 영역 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.2"
+            android:orientation="vertical"
+            android:paddingStart="60dp"
+        android:paddingEnd="24dp"
+        android:gravity="center_vertical">
+
+        <!-- 중앙 로그인 박스 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <!-- ✅ 출석 로그인 (버튼 스타일, 클릭 비활성화) -->
+            <Button
+                android:id="@+id/btn_login_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="출석 로그인"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:backgroundTint="@color/green"
+                android:paddingHorizontal="36dp"
+                android:paddingVertical="12dp"
+                android:elevation="6dp"
+                android:layout_marginBottom="56dp"
+                android:clickable="false"
+                android:focusable="false" />
+
+            <EditText
+                android:id="@+id/edit_id"
+                android:layout_width="400dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_input"
+            android:padding="12dp"
+            android:hint="아이디"
+            android:textColor="#111827"
+            android:textColorHint="#9CA3AF"
+            android:inputType="text"
+            android:singleLine="true"
+            android:textSize="16sp" />
+
+            <EditText
+                android:id="@+id/edit_pw"
+                android:layout_width="400dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_input"
+            android:padding="12dp"
+            android:hint="비밀번호"
+            android:textColor="#111827"
+            android:textColorHint="#9CA3AF"
+            android:inputType="textPassword"
+            android:singleLine="true"
+            android:textSize="16sp" />
+
+            <Button
+                android:id="@+id/btn_academy_login"
+                android:layout_width="340dp"
+            android:layout_height="54dp"
+            android:layout_marginTop="18dp"
+            android:text="로그인"
+            android:textSize="17sp"
+            android:textColor="@android:color/white"
+            android:backgroundTint="@color/green2" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+
+</LinearLayout>
+    </FrameLayout>
