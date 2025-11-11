@@ -757,19 +757,19 @@ export default function GreenAcademyDashboard() {
         {activeTab === "종합정보" && (
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
                   {Array.isArray(user?.academyNumbers) ? `학원 번호: ${user!.academyNumbers![0]}` : "학원 정보 없음"}
                 </span>
-              </div>
+              </div> */}
 
-              {showTeacherStats && (
+              {/* {showTeacherStats && (
                 <div className="flex gap-3">
                   <StatCard title="금일 출석 학생 수" value={present} />
                   <StatCard title="금일 지각 학생 수" value={late} />
                   <StatCard title="금일 미출석 학생 수" value={absent} />
                 </div>
-              )}
+              )} */}
             </div>
 
             {/* 역할별 분기 */}
