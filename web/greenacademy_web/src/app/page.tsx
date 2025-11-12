@@ -352,8 +352,7 @@ function SidebarProfile({
 
           <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-2" />
 
-          {/* 선생/원장: '내 정보'와 '최근 QnA' 버튼 나란히 */}
-          <div className={`grid gap-2 ${showMyInfo ? "grid-cols-2" : ""}`}>
+          <div>
             {showMyInfo && (
               <button
                 onClick={onOpenMyInfo}
@@ -362,12 +361,6 @@ function SidebarProfile({
                 내 정보
               </button>
             )}
-            <button
-              onClick={onOpenRecentQna}
-              className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
-            >
-              QnA 바로가기
-            </button>
           </div>
 
           <button

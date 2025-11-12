@@ -10,14 +10,14 @@ import QnaPanel from "../qna/QnaPanel";
 import TeacherQnaPanel from "../qna/TeacherQnaPanel";
 import ChildAttendancePanel from "../parent/ChildAttendancePanel";
 import ChildSchedulePanel from "../parent/ChildSchedulePanel";
-
-// ✅ 신설: 공지패널
-import NoticePanel from "../notice/NoticePanel";
-
-// ✅ 학생 컴포넌트
 import StudentProfileCard from "../student/StudentProfileCard";
 import StudentAttendancePanel from "../student/StudentAttendancePanel";
 import StudentTimetablePanel from "../student/StudentTimetablePanel";
+
+// ✅ 공지 패널(목록/필터)
+import NoticePanel from "../notice/NoticePanel";
+// ✅ 공지 상세 패널(직접 띄우기용)
+import NoticeDetailPanel from "../notice/NoticeDetailPanel";
 
 /** 색상 토큰 */
 const colors = {
@@ -37,6 +37,13 @@ type LoginSession = {
   academyNumbers?: number[];
 };
 
+type NoticeSession = {
+  role: Role;
+  username: string;
+  token?: string;
+  academyNumbers?: number[];
+};
+
 type AttendanceRow = {
   classId: string;
   className: string;
@@ -47,7 +54,7 @@ type AttendanceRow = {
 type Notice = { id: string; title: string; createdAt: string };
 
 /** 유틸 */
-// ❗ 중요: 빈 값이면 /backend 로 폴백 (No static resource 에러 방지)
+// ❗ 빈 값이면 /backend 로 폴백
 const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
 const API_BASE = RAW_BASE.length > 0 ? RAW_BASE : "/backend";
 
@@ -86,7 +93,17 @@ function normalizeRole(raw?: unknown): Role {
   return "student";
 }
 
-/** 탭 <-> 슬러그 (URL 파라미터 tab 값) */
+/** KST 기준 YYYY/MM/DD 포맷 */
+function formatYmdKST(ts: string) {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return ts;
+  const y = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", year: "numeric" }).format(d);
+  const m = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", month: "2-digit" }).format(d);
+  const day = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", day: "2-digit" }).format(d);
+  return `${y}/${m}/${day}`;
+}
+
+/** 탭 <-> 슬러그 */
 const TAB_TO_SLUG: Record<string, string> = {
   "종합정보": "home",
   "마이페이지": "mypage",
@@ -107,8 +124,7 @@ function SLUG_TO_TAB(slug?: string | null): string {
   }
 }
 
-/** 마이페이지 item <-> 슬러그 (URL 파라미터 my 값) */
-// ✅ 버그 수정: “내 정보”는 역할에 따라 slug 분기
+/** 마이페이지 item <-> 슬러그 */
 function toSlug(item: string | null, role: Role | null): string | null {
   if (!item) return null;
   if (item === "내 정보") {
@@ -307,7 +323,7 @@ function ProfileMenu({ user }: { user: LoginSession | null }) {
   );
 }
 
-/** 사이드바 */
+/** 사이드바 — 교사/원장 스타일로 통일(학생/학부모도 동일 레이아웃) */
 function SidebarProfile({
   user,
   onLogout,
@@ -326,7 +342,7 @@ function SidebarProfile({
       ? "bg-amber-100 text-amber-700 ring-amber-200"
       : user?.role === "teacher"
       ? "bg-indigo-100 text-indigo-700 ring-indigo-200"
-      : "bg-purple-100 text-purple-700 ring-purple-200"; // director
+      : "bg-purple-100 text-purple-200 ring-purple-200"; // director
 
   const roleLabel =
     user?.role === "parent"
@@ -342,20 +358,25 @@ function SidebarProfile({
       ? user!.academyNumbers!
       : [];
 
-  // 사이드바 주요 버튼: 학생=내정보, 학부모=내 정보 → 보기 카드(slug로 라우팅)
-  const onClickPrimary = () => {
+  const handleMyInfoClick = () => {
     const params = new URLSearchParams(window.location.search);
-    params.set("tab", "mypage");
+    // 공지 상세 파라미터 제거
+    params.delete("noticeId");
+
     if (user?.role === "student") {
+      params.set("tab", "mypage");
       params.set("my", "student-info");
-    } else if (user?.role === "parent") {
-      params.set("my", "parent-info");
-    } else {
-      // 교사/원장: 설정으로 이동(기존 동작 유지)
-      router.push("/settings/profile");
+      router.replace(`?${params.toString()}`);
       return;
     }
-    router.replace(`?${params.toString()}`);
+    if (user?.role === "parent") {
+      params.set("tab", "mypage");
+      params.set("my", "parent-info");
+      router.replace(`?${params.toString()}`);
+      return;
+    }
+    // (교사/원장은 프로필 화면으로)
+    router.push("/settings/profile");
   };
 
   return (
@@ -371,6 +392,7 @@ function SidebarProfile({
             {user?.role && (
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${roleColor}`}
+                title={`role: ${user.role}`}
               >
                 <span className="inline-block w-2 h-2 rounded-full bg-current opacity-70" />
                 {roleLabel}
@@ -411,18 +433,12 @@ function SidebarProfile({
 
           <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-2" />
 
-          <div className="grid grid-cols-2 gap-2">
+          <div>
             <button
-              onClick={onClickPrimary}
-              className="rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-xs font-medium text-gray-800"
+              onClick={handleMyInfoClick}
+              className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
             >
-              {user?.role === "student" ? "내 정보" : "내 정보"}
-            </button>
-            <button
-              onClick={() => router.push("/account/delete")}
-              className="rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-xs font-medium text-gray-800"
-            >
-              계정탈퇴
+              내 정보
             </button>
           </div>
 
@@ -432,24 +448,6 @@ function SidebarProfile({
             style={{ backgroundColor: colors.green }}
           >
             로그아웃
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4 space-y-3 mt-4">
-        <div className="text-sm font-semibold text-gray-900">빠른 실행</div>
-        <div className="grid gap-2">
-          <button
-            onClick={() => router.push("/settings")}
-            className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
-          >
-            환경 설정
-          </button>
-          <button
-            onClick={onOpenRecentQna}
-            className="w-full rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.99] transition ring-1 ring-gray-200 py-2 text-sm text-gray-800"
-          >
-            최근 QnA 바로가기
           </button>
         </div>
       </div>
@@ -512,8 +510,8 @@ function TodayList({
   );
 }
 
-/** 오른쪽 카드 (최근 공지) */
-function NoticeCard({ notices }: { notices: Notice[] }) {
+/** 오른쪽 카드 (최근 공지) – 날짜 YYYY/MM/DD, 우하단, 최대 7개, 클릭 시 상세 페이지 이동(동일 화면 내) */
+function NoticeCard({ notices, onOpen }: { notices: Notice[]; onOpen: (id: string) => void }) {
   return (
     <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
       <div className="flex items-center gap-2 mb-3">
@@ -525,10 +523,18 @@ function NoticeCard({ notices }: { notices: Notice[] }) {
         <div className="text-sm text-gray-600">표시할 공지가 없습니다.</div>
       ) : (
         <ul className="divide-y">
-          {notices.map((n) => (
-            <li key={n.id} className="py-3">
-              <div className="font-medium text-gray-900">{n.title}</div>
-              <div className="text-xs text-gray-600">{n.createdAt}</div>
+          {notices.slice(0, 7).map((n) => (
+            <li key={n.id} className="relative py-3">
+              <button
+                type="button"
+                onClick={() => onOpen(n.id)}
+                className="w-full text-left px-2 py-2 pr-28 rounded-lg hover:bg-gray-50 transition"
+              >
+                <div className="font-medium text-gray-900 line-clamp-2">{n.title}</div>
+              </button>
+              <div className="absolute bottom-2 right-3 text-xs text-gray-600">
+                {formatYmdKST(n.createdAt)}
+              </div>
             </li>
           ))}
         </ul>
@@ -548,7 +554,7 @@ export default function FamilyPortalPage() {
   const [activeTab, setActiveTab] = useState("종합정보");
   const [forcedQnaId, setForcedQnaId] = useState<string | null>(null);
 
-  // ★ 마이페이지에서 선택된 항목 상태
+  // 마이페이지 선택 상태
   const [myPageItem, setMyPageItem] = useState<string | null>(null);
 
   // 데이터 상태
@@ -562,10 +568,13 @@ export default function FamilyPortalPage() {
   const [late, setLate] = useState(0);
   const [absent, setAbsent] = useState(0);
 
-  // 학원번호 상태(학생/학부모의 Q&A 패널에만 사용)
+  // 학원번호 상태(학생/학부모의 Q&A만 사용)
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
 
-  // 세션 로딩 (+ role/academyNumbers 정규화)
+  // ✅ 공지 상세용 noticeId (URL 파라미터)
+  const noticeIdParam = searchParams.get("noticeId");
+
+  // 세션 로딩
   useEffect(() => {
     const raw = localStorage.getItem("login");
     if (!raw) {
@@ -598,7 +607,7 @@ export default function FamilyPortalPage() {
     }
   }, [router]);
 
-  // 학원번호 선택(학생/학부모만)
+  // 학원번호 초기값
   useEffect(() => {
     if (!user) return;
     if (
@@ -612,13 +621,13 @@ export default function FamilyPortalPage() {
     }
   }, [user]);
 
-  // ✅ URL 파라미터를 원시값으로 뽑아 고정 길이 deps 사용
+  // URL 파라미터
   const tabParam = searchParams.get("tab") ?? "home";
   const myParam = searchParams.get("my") ?? "";
   const qnaParam = searchParams.get("qnaId") ?? "";
   const roleKey = user?.role ?? "";
 
-  /** URL → 탭/마이페이지 상태 반영(단일 방향, 의존성 길이 고정) */
+  /** URL → 탭/마이페이지 상태 반영 */
   useEffect(() => {
     const tabName = SLUG_TO_TAB(tabParam);
     if (activeTab !== tabName) setActiveTab(tabName);
@@ -630,7 +639,6 @@ export default function FamilyPortalPage() {
       if (mapped) {
         setMyPageItem((prev) => (prev === mapped ? prev : mapped));
       } else {
-        // 기본값 주입 + URL도 동기화(루프 없음)
         const def =
           (user?.role === "student" && "출결관리") ||
           (user?.role === "parent" && "자녀 상세 보기") ||
@@ -641,6 +649,8 @@ export default function FamilyPortalPage() {
         params.set("tab", "mypage");
         if (defSlug) params.set("my", defSlug);
         else params.delete("my");
+        // 공지 상세 파라미터 정리
+        params.delete("noticeId");
         const nextQs = `?${params.toString()}`;
         const curQs = window.location.search || "?";
         if (nextQs !== curQs) router.replace(nextQs);
@@ -659,7 +669,7 @@ export default function FamilyPortalPage() {
     return ["종합정보", "시간표", "Q&A", "공지사항", "가이드"];
   }, [user?.role]);
 
-  // 마이페이지 드롭다운 항목(요구사항 적용)
+  // 마이페이지 드롭다운 항목
   const menu = useMemo(() => {
     if (user?.role === "student") {
       return { 마이페이지: ["출결관리"] } as Record<string, string[]>;
@@ -672,13 +682,12 @@ export default function FamilyPortalPage() {
     return {} as Record<string, string[]>;
   }, [user?.role]);
 
-  // 종합정보 탭 데이터(학생/학부모만 의미 있음)
+  // 종합정보 데이터
   useEffect(() => {
     if (!ready || !user) return;
     if (activeTab !== "종합정보") return;
 
     (async () => {
-      // 교사/원장: 공란(안내만)
       if (user.role === "teacher" || user.role === "director") {
         setLoading(false);
         setErr(null);
@@ -717,7 +726,7 @@ export default function FamilyPortalPage() {
 
         try {
           const ns = await apiGet<Notice[]>(
-            `${API_BASE}/api/notices?scope=student&limit=5`,
+            `${API_BASE}/api/notices?scope=student&limit=7`,
             user.token
           );
           setNotices(ns);
@@ -748,6 +757,8 @@ export default function FamilyPortalPage() {
         const params = new URLSearchParams(window.location.search);
         params.set("tab", "qna");
         params.set("qnaId", recent.questionId);
+        // 공지 상세 파라미터 정리
+        params.delete("noticeId");
         router.replace(`?${params.toString()}`);
       } else {
         alert("최근 QnA가 없습니다.");
@@ -773,6 +784,8 @@ export default function FamilyPortalPage() {
           const params = new URLSearchParams(window.location.search);
           params.set("tab", "qna");
           params.set("qnaId", recent.questionId);
+          // 공지 상세 파라미터 정리
+          params.delete("noticeId");
           router.replace(`?${params.toString()}`);
         }
       } catch {
@@ -786,6 +799,15 @@ export default function FamilyPortalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, forcedQnaId]);
 
+  /** ✅ ‘최근 공지’ 클릭 시: 공지사항 탭 + noticeId 쿼리 세팅 → 동일 화면에서 상세 띄움 */
+  const openNotice = (id: string) => {
+    setActiveTab("공지사항");
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", "notices");
+    params.set("noticeId", id);
+    router.replace(`?${params.toString()}`);
+  };
+
   // 탭 클릭: URL에 항상 tab 슬러그 유지
   const onChangeTab = (tab: string) => {
     setActiveTab(tab);
@@ -797,7 +819,14 @@ export default function FamilyPortalPage() {
       const curSlug = toSlug(myPageItem, user?.role ?? null);
       if (curSlug) params.set("my", curSlug);
       else params.delete("my");
+      // 공지 상세 파라미터 정리
+      params.delete("noticeId");
+    } else if (slug !== "notices") {
+      // 공지 탭이 아닌 곳으로 이동 시 noticeId 제거
+      params.delete("noticeId");
+      params.delete("my");
     } else {
+      // 공지 탭으로 이동할 때는 my 제거만
       params.delete("my");
     }
     router.replace(`?${params.toString()}`);
@@ -811,6 +840,8 @@ export default function FamilyPortalPage() {
     params.set("tab", "mypage");
     if (slug) params.set("my", slug);
     else params.delete("my");
+    // 공지 상세 파라미터 정리
+    params.delete("noticeId");
     router.replace(`?${params.toString()}`);
   };
 
@@ -820,6 +851,16 @@ export default function FamilyPortalPage() {
     user?.role === "teacher" || user?.role === "director"
       ? "Staff Portal"
       : "Family Portal";
+
+  // ✅ NoticeDetailPanel에 넘길 세션(NoticePanel과 호환되는 모양)
+  const noticeSession: NoticeSession | null = user
+    ? {
+        role: user.role,
+        username: user.username,
+        token: user.token,
+        academyNumbers: user.academyNumbers,
+      }
+    : null;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.grayBg }}>
@@ -883,7 +924,8 @@ export default function FamilyPortalPage() {
               {user?.role === "student" || user?.role === "parent" ? (
                 <>
                   <TodayList list={list} loading={loading} error={err} />
-                  <NoticeCard notices={notices} />
+                  {/* ✅ 최근 공지: YYYY/MM/DD, 우하단, 최대 7개, 클릭 시 동일 화면에서 상세 */}
+                  <NoticeCard notices={notices} onOpen={openNotice} />
                 </>
               ) : (
                 <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-600">
@@ -898,13 +940,8 @@ export default function FamilyPortalPage() {
           <div className="space-y-4">
             {user?.role === "parent" ? (
               <>
-                {/* 사이드바 "내 정보" */}
                 {myPageItem === "내 정보" && <ParentProfileCard />}
-
-                {/* 드롭다운: 자녀 상세 보기 */}
                 {myPageItem === "자녀 상세 보기" && <ParentChildDetailCard />}
-
-                {/* 드롭다운: 자녀 출결 확인 */}
                 {myPageItem === "자녀 출결 확인" && <ChildAttendancePanel />}
 
                 {(!myPageItem ||
@@ -921,10 +958,7 @@ export default function FamilyPortalPage() {
               </>
             ) : user?.role === "student" ? (
               <>
-                {/* 사이드바: 내정보(보기 카드) */}
                 {myPageItem === "내 정보" && <StudentProfileCard />}
-
-                {/* 드롭다운: 출결관리 */}
                 {myPageItem === "출결관리" && <StudentAttendancePanel />}
 
                 {(!myPageItem ||
@@ -952,7 +986,7 @@ export default function FamilyPortalPage() {
             <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">시간표</h2>
               {user?.role === "student" ? (
-                <StudentTimetablePanel />
+                <StudentTimetablePanel/>
               ) : user?.role === "parent" ? (
                 <ChildSchedulePanel />
               ) : (
@@ -988,8 +1022,28 @@ export default function FamilyPortalPage() {
 
         {activeTab === "공지사항" && (
           <div className="space-y-4">
-            {/* ✅ 공지패널 삽입: 학원/과목 스피너 + 목록 */}
-            <NoticePanel />
+            {/* ✅ noticeId가 있으면 상세 패널, 없으면 목록 패널 */}
+            {noticeIdParam ? (
+              <NoticeDetailPanel
+                noticeId={noticeIdParam}
+                session={noticeSession}
+                onClose={() => {
+                  const params = new URLSearchParams(window.location.search);
+                  // 공지 탭 유지 + noticeId 제거
+                  params.set("tab", "notices");
+                  params.delete("noticeId");
+                  router.replace(`?${params.toString()}`);
+                }}
+                onDeleted={() => {
+                  const params = new URLSearchParams(window.location.search);
+                  params.set("tab", "notices");
+                  params.delete("noticeId");
+                  router.replace(`?${params.toString()}`);
+                }}
+              />
+            ) : (
+              <NoticePanel />
+            )}
           </div>
         )}
 
