@@ -1,7 +1,7 @@
+// C:\project\103Team-sub\web\greenacademy_web\src\app\director\DirectorMyInfoCard.tsx
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { getSession } from "@/app/lib/session";
 
 /** 타입 */
@@ -77,9 +77,76 @@ async function postCreateAcademyForDirector(
   return JSON.parse(text) as Academy;
 }
 
-export default function DirectorMyInfoCard() {
-  const router = useRouter();
+/** ---- 공용: 프로필 수정 iframe 모달 ---- */
+function ProfileEditModal({
+  open,
+  onClose,
+  onSaved,
+  src = "/settings/profile", // 기존 수정 화면을 그대로 사용 (라우팅 이동 대신 모달로)
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void; // 저장 완료 시 콜백(데이터 재조회)
+  src?: string;
+}) {
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MessageEvent) => {
+      // 동일 출처 확인(필요 시 e.origin === window.location.origin 강화)
+      const data = e?.data;
+      const ok = data === "profile:saved" || (data && typeof data === "object" && data.type === "profile:saved");
+      if (ok) {
+        onSaved();
+      }
+    };
+    window.addEventListener("message", handler);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("message", handler);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose, onSaved]);
 
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="내 정보 수정"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl ring-1 ring-black/10 w-full max-w-3xl h-[80vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h3 className="text-base font-semibold text-gray-900">내 정보 수정</h3>
+          <button
+            onClick={onClose}
+            className="rounded-lg px-2 py-1 text-sm text-gray-700 hover:bg-gray-100"
+            aria-label="닫기"
+            type="button"
+          >
+            닫기
+          </button>
+        </div>
+        <iframe
+          title="profile-edit"
+          src={src}
+          className="w-full h-full"
+          // 저장 화면에서 window.parent.postMessage('profile:saved','*') 호출 필요
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function DirectorMyInfoCard() {
   const [me, setMe] = React.useState<DirectorMe | null>(null);
   const [academies, setAcademies] = React.useState<Academy[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -97,6 +164,10 @@ export default function DirectorMyInfoCard() {
   const [addAddress, setAddAddress] = React.useState("");
   const [adding, setAdding] = React.useState(false);
   const [addErr, setAddErr] = React.useState<string | null>(null);
+
+  // 프로필 수정 모달
+  const [openEdit, setOpenEdit] = React.useState(false);
+  const [refreshTick, setRefreshTick] = React.useState(0); // 저장 후 재조회 트리거
 
   const reload = React.useCallback(async () => {
     setLoading(true);
@@ -123,7 +194,7 @@ export default function DirectorMyInfoCard() {
 
   React.useEffect(() => {
     reload();
-  }, [reload]);
+  }, [reload, refreshTick]);
 
   const onEdit = (a: Academy) => {
     setEditing(a.academyNumber);
@@ -205,10 +276,11 @@ export default function DirectorMyInfoCard() {
       <section className="bg-white ring-1 ring-black/5 rounded-2xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-black">기본 정보</h2>
-          {/* ▶ 우상단 버튼: 정보 수정 화면으로 이동 */}
+          {/* ▶ 우상단 버튼: 수정 모달 열기 (기존 router.push 대체) */}
           <button
-            onClick={() => router.push("/settings/profile")}
+            onClick={() => setOpenEdit(true)}
             className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black"
+            type="button"
           >
             정보 수정하기
           </button>
@@ -228,7 +300,6 @@ export default function DirectorMyInfoCard() {
             </div>
             <div>
               <dt className="text-xs text-gray-500">연락처</dt>
-              {/* 요청: 전화번호 ‘검정’ 고정 */}
               <dd className="text-sm text-black">{me?.phone ?? "-"}</dd>
             </div>
             <div className="sm:col-span-2">
@@ -262,6 +333,7 @@ export default function DirectorMyInfoCard() {
             className="text-sm underline text-black"
             onClick={() => setAddOpen((v) => !v)}
             aria-expanded={addOpen}
+            type="button"
           >
             {addOpen ? "닫기" : "열기"}
           </button>
@@ -302,6 +374,7 @@ export default function DirectorMyInfoCard() {
                 onClick={handleAdd}
                 disabled={adding}
                 className="px-4 py-2 rounded-lg bg-emerald-500/90 hover:bg-emerald-500 text-white disabled:opacity-60"
+                type="button"
               >
                 {adding ? "추가 중…" : "학원 추가"}
               </button>
@@ -357,7 +430,6 @@ export default function DirectorMyInfoCard() {
                     </div>
                     <div>
                       <dt className="text-xs text-gray-500">대표번호</dt>
-                      {/* 요청: 전화번호 ‘검정’ 고정 */}
                       <dd className="text-sm text-black">
                         {isEdit ? (
                           <input
@@ -378,6 +450,7 @@ export default function DirectorMyInfoCard() {
                       <button
                         onClick={() => onEdit(a)}
                         className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black"
+                        type="button"
                       >
                         편집
                       </button>
@@ -387,6 +460,7 @@ export default function DirectorMyInfoCard() {
                           disabled={saving}
                           onClick={onCancel}
                           className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black disabled:opacity-50"
+                          type="button"
                         >
                           취소
                         </button>
@@ -394,6 +468,7 @@ export default function DirectorMyInfoCard() {
                           disabled={saving}
                           onClick={() => onSave(a.academyNumber)}
                           className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black disabled:opacity-50"
+                          type="button"
                         >
                           {saving ? "저장 중…" : "저장"}
                         </button>
@@ -406,6 +481,17 @@ export default function DirectorMyInfoCard() {
           </div>
         )}
       </section>
+
+      {/* 프로필 수정 모달 (기존 /settings/profile 화면을 iframe으로 띄움) */}
+      <ProfileEditModal
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        onSaved={() => {
+          setOpenEdit(false);
+          setRefreshTick((t) => t + 1); // 저장 후 즉시 재조회
+        }}
+        src="/settings/profile"
+      />
     </div>
   );
 }

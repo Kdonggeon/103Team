@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 
 /** ===== 공통 타입 ===== */
 type Role = "parent" | "student" | "teacher" | "director";
@@ -41,21 +40,35 @@ async function api<T>(path: string, opts?: RequestInit & { token?: string }): Pr
   }
   const text = await res.text().catch(() => "");
   if (!text) return undefined as unknown as T;
-  try { return JSON.parse(text) as T; } catch { return undefined as unknown as T; }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return undefined as unknown as T;
+  }
 }
 
 function readLogin(): LoginSession | null {
   try {
     const raw = localStorage.getItem("login");
     return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 function writeLogin(next: LoginSession) {
-  try { localStorage.setItem("login", JSON.stringify(next)); } catch {}
-  try { window.dispatchEvent(new Event("login:updated")); } catch {}
+  try {
+    localStorage.setItem("login", JSON.stringify(next));
+  } catch {}
+  try {
+    window.dispatchEvent(new Event("login:updated"));
+  } catch {}
 }
-function uniqNum(arr: number[] = []) { return Array.from(new Set(arr.filter((n) => Number.isFinite(n)))); }
-function unionAcademies(children: ChildSummary[]) { return uniqNum(children.flatMap((c) => c.academies ?? [])); }
+function uniqNum(arr: number[] = []) {
+  return Array.from(new Set(arr.filter((n) => Number.isFinite(n))));
+}
+function unionAcademies(children: ChildSummary[]) {
+  return uniqNum(children.flatMap((c) => c.academies ?? []));
+}
 
 /** ===== 공통 UI ===== */
 function Spinner({ label }: { label?: string }) {
@@ -73,8 +86,73 @@ function SummaryItem({ label, value }: { label: string; value: React.ReactNode }
   return (
     <div className="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 max-w-full">
       <div className="text-[11px] text-gray-600">{label}</div>
-      <div className="text-sm font-medium text-gray-900 mt-0.5 break-words break-all hyphens-auto">
-        {value}
+      <div className="text-sm font-medium text-gray-900 mt-0.5 break-words break-all hyphens-auto">{value}</div>
+    </div>
+  );
+}
+
+/** ---- 프로필 수정 iframe 모달 (기존 /settings/profile 재사용) ---- */
+function ProfileEditModal({
+  open,
+  onClose,
+  onSaved,
+  src = "/settings/profile",
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void; // 저장 완료 시 데이터 재조회
+  src?: string;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MessageEvent) => {
+      const data = e?.data;
+      const ok = data === "profile:saved" || (data && typeof data === "object" && (data as any).type === "profile:saved");
+      if (ok) onSaved();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("message", handler);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("message", handler);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose, onSaved]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="내 정보 수정"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl ring-1 ring-black/10 w-full max-w-3xl h-[80vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h3 className="text-base font-semibold text-gray-900">내 정보 수정</h3>
+          <button
+            onClick={onClose}
+            className="rounded-lg px-2 py-1 text-sm text-gray-700 hover:bg-gray-100"
+            aria-label="닫기"
+            type="button"
+          >
+            닫기
+          </button>
+        </div>
+        <iframe
+          title="parent-profile-edit"
+          src={src}
+          className="w-full h-full"
+          // 저장 완료 시 /settings/profile 내부에서:
+          // window.parent.postMessage('profile:saved', '*')
+        />
       </div>
     </div>
   );
@@ -82,8 +160,6 @@ function SummaryItem({ label, value }: { label: string; value: React.ReactNode }
 
 /** ===== 메인: 내 정보 & 자녀 등록 카드 ===== */
 export default function ParentProfileCard() {
-  const router = useRouter();
-
   // 로그인 상태
   const login = readLogin();
   const token = login?.token ?? "";
@@ -102,6 +178,10 @@ export default function ParentProfileCard() {
   const [childMsg, setChildMsg] = useState<string | null>(null);
   const [childErr, setChildErr] = useState<string | null>(null);
 
+  // 프로필 수정 모달
+  const [openEdit, setOpenEdit] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+
   // 파생값: 학원번호(로그인 저장 동기화용)
   const academyNumbers = useMemo(() => {
     const fromParent = (parent?.academyNumbers ?? []).filter(Number.isFinite) as number[];
@@ -111,12 +191,13 @@ export default function ParentProfileCard() {
     return (login?.academyNumbers ?? []).filter(Number.isFinite) as number[];
   }, [parent, children, login]);
 
-  // 초기 로드 (부모 + 자녀 목록)
+  // 초기 로드 + 저장 후 재조회 (부모 + 자녀 목록)
   useEffect(() => {
     if (!parentId) return;
     let aborted = false;
     (async () => {
-      setLoading(true); setPageErr(null);
+      setLoading(true);
+      setPageErr(null);
       try {
         const [p, kids] = await Promise.all([
           api<ParentInfo>(`/api/parents/${encodeURIComponent(parentId)}`, { token }),
@@ -131,8 +212,10 @@ export default function ParentProfileCard() {
         if (!aborted) setLoading(false);
       }
     })();
-    return () => { aborted = true; };
-  }, [parentId, token]);
+    return () => {
+      aborted = true;
+    };
+  }, [parentId, token, refreshTick]);
 
   // 로그인 저장 동기화(학원번호만)
   useEffect(() => {
@@ -147,9 +230,15 @@ export default function ParentProfileCard() {
   const addChild = async () => {
     const id = studentId.trim();
     if (!id) return;
-    if (!parentId) { setChildMsg(null); setChildErr("로그인 정보가 없습니다."); return; }
+    if (!parentId) {
+      setChildMsg(null);
+      setChildErr("로그인 정보가 없습니다.");
+      return;
+    }
 
-    setSavingChild(true); setChildMsg(null); setChildErr(null);
+    setSavingChild(true);
+    setChildMsg(null);
+    setChildErr(null);
     try {
       await api<void>(`/api/parents/${encodeURIComponent(parentId)}/children`, {
         method: "POST",
@@ -174,10 +263,13 @@ export default function ParentProfileCard() {
   const removeChild = async (sid: string) => {
     if (!sid) return;
     if (!confirm(`자녀(${sid}) 연결을 해제할까요?`)) return;
-    setSavingChild(true); setChildMsg(null); setChildErr(null);
+    setSavingChild(true);
+    setChildMsg(null);
+    setChildErr(null);
     try {
       await api<void>(`/api/parents/${encodeURIComponent(parentId)}/children/${encodeURIComponent(sid)}`, {
-        method: "DELETE", token
+        method: "DELETE",
+        token,
       });
       const next = children.filter((c) => c.studentId !== sid);
       setChildren(next);
@@ -203,7 +295,7 @@ export default function ParentProfileCard() {
           </div>
         </div>
         <button
-          onClick={() => router.push("/settings/profile")}
+          onClick={() => setOpenEdit(true)}
           className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm hover:bg-emerald-700 active:scale-[0.99] transition"
           type="button"
         >
@@ -259,7 +351,9 @@ export default function ParentProfileCard() {
                   <span className="text-sm text-red-700 bg-red-50 ring-1 ring-red-200 rounded px-2 py-1">{childErr}</span>
                 )}
                 {childMsg && (
-                  <span className="text-sm text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 rounded px-2 py-1">{childMsg}</span>
+                  <span className="text-sm text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 rounded px-2 py-1">
+                    {childMsg}
+                  </span>
                 )}
               </div>
 
@@ -271,7 +365,10 @@ export default function ParentProfileCard() {
                 ) : (
                   <div className="grid gap-2">
                     {children.map((c) => (
-                      <div key={c.studentId} className="flex items-center justify-between rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2 max-w-full">
+                      <div
+                        key={c.studentId}
+                        className="flex items-center justify-between rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2 max-w-full"
+                      >
                         <div className="min-w-0 pr-2">
                           <div className="text-sm font-medium text-gray-900 truncate">{c.studentName ?? c.studentId}</div>
                           <div className="text-[11px] text-gray-600 truncate">
@@ -296,6 +393,17 @@ export default function ParentProfileCard() {
           </div>
         )}
       </section>
+
+      {/* 프로필 수정 모달: 기존 /settings/profile 그대로 사용 */}
+      <ProfileEditModal
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        onSaved={() => {
+          setOpenEdit(false);
+          setRefreshTick((t) => t + 1); // 저장 후 즉시 재조회
+        }}
+        src="/settings/profile"
+      />
     </div>
   );
 }
