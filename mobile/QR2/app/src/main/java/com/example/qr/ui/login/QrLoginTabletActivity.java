@@ -117,6 +117,13 @@ public class QrLoginTabletActivity extends AppCompatActivity {
 
                 // ✅ 학생 로그인 → 출석 처리
                 if ("student".equals(data.getRole())) {
+                    // 🔥 추가: login_prefs에도 저장 (QR 스캐너에서 인식 가능하도록)
+                    SharedPreferences loginPrefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+                    loginPrefs.edit()
+                            .putString("student_id", data.getUsername())
+                            .putString("token", data.getToken())
+                            .apply();
+
                     checkIfStudentRegistered(data);
                 } else {
                     Toast.makeText(QrLoginTabletActivity.this, "학생 계정으로 로그인하세요.", Toast.LENGTH_SHORT).show();
@@ -182,6 +189,7 @@ public class QrLoginTabletActivity extends AppCompatActivity {
                             Toast.makeText(QrLoginTabletActivity.this, "✅ 출석 완료! 대기실로 이동합니다.", Toast.LENGTH_SHORT).show();
                             Intent intent = new Intent(QrLoginTabletActivity.this, WaitingRoomActivity.class);
                             intent.putExtra("studentId", studentId);
+                            intent.putExtra("academyNumber", academyNumberFromIntent);
                             startActivity(intent);
                         } else {
                             Toast.makeText(QrLoginTabletActivity.this, "출석 실패: " + res.code(), Toast.LENGTH_SHORT).show();

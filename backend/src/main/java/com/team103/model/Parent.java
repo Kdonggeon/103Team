@@ -11,9 +11,17 @@ public class Parent {
 
     @Id
     private String id;
+
     private String fcmToken;
+
+    // ✅ MongoDB의 필드명과 정확히 일치시켜야 함
+    @Field("parentsId")
     private String parentsId;
+
+    @Field("parentsPw")
     private String parentsPw;
+
+    @Field("parentsName")
     private String parentsName;
 
     @Field("Parents_Phone_Number")
@@ -22,15 +30,15 @@ public class Parent {
     @Field("Parents_Number")
     private String parentsNumber;
 
-    // ✅ 여러 자녀 ID 등록 가능
     @Field("Student_ID_List")
     private List<String> studentIds;
 
-    // ✅ 여러 학원 등록 가능
     @Field("Academy_Numbers")
     private List<Integer> academyNumbers;
 
-    // ✅ 1. 회원가입 시 사용 (studentIds, academyNumbers 없이)
+    public Parent() {}
+
+    // ✅ 생성자 (필요 시 그대로 유지)
     public Parent(String parentsId, String parentsPw, String parentsName,
                   String parentsPhoneNumber, String parentsNumber, int academyNumber) {
         this.parentsId = parentsId;
@@ -41,7 +49,6 @@ public class Parent {
         this.academyNumbers = Collections.singletonList(academyNumber);
     }
 
-    // ✅ 2. 전체 필드 초기화용 (studentIds, academyNumbers 포함)
     public Parent(String parentsId, String parentsPw, String parentsName,
                   String parentsPhoneNumber, String parentsNumber,
                   List<String> studentIds, List<Integer> academyNumbers) {
@@ -54,75 +61,30 @@ public class Parent {
         this.academyNumbers = academyNumbers;
     }
 
-    // ✅ 3. 기본 생성자
-    public Parent() {}
+    // ✅ Getter / Setter
+    public String getId() { return id; }
 
-    // ✅ Getter/Setter
-    public String getId() {
-        return id;
-    }
+    public String getParentsId() { return parentsId; }
+    public void setParentsId(String parentsId) { this.parentsId = parentsId; }
 
-    public String getParentsId() {
-        return parentsId;
-    }
+    public String getParentsPw() { return parentsPw; }
+    public void setParentsPw(String parentsPw) { this.parentsPw = parentsPw; }
 
-    public void setParentsId(String parentsId) {
-        this.parentsId = parentsId;
-    }
+    public String getParentsName() { return parentsName; }
+    public void setParentsName(String parentsName) { this.parentsName = parentsName; }
 
-    public String getParentsPw() {
-        return parentsPw;
-    }
+    public String getParentsPhoneNumber() { return parentsPhoneNumber; }
+    public void setParentsPhoneNumber(String parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
 
-    public void setParentsPw(String parentsPw) {
-        this.parentsPw = parentsPw;
-    }
+    public String getParentsNumber() { return parentsNumber; }
+    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
 
-    public String getParentsName() {
-        return parentsName;
-    }
+    public List<String> getStudentIds() { return studentIds; }
+    public void setStudentIds(List<String> studentIds) { this.studentIds = studentIds; }
 
-    public void setParentsName(String parentsName) {
-        this.parentsName = parentsName;
-    }
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 
-    public String getParentsPhoneNumber() {
-        return parentsPhoneNumber;
-    }
-
-    public void setParentsPhoneNumber(String parentsPhoneNumber) {
-        this.parentsPhoneNumber = parentsPhoneNumber;
-    }
-
-    public String getParentsNumber() {
-        return parentsNumber;
-    }
-
-    public void setParentsNumber(String parentsNumber) {
-        this.parentsNumber = parentsNumber;
-    }
-
-    public List<String> getStudentIds() {
-        return studentIds;
-    }
-
-    public void setStudentIds(List<String> studentIds) {
-        this.studentIds = studentIds;
-    }
-
-    public String getFcmToken() {
-        return fcmToken;
-    }
-
-    public void setFcmToken(String fcmToken) {
-        this.fcmToken = fcmToken;
-    }
-
-    public List<Integer> getAcademyNumbers() {
-        return academyNumbers;
-    }
-
-    public void setAcademyNumbers(List<Integer> academyNumbers) {
-        this.academyNumbers = academyNumbers;
-    }
-} 
+    public List<Integer> getAcademyNumbers() { return academyNumbers; }
+    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
+}

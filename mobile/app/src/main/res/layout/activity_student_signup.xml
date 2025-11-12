@@ -37,7 +37,7 @@
         <EditText
             android:id="@+id/edit_name"
             android:hint="이름"
-            android:inputType="text"
+            android:inputType="textPersonName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp" />
@@ -46,6 +46,33 @@
             android:id="@+id/edit_phone"
             android:hint="전화번호"
             android:inputType="phone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- ✅ 학교명 -->
+        <EditText
+            android:id="@+id/edit_school"
+            android:hint="학교명"
+            android:inputType="textCapWords"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- ✅ 주소 -->
+        <EditText
+            android:id="@+id/edit_address"
+            android:hint="주소"
+            android:inputType="textPostalAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- ✅ 학년 입력 -->
+        <EditText
+            android:id="@+id/edit_grade"
+            android:hint="학년 (예: 1, 2, 3)"
+            android:inputType="number"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp" />
@@ -65,20 +92,23 @@
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="16dp"
+            android:background="@android:color/transparent">
 
             <RadioButton
                 android:id="@+id/radio_male"
                 android:text="남성"
                 android:checked="true"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:buttonTint="@color/green" />
 
             <RadioButton
                 android:id="@+id/radio_female"
                 android:text="여성"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:buttonTint="@color/green" />
         </RadioGroup>
 
         <Button

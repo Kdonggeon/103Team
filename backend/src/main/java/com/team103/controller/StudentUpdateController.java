@@ -31,4 +31,4 @@ public class StudentUpdateController {
         studentRepository.save(student);
         return ResponseEntity.ok("학생 정보 수정 완료");
     }
-}
+}  

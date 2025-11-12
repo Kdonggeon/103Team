@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.mobile.greenacademypartner">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -16,6 +17,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GreenAcademyPartner"
+        android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:name=".ui.qna.MyApplication">
 
@@ -27,8 +29,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- 공통 및 HEAD에 있던 액티비티들 -->
         <activity android:name=".ui.main.MainActivity" />
         <activity android:name=".ui.login.FindAccountActivity" />
         <activity android:name=".ui.setting.SettingActivity" />
@@ -40,7 +40,7 @@
         <activity android:name=".ui.login.RoleSelectActivity" />
         <activity android:name=".ui.signup.StudentSignupActivity" />
         <activity android:name=".ui.signup.ParentSignupActivity" />
-<!--        <activity android:name=".ui.signup.TeacherSignupActivity" />-->
+        <!-- <activity android:name=".ui.signup.TeacherSignupActivity" /> -->
         <activity android:name=".ui.login.FindIdActivity" />
         <activity android:name=".ui.login.ResetPasswordActivity" />
         <activity android:name=".ui.login.FindSelectActivity" />
@@ -48,21 +48,18 @@
         <activity android:name=".ui.attendance.StudentAttendanceActivity" />
         <activity android:name=".ui.attendance.ParentAttendanceActivity" />
         <activity android:name=".ui.notification.NotificationActivity" />
-<!--        <activity android:name=".ui.classes.TeacherClassesActivity" />-->
+        <!-- <activity android:name=".ui.classes.TeacherClassesActivity" /> -->
         <activity android:name=".ui.attendance.ClassAttendanceActivity" />
         <activity android:name=".ui.timetable.QRScannerActivity" />
-        <activity android:name=".ui.timetable.StudentTimetableActivity"/>
-        <activity android:name=".ui.attendance.ChildAttendanceActivity"/>
-        <activity android:name=".ui.timetable.ParentChildrenListActivity"/>
-<!--        <activity android:name=".ui.timetable.TeacherTimetableActivity"/>-->
-        <activity android:name=".ui.classes.CreateClassActivity"/>
+        <activity android:name=".ui.timetable.StudentTimetableActivity" />
+        <activity android:name=".ui.attendance.ChildAttendanceActivity" />
+        <activity android:name=".ui.timetable.ParentChildrenListActivity" />
+        <!-- <activity android:name=".ui.timetable.TeacherTimetableActivity"/> -->
+        <activity android:name=".ui.classes.CreateClassActivity" />
         <activity android:name=".ui.timetable.AddChildActivity" />
-<!--&lt;!&ndash;        <activity android:name=".ui.signup.DirectorSignupActivity" />&ndash;&gt;-->
-<!--        <activity-->
-<!--            android:name=".ui.director.DirectorMyPageActivity"-->
-<!--            android:exported="false" />-->
+        <!-- <!- <activity android:name=".ui.signup.DirectorSignupActivity" /> --> -->
+        <!-- <activity android:name=".ui.director.DirectorMyPageActivity" android:exported="false" /> -->
 
-        <!-- sub 브랜치에서 새로 추가된 액티비티들 -->
         <activity android:name=".ui.notice.CreateNoticeActivity" />
         <activity android:name=".ui.notice.NoticeDetailActivity" />
         <activity android:name=".ui.notice.EditNoticeActivity" />
@@ -71,8 +68,6 @@
         <activity android:name=".ui.qna.AnswerActivity" />
         <activity android:name=".ui.qna.EditAnswerActivity" />
 
-        <!-- FirebaseMessagingService: Android 12+에서 intent-filter 있으면 exported 필수
-            보안상 false 권장 -->
         <service
             android:name=".MyFirebaseMessagingService"
             android:exported="true">

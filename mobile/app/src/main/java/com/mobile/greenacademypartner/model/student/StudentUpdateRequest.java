@@ -1,10 +1,17 @@
 package com.mobile.greenacademypartner.model.student;
 
+import com.google.gson.annotations.SerializedName;
+
 public class StudentUpdateRequest {
+
     private String studentId;
     private String studentName;
     private String studentPhoneNumber;
+
+    // ✅ 서버 DTO의 필드명(address)에 맞게 JSON 키 동기화
+    @SerializedName("address")
     private String studentAddress;
+
     private String school;
     private int grade;
     private String gender;
@@ -27,27 +34,69 @@ public class StudentUpdateRequest {
         this.gender = gender;
     }
 
-    // Getter
-    public String getStudentId() { return studentId; }
-    public String getStudentName() { return studentName; }
-    public String getStudentPhoneNumber() { return studentPhoneNumber; }
-    public String getStudentAddress() { return studentAddress; }
-    public String getSchool() { return school; }
-    public int getGrade() { return grade; }
-    public String getGender() { return gender; }
+    // ✅ Getter
+    public String getStudentId() {
+        return studentId;
+    }
 
-    // ✅ parentId Getter 추가
-    public String getParentId() { return parentId; }
+    public String getStudentName() {
+        return studentName;
+    }
 
-    // Setter
-    public void setStudentId(String studentId) { this.studentId = studentId; }
-    public void setStudentName(String studentName) { this.studentName = studentName; }
-    public void setStudentPhoneNumber(String studentPhoneNumber) { this.studentPhoneNumber = studentPhoneNumber; }
-    public void setStudentAddress(String studentAddress) { this.studentAddress = studentAddress; }
-    public void setSchool(String school) { this.school = school; }
-    public void setGrade(int grade) { this.grade = grade; }
-    public void setGender(String gender) { this.gender = gender; }
+    public String getStudentPhoneNumber() {
+        return studentPhoneNumber;
+    }
 
-    // ✅ parentId Setter 추가
-    public void setParentId(String parentId) { this.parentId = parentId; }
+    public String getStudentAddress() {
+        return studentAddress;
+    }
+
+    public String getSchool() {
+        return school;
+    }
+
+    public int getGrade() {
+        return grade;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    // ✅ Setter
+    public void setStudentId(String studentId) {
+        this.studentId = studentId;
+    }
+
+    public void setStudentName(String studentName) {
+        this.studentName = studentName;
+    }
+
+    public void setStudentPhoneNumber(String studentPhoneNumber) {
+        this.studentPhoneNumber = studentPhoneNumber;
+    }
+
+    public void setStudentAddress(String studentAddress) {
+        this.studentAddress = studentAddress;
+    }
+
+    public void setSchool(String school) {
+        this.school = school;
+    }
+
+    public void setGrade(int grade) {
+        this.grade = grade;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
+    }
 }

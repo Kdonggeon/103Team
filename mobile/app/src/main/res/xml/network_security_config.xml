@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- 모든 HTTP 트래픽 허용 -->
+    <base-config cleartextTrafficPermitted="true" />
+
+    <!-- 또는 특정 주소만 허용하고 싶다면 아래처럼 추가 -->
+    <!--
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">192.168.0.100</domain>
     </domain-config>
+    -->
 </network-security-config>

@@ -18,10 +18,11 @@ import retrofit2.http.Path;
 
 public interface ParentApi {
 
-    @POST("/api/signup/parent")
+    // ✅ 회원가입: Spring Boot의 @PostMapping("/api/parents")와 동일
+    @POST("/api/parents")
     Call<Void> signupParent(@Body ParentSignupRequest request);
 
-    // ✅ Authorization 헤더 추가 (DB 수정 요청에는 항상 필요)
+    // ✅ 학부모 정보 수정 (Authorization 필요)
     @PUT("/api/parents/{id}")
     Call<Void> updateParent(
             @Header("Authorization") String authHeader,
@@ -29,27 +30,32 @@ public interface ParentApi {
             @Body ParentUpdateRequest request
     );
 
+    // ✅ 학부모의 전체 출석 기록 (학부모 번호 기준)
     @GET("/api/parents/{parentsNumber}/attendance")
     Call<List<Attendance>> getAttendanceForParent(
             @Path("parentsNumber") String parentsNumber
     );
 
+    // ✅ 자녀 개별 출석 기록
     @GET("/api/parents/{studentId}/attendance")
     Call<List<com.mobile.greenacademypartner.model.attendance.AttendanceResponse>>
     getAttendanceForChild(
             @Path("studentId") String childStudentId
     );
 
+    // ✅ 학부모의 자녀 목록 조회
     @GET("/api/parents/{parentId}/children")
     Call<List<Student>> getChildrenByParentId(
             @Path("parentId") String parentId
     );
 
+    // ✅ 자녀 이름 목록 조회
     @GET("/api/parents/{parentId}/children/names")
     Call<List<String>> getChildNames(
             @Path("parentId") String parentId
     );
 
+    // ✅ 자녀 추가
     @POST("/api/parents/{parentId}/children")
     Call<Void> addChildren(
             @Header("Authorization") String auth,
@@ -57,6 +63,7 @@ public interface ParentApi {
             @Body AddChildrenRequest request
     );
 
+    // ✅ FCM 토큰 갱신
     @PUT("/api/parents/{id}/fcm-token")
     Call<Void> updateFcmToken(
             @Path("id") String parentId,
@@ -64,6 +71,7 @@ public interface ParentApi {
             @Body String fcmToken
     );
 
+    // ✅ 학부모의 자녀 전체 출석 조회
     @GET("/api/parents/{parentId}/attendance")
     Call<List<Attendance>> getAllChildrenAttendance(
             @Path("parentId") String parentId

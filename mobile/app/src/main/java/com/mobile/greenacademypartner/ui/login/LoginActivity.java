@@ -140,19 +140,42 @@ public class LoginActivity extends AppCompatActivity {
                                     return;
                                 }
 
-                                // ✅ 병합 저장 (commit으로 동기 저장)
+                                // ✅ 1. 로그인 정보 저장
                                 mergeAndSaveLoginToPrefs(res, autoLoginCheckBox.isChecked());
 
-                                // ✅ FCM 업서트를 약간 지연시켜 호출 (비동기 저장 대비)
+                                // ✅ 2. 학부모 로그인 시 이전 자녀/학원 정보 완전 초기화
+                                if ("parent".equalsIgnoreCase(roleLower)) {
+                                    SharedPreferences.Editor clearEditor = prefs.edit();
+                                    clearEditor.remove("selected_child");
+                                    clearEditor.remove("selected_child_id");
+                                    clearEditor.remove("selected_academy_number");
+                                    clearEditor.remove("academy_numbers_json");
+                                    clearEditor.remove("academy_numbers");
+                                    clearEditor.apply();
+                                    Log.d(TAG, "🧹 학부모 로그인 시 이전 자녀/학원 정보 초기화 완료");
+                                }
+
+                                // ✅ 3. QRScannerActivity용 학생 정보 저장
+                                if ("student".equalsIgnoreCase(roleLower)) {
+                                    SharedPreferences loginPrefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
+                                    loginPrefs.edit()
+                                            .putString("student_id", res.getUsername())
+                                            .putString("token", res.getToken())
+                                            .apply();
+                                    Log.d(TAG, "✅ QR 스캐너용 student_id/token 저장 완료");
+                                }
+
+                                // ✅ 4. FCM 토큰 업서트
                                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                     upsertFcmTokenImmediately(roleLower, username);
                                 }, 800);
 
-                                // ✅ 메인 화면 이동
+                                // ✅ 5. 메인 화면 이동
                                 Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                 startActivity(intent);
                                 finish();
+
                             } else {
                                 Log.e(TAG, "로그인 실패: code=" + response.code());
                                 try {
@@ -177,44 +200,22 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
-    // ✅ SharedPreferences 병합 + commit() 저장
+    // ✅ SharedPreferences 병합 + 학원번호 추가 저장
     private void mergeAndSaveLoginToPrefs(LoginResponse res, boolean autoLoginChecked) {
-        String curName     = prefs.getString("name", "");
-        String curPhone    = prefs.getString("phone", "");
-        String curAddress  = prefs.getString("address", "");
-        String curSchool   = prefs.getString("school", "");
-        int    curGrade    = prefs.getInt("grade", 0);
-        String curGender   = prefs.getString("gender", "");
-        String curParentId = prefs.getString("parentId", "");
-
-        String mergedName    = mergedString(curName,    res.getName());
-        String mergedPhone   = mergedString(curPhone,   res.getPhone());
-        String mergedAddress = mergedString(curAddress, res.getAddress());
-        String mergedSchool  = mergedString(curSchool,  res.getSchool());
-        String mergedGender  = mergedString(curGender,  res.getGender());
-        int    mergedGrade   = (res.getGrade() > 0) ? res.getGrade() : curGrade;
-
-        String mergedParentId = curParentId;
-        if ("parent".equalsIgnoreCase(safeLower(res.getRole()))) {
-            String serverUsername = safe(res.getUsername());
-            if (!serverUsername.isEmpty()) mergedParentId = serverUsername;
-        }
-
         SharedPreferences.Editor ed = prefs.edit();
+
         ed.putBoolean("is_logged_in", true);
         ed.putBoolean("auto_login", autoLoginChecked);
         ed.putString("token", safe(res.getToken()));
         ed.putString("role", safeLower(res.getRole()));
         ed.putString("username", safe(res.getUsername()));
         ed.putString("userId", safe(res.getUsername()));
-
-        if (!mergedName.trim().isEmpty())  ed.putString("name", mergedName);
-        if (!mergedPhone.trim().isEmpty()) ed.putString("phone", mergedPhone);
-        if (!mergedAddress.trim().isEmpty()) ed.putString("address", mergedAddress);
-        if (!mergedSchool.trim().isEmpty())  ed.putString("school", mergedSchool);
-        if (!mergedGender.trim().isEmpty())  ed.putString("gender", mergedGender);
-        if (mergedGrade > 0)                 ed.putInt("grade", mergedGrade);
-        if (!mergedParentId.trim().isEmpty()) ed.putString("parentId", mergedParentId);
+        ed.putString("name", safe(res.getName()));
+        ed.putString("phone", safe(res.getPhone()));
+        ed.putString("address", safe(res.getAddress()));
+        ed.putString("school", safe(res.getSchool()));
+        ed.putString("gender", safe(res.getGender()));
+        ed.putInt("grade", res.getGrade());
 
         List<Integer> academyNumbers = res.getAcademyNumbers();
         ed.putString(
@@ -223,26 +224,25 @@ public class LoginActivity extends AppCompatActivity {
         );
 
         if ("student".equalsIgnoreCase(safeLower(res.getRole()))) {
-            String curStudentName   = prefs.getString("student_name", "");
-            String mergedStudentName= mergedString(curStudentName, res.getName());
-            if (!mergedStudentName.trim().isEmpty())
-                ed.putString("student_name", mergedStudentName);
+            ed.putString("student_name", safe(res.getName()));
         }
 
-        // ✅ commit으로 동기 저장
+        if (academyNumbers != null && !academyNumbers.isEmpty()) {
+            String json = new JSONArray(academyNumbers).toString();
+            String csv = academyNumbers.toString().replaceAll("\\[|\\]|\\s", "");
+            ed.putString("academy_numbers_json", json);
+            ed.putString("academy_numbers", csv);
+            ed.putInt("academyNumber", academyNumbers.get(0));
+            Log.d(TAG, "✅ 학원번호 저장 완료: " + json);
+        } else {
+            ed.putString("academy_numbers_json", "[]");
+            ed.putString("academy_numbers", "");
+            ed.remove("academyNumber");
+            Log.w(TAG, "⚠️ 학원번호 없음 → 기본값 저장");
+        }
+
         ed.commit();
-
-        Log.d(TAG, "[mergeAndSaveLoginToPrefs] 최종 저장값:");
-        Log.d(TAG, "token=" + prefs.getString("token","(null)"));
-        Log.d(TAG, "name=" + prefs.getString("name","(null)"));
-        Log.d(TAG, "phone=" + prefs.getString("phone","(null)"));
-        Log.d(TAG, "parentId=" + prefs.getString("parentId","(null)"));
-    }
-
-    private String mergedString(String oldVal, String newVal) {
-        if (newVal == null) return oldVal;
-        String t = newVal.trim();
-        return t.isEmpty() ? oldVal : t;
+        Log.d(TAG, "[mergeAndSaveLoginToPrefs] 최종 저장 완료");
     }
 
     private boolean isNetworkAvailable() {
@@ -288,53 +288,24 @@ public class LoginActivity extends AppCompatActivity {
             Log.d(TAG, "FCM 토큰 획득: " + token);
 
             String rawJwt = prefs.getString("token", null);
-            Log.d(TAG, "Authorization 헤더 = Bearer " + rawJwt);
-
             if (rawJwt == null || rawJwt.trim().isEmpty()) {
-                Log.w(TAG, "JWT 없음 → FCM 토큰 업서트 스킵");
+                Log.w(TAG, "JWT 없음 → FCM 업서트 생략");
                 return;
             }
             String authHeader = "Bearer " + rawJwt.trim();
 
-            String parentId = firstNonEmpty(
-                    prefs.getString("parentId", null),
-                    prefs.getString("userId", null),
-                    prefs.getString("username", null),
-                    username
-            );
-            String studentId = firstNonEmpty(
-                    prefs.getString("studentId", null),
-                    prefs.getString("userId", null),
-                    prefs.getString("username", null),
-                    username
-            );
-
             try {
-                if ("parent".equalsIgnoreCase(roleLower)) {
-                    if (parentId == null || parentId.trim().isEmpty()) {
-                        Log.w(TAG, "parentId 없음 → 업서트 생략");
-                        return;
-                    }
-
-                    ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
-                    api.updateFcmToken(parentId, authHeader, token)
-                            .enqueue(new VoidLoggingCallback("parent"));
-
-                } else if ("student".equalsIgnoreCase(roleLower)) {
-                    if (studentId == null || studentId.trim().isEmpty()) {
-                        Log.w(TAG, "studentId 없음 → 업서트 생략");
-                        return;
-                    }
-
+                if ("student".equalsIgnoreCase(roleLower)) {
                     StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-                    api.updateFcmToken(studentId, authHeader, token)
+                    api.updateFcmToken(username, authHeader, token)
                             .enqueue(new VoidLoggingCallback("student"));
-
-                } else {
-                    Log.w(TAG, "알 수 없는 역할. FCM 토큰 업서트 생략: " + roleLower);
+                } else if ("parent".equalsIgnoreCase(roleLower)) {
+                    ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
+                    api.updateFcmToken(username, authHeader, token)
+                            .enqueue(new VoidLoggingCallback("parent"));
                 }
             } catch (Exception e) {
-                Log.e(TAG, "FCM 토큰 업서트 중 예외", e);
+                Log.e(TAG, "FCM 업서트 중 예외", e);
             }
         }).addOnFailureListener(e -> Log.e(TAG, "FCM 토큰 획득 실패", e));
     }
@@ -348,21 +319,13 @@ public class LoginActivity extends AppCompatActivity {
             if (response.isSuccessful()) {
                 Log.d(TAG, "✅ FCM 토큰 업서트 성공(" + tagSuffix + ")");
             } else {
-                Log.e(TAG, "❌ FCM 토큰 업서트 실패(" + tagSuffix + "): code=" + response.code());
+                Log.e(TAG, "❌ FCM 업서트 실패(" + tagSuffix + "): code=" + response.code());
             }
         }
 
         @Override
         public void onFailure(Call<Void> call, Throwable t) {
-            Log.e(TAG, "FCM 토큰 업서트 네트워크 실패(" + tagSuffix + ")", t);
+            Log.e(TAG, "FCM 업서트 네트워크 실패(" + tagSuffix + ")", t);
         }
-    }
-
-    private String firstNonEmpty(String... vals) {
-        if (vals == null) return null;
-        for (String v : vals) {
-            if (v != null && !v.trim().isEmpty()) return v;
-        }
-        return null;
     }
 }

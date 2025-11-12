@@ -1,131 +1,137 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fillViewport="true"
     android:background="#65E478"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:clipToPadding="false"
+    android:scrollbars="none"
+    android:paddingTop="40dp"
+    android:paddingBottom="40dp">
 
-    <!-- ✅ 안쪽 흰색 박스 -->
-    <LinearLayout
+    <!-- ✅ 흰색 둥근 박스 -->
+<LinearLayout
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:layout_marginHorizontal="36dp"
+android:orientation="vertical"
+android:background="@drawable/bg_white_round_container"
+android:elevation="10dp"
+android:padding="36dp"
+android:gravity="center_horizontal">
+
+<!-- ✅ 로고 -->
+<ImageView
+    android:id="@+id/img_logo"
+    android:layout_width="240dp"
+    android:layout_height="240dp"
+    android:layout_marginTop="8dp"
+android:layout_marginBottom="12dp"
+android:src="@drawable/logo"
+android:scaleType="fitCenter"
+android:layout_gravity="center_horizontal"
+android:contentDescription="logo" />
+
+<!-- ✅ 제목 버튼 -->
+<Button
+    android:id="@+id/btn_title_login"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="학원 로그인"
+    android:textSize="19sp"
+    android:textStyle="bold"
+    android:textColor="@android:color/white"
+    android:backgroundTint="@color/green"
+    android:paddingHorizontal="28dp"
+    android:paddingVertical="10dp"
+    android:elevation="4dp"
+    android:layout_gravity="center_horizontal"
+    android:layout_marginBottom="20dp"
+    android:clickable="false"
+    android:focusable="false" />
+
+<!-- ✅ 학원 아이디 -->
+<EditText
+    android:id="@+id/edit_academy_id"
+    android:layout_width="match_parent"
+    android:layout_height="46dp"
+    android:hint="학원 아이디"
+    android:background="@drawable/input_field"
+    android:padding="10dp"
+    android:textColor="#111827"
+    android:textColorHint="#A3A3A3"
+    android:layout_marginBottom="10dp" />
+
+<!-- ✅ 비밀번호 -->
+<RelativeLayout
+    android:layout_width="match_parent"
+    android:layout_height="46dp"
+    android:background="@drawable/input_field"
+    android:layout_marginBottom="10dp">
+
+    <EditText
+        android:id="@+id/edit_academy_pw"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_margin="64dp"
-        android:orientation="vertical"
-        android:background="@drawable/bg_white_round_container"
-        android:elevation="12dp"
-        android:padding="48dp"
-        android:gravity="top|center_horizontal"> <!-- ✅ top으로 변경 -->
-
-        <!-- ✅ 로고 (위로 이동 + 크기 유지) -->
-        <ImageView
-            android:id="@+id/img_logo"
-            android:layout_width="400dp"
-            android:layout_height="400dp"
-            android:layout_marginTop="32dp"
-            android:layout_marginBottom="24dp"
-            android:src="@drawable/logo"
-            android:scaleType="fitCenter"
-            android:layout_gravity="center_horizontal"
-            android:contentDescription="logo" />
-
-        <!-- ✅ 제목 대신 버튼 모양 (비활성화 상태) -->
-        <Button
-            android:id="@+id/btn_title_login"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="학원 로그인"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/white"
-            android:backgroundTint="@color/green"
-            android:paddingHorizontal="32dp"
-            android:paddingVertical="12dp"
-            android:elevation="6dp"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="24dp"
-            android:clickable="false"
-            android:focusable="false" />
-
-        <!-- ✅ 학원 아이디 -->
-    <EditText
-        android:id="@+id/edit_academy_id"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:hint="학원 아이디"
-        android:background="@drawable/input_field"
-        android:padding="12dp"
+        android:hint="비밀번호"
+        android:paddingLeft="10dp"
+        android:paddingRight="36dp"
+        android:background="@android:color/transparent"
+        android:inputType="textPassword"
         android:textColor="#111827"
         android:textColorHint="#A3A3A3"
-        android:layout_marginBottom="12dp" />
+        android:singleLine="true" />
 
-    <!-- ✅ 비밀번호 -->
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
+    <ImageView
+        android:id="@+id/btn_toggle_pw"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="8dp"
+        android:src="@drawable/eye_off"
+        android:clickable="true"
+        android:focusable="true" />
+</RelativeLayout>
+
+<!-- ✅ 학원 번호 + 로그인 버튼 -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <EditText
+        android:id="@+id/edit_academy_number"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="46dp"
+        android:hint="학원 번호"
         android:background="@drawable/input_field"
-        android:layout_marginBottom="12dp">
-
-        <EditText
-            android:id="@+id/edit_academy_pw"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:hint="비밀번호"
-            android:paddingLeft="12dp"
-            android:paddingRight="40dp"
-            android:background="@android:color/transparent"
-            android:inputType="textPassword"
-            android:textColor="#111827"
-            android:textColorHint="#A3A3A3"
-            android:singleLine="true" />
-
-        <ImageView
-            android:id="@+id/btn_toggle_pw"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:layout_marginEnd="10dp"
-            android:src="@drawable/eye_off"
-            android:clickable="true"
-            android:focusable="true" />
-    </RelativeLayout>
-
-    <!-- ✅ 학원 번호 + 로그인 버튼 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <EditText
-            android:id="@+id/edit_academy_number"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="50dp"
-            android:hint="학원 번호"
-            android:background="@drawable/input_field"
-            android:padding="12dp"
-            android:textColor="#111827"
-            android:textColorHint="#A3A3A3" />
-
-        <Button
-            android:id="@+id/btn_academy_login"
-            android:layout_width="100dp"
-            android:layout_height="50dp"
-            android:layout_marginStart="10dp"
-            android:text="로그인"
-            android:textColor="@android:color/white"
-            android:backgroundTint="@color/green2" />
-    </LinearLayout>
-
-    <!-- ✅ 체크박스 -->
-    <CheckBox
-        android:id="@+id/chk_auto_login"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="로그인 상태 유지"
+        android:padding="10dp"
         android:textColor="#111827"
-        android:layout_marginTop="12dp" />
+        android:textColorHint="#A3A3A3" />
+
+    <Button
+        android:id="@+id/btn_academy_login"
+        android:layout_width="90dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="8dp"
+        android:text="로그인"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:backgroundTint="@color/green2" />
+</LinearLayout>
+
+<!-- ✅ 체크박스 -->
+<CheckBox
+    android:id="@+id/chk_auto_login"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="로그인 상태 유지"
+    android:textColor="#111827"
+    android:layout_marginTop="8dp" />
 
 </LinearLayout>
-    </FrameLayout>
+    </ScrollView>
