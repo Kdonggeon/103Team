@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 
 /** ===== 타입/유틸 ===== */
 type Role = "parent" | "student" | "teacher" | "director";
@@ -20,7 +19,12 @@ async function apiGet<T>(path: string, token?: string): Promise<T> {
   return r.json();
 }
 function readLogin(): LoginSession | null {
-  try { const raw = localStorage.getItem("login"); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  try {
+    const raw = localStorage.getItem("login");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 function isEmpty(v: any) {
   if (v === null || v === undefined) return true;
@@ -60,9 +64,75 @@ function Info({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+/** ---- 프로필 수정 iframe 모달 (기존 /settings/profile 재사용) ---- */
+function ProfileEditModal({
+  open,
+  onClose,
+  onSaved,
+  src = "/settings/profile",
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void; // 저장 완료 시 데이터 재조회
+  src?: string;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MessageEvent) => {
+      const data = e?.data;
+      const ok = data === "profile:saved" || (data && typeof data === "object" && data.type === "profile:saved");
+      if (ok) onSaved();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("message", handler);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("message", handler);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose, onSaved]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="내 정보 수정"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl ring-1 ring-black/10 w-full max-w-3xl h-[80vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h3 className="text-base font-semibold text-gray-900">내 정보 수정</h3>
+          <button
+            onClick={onClose}
+            className="rounded-lg px-2 py-1 text-sm text-gray-700 hover:bg-gray-100"
+            aria-label="닫기"
+            type="button"
+          >
+            닫기
+          </button>
+        </div>
+        <iframe
+          title="student-profile-edit"
+          src={src}
+          className="w-full h-full"
+          // 저장 완료 시 /settings/profile 내부에서:
+          // window.parent.postMessage('profile:saved', '*')
+        />
+      </div>
+    </div>
+  );
+}
+
 /** ===== 메인 ===== */
 export default function StudentProfileCard() {
-  const router = useRouter();
   const login = readLogin();
   const token = login?.token ?? "";
   const studentId = login?.username ?? "";
@@ -71,11 +141,16 @@ export default function StudentProfileCard() {
   const [err, setErr] = useState<string | null>(null);
   const [detail, setDetail] = useState<StudentDetail | null>(null);
 
+  // 모달 열림/저장 후 갱신을 위한 tick
+  const [openEdit, setOpenEdit] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+
   useEffect(() => {
     if (!studentId) return;
     let aborted = false;
     (async () => {
-      setLoading(true); setErr(null);
+      setLoading(true);
+      setErr(null);
       try {
         const d = await apiGet<StudentDetail>(`/api/students/${encodeURIComponent(studentId)}`, token);
         if (!aborted) setDetail(d ?? null);
@@ -85,8 +160,10 @@ export default function StudentProfileCard() {
         if (!aborted) setLoading(false);
       }
     })();
-    return () => { aborted = true; };
-  }, [studentId, token]);
+    return () => {
+      aborted = true;
+    };
+  }, [studentId, token, refreshTick]);
 
   const academies: number[] = useMemo(() => {
     const v = detail?.Academy_Numbers ?? detail?.academyNumbers ?? detail?.academies ?? login?.academyNumbers ?? [];
@@ -97,18 +174,18 @@ export default function StudentProfileCard() {
   const entries = useMemo(() => {
     if (!detail) return [];
     const out: { label: string; value: string }[] = [];
-    const push = (label: string, raw: any, fmt?: (v:any)=>string) => {
+    const push = (label: string, raw: any, fmt?: (v: any) => string) => {
       if (raw === undefined) return;
-      const value = fmt ? fmt(raw) : (typeof raw === "object" ? JSON.stringify(raw) : String(raw));
+      const value = fmt ? fmt(raw) : typeof raw === "object" ? JSON.stringify(raw) : String(raw);
       if (!isEmpty(value)) out.push({ label, value });
     };
-    push("이름", pick(detail, ["Student_Name","studentName","student_name","name"]));
-    push("주소", pick(detail, ["Student_Address","studentAddress","student_address","address"]));
-    push("핸드폰 번호", pick(detail, ["Student_Phone_Number","studentPhoneNumber","student_phone_number","phone"]));
-    push("학교", pick(detail, ["School","school","schoolName","school_name"]));
-    push("학년", pick(detail, ["Grade","grade","year"]));
-    push("성별", pick(detail, ["Gender","gender","sex"]));
-    // 학원번호는 '보기만' — 관리(추가/삭제)는 다른 화면에서
+    push("이름", pick(detail, ["Student_Name", "studentName", "student_name", "name"]));
+    push("주소", pick(detail, ["Student_Address", "studentAddress", "student_address", "address"]));
+    push("핸드폰 번호", pick(detail, ["Student_Phone_Number", "studentPhoneNumber", "student_phone_number", "phone"]));
+    push("학교", pick(detail, ["School", "school", "schoolName", "school_name"]));
+    push("학년", pick(detail, ["Grade", "grade", "year"]));
+    push("성별", pick(detail, ["Gender", "gender", "sex"]));
+    // 학원번호는 보기만
     push("학원번호", academies, formatAcademies);
     return out;
   }, [detail, academies]);
@@ -127,7 +204,7 @@ export default function StudentProfileCard() {
           </div>
         </div>
         <button
-          onClick={() => router.push("/settings/profile")}
+          onClick={() => setOpenEdit(true)}
           className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm hover:bg-emerald-700 active:scale-[0.99] transition"
           type="button"
         >
@@ -146,9 +223,24 @@ export default function StudentProfileCard() {
         ) : entries.length === 0 ? (
           <div className="text-sm text-gray-700">표시할 학생 정보가 없습니다.</div>
         ) : (
-          <div className="grid grid-cols-1 gap-3">{entries.map((e, i) => <Info key={i} label={e.label} value={e.value} />)}</div>
+          <div className="grid grid-cols-1 gap-3">
+            {entries.map((e, i) => (
+              <Info key={i} label={e.label} value={e.value} />
+            ))}
+          </div>
         )}
       </section>
+
+      {/* 프로필 수정 모달: 기존 /settings/profile 그대로 사용 */}
+      <ProfileEditModal
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        onSaved={() => {
+          setOpenEdit(false);
+          setRefreshTick((t) => t + 1); // 저장 후 즉시 재조회
+        }}
+        src="/settings/profile"
+      />
     </div>
   );
 }

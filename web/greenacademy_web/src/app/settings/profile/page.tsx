@@ -217,15 +217,6 @@ export default function ProfileSettingsPage() {
             <span className="font-semibold">{session.username}</span>
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 h-10 px-3 rounded-xl border border-white/30 text-white hover:bg-white/10 transition"
-          >
-            ← 대시보드로
-          </Link>
-        </div>
       </div>
 
       {msg && (
