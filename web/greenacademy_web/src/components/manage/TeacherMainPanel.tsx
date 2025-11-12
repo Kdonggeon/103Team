@@ -182,7 +182,7 @@ export default function TeacherMainPanel({ user }: { user: NonNullable<LoginResp
       }
     };
     load();
-    const timer = setInterval(load, 15000);
+    const timer = setInterval(load, 3000); // 3초
     return () => { alive = false; clearInterval(timer); };
   }, [selected?.classId]);
 

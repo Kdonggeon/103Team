@@ -128,8 +128,8 @@ function NavTabs({
   const left = ["종합정보"] as const;
   const right =
     role === "director"
-      ? (["관리", "출결확인", "Q&A", "공지사항", "가이드"] as const)
-      : (["관리", "시간표", "Q&A", "공지사항", "가이드"] as const);
+      ? (["관리", "출결확인", "Q&A", "공지사항"] as const)
+      : (["관리", "시간표", "Q&A", "공지사항"] as const);
 
   // 드롭다운 항목
   const manageItems =
@@ -598,7 +598,7 @@ export default function GreenAcademyDashboard() {
       attendance: "출결확인",
       qna: "Q&A",
       notice: "공지사항",
-      guide: "가이드",
+      // guide: (제거)
     };
     const label = map[tab.toLowerCase()] as string | undefined;
     if (label) setActiveTab(label);
@@ -853,15 +853,6 @@ export default function GreenAcademyDashboard() {
         {activeTab === "공지사항" && (
           <div className="space-y-4">
             <NoticePanel />
-          </div>
-        )}
-
-        {activeTab === "가이드" && (
-          <div className="space-y-4">
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">가이드</h2>
-              <p className="text-sm text-gray-700">사용 설명서/튜토리얼 문서를 표시합니다.</p>
-            </div>
           </div>
         )}
       </main>

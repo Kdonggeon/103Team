@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,9 +30,11 @@ public class AttendanceCheckInController {
     private final AttendanceRepository attendanceRepository;
     private final MongoTemplate mongoTemplate;
 
-    @Value("${attendance.lateAfterMin:5}")
+    /** ✅ 시작 후 몇 분까지 '출석(PRESENT)'로 인정할지 (기본 15분) */
+    @Value("${attendance.lateAfterMin:15}")
     private int lateAfterMin;
 
+    /** 시작 후 몇 분이 지나면 '지각'도 불가(결석 시간)로 볼지 (기본 20분) */
     @Value("${attendance.absentAfterMin:20}")
     private int absentAfterMin;
 
@@ -61,32 +64,38 @@ public class AttendanceCheckInController {
         if (course == null) {
             return ResponseEntity.badRequest().body("수업을 찾을 수 없음");
         }
-        List<Integer> daysOfWeek = course.getDaysOfWeekInt();
-        if (daysOfWeek == null || !daysOfWeek.contains(dow)) {
-            return ResponseEntity.status(409).body("오늘은 해당 수업이 없음");
-        }
 
         DateTimeFormatter HHMM = DateTimeFormatter.ofPattern("HH:mm");
         String ymd = today.toString();
 
-        // ✅ 날짜 오버라이드 반영
+        // ✅ 날짜 오버라이드 우선 적용 + null 보호
         Course.DailyTime dt = course.getTimeFor(ymd);
-        String sStr = (dt.getStart() != null) ? dt.getStart() : course.getStartTime();
-        String eStr = (dt.getEnd()   != null) ? dt.getEnd()   : course.getEndTime();
+        String sStr = (dt != null && dt.getStart() != null) ? dt.getStart() : course.getStartTime();
+        String eStr = (dt != null && dt.getEnd()   != null) ? dt.getEnd()   : course.getEndTime();
+        if (sStr == null || sStr.isEmpty()) {
+            return ResponseEntity.status(409).body("수업 시작 시간이 설정되지 않음");
+        }
+
+        // ✅ 요일 체크: DailyTime 오버라이드가 있으면 요일 미일치라도 허용
+        List<Integer> daysOfWeek = course.getDaysOfWeekInt();
+        if (dt == null && (daysOfWeek == null || !daysOfWeek.contains(dow))) {
+            return ResponseEntity.status(409).body("오늘은 해당 수업이 없음");
+        }
 
         LocalTime S = LocalTime.parse(sStr, HHMM);
         LocalTime E = (eStr != null && !eStr.isEmpty()) ? LocalTime.parse(eStr, HHMM) : S.plusMinutes(50);
 
-        LocalDateTime sDateTime   = LocalDateTime.of(today, S);
-        LocalDateTime nowLt       = now.toLocalDateTime();
-        LocalDateTime openFrom    = sDateTime.minusMinutes(5);
-        LocalDateTime presentUntil= sDateTime.plusMinutes(lateAfterMin);
-        LocalDateTime lateUntil   = sDateTime.plusMinutes(absentAfterMin);
+        LocalDateTime sDateTime     = LocalDateTime.of(today, S);
+        LocalDateTime nowLt         = now.toLocalDateTime();
+        LocalDateTime openFrom      = sDateTime.minusMinutes(5);            // 수업 5분 전부터 오픈
+        LocalDateTime presentUntil  = sDateTime.plusMinutes(lateAfterMin);  // ✅ 15분까지 PRESENT
+        LocalDateTime lateUntil     = sDateTime.plusMinutes(absentAfterMin);// 20분 이후 결석 시간
 
         if (nowLt.isBefore(openFrom)) return ResponseEntity.status(409).body("아직 출석 오픈 전");
         if (nowLt.isAfter(lateUntil)) return ResponseEntity.status(409).body("결석 시간: 출석 불가");
 
-        String status = (!nowLt.isAfter(presentUntil)) ? "출석" : "지각";
+        // ✅ 상태값은 프론트와 일치하도록 영문 상수 사용
+        String status = (!nowLt.isAfter(presentUntil)) ? "PRESENT" : "LATE";
 
         String classId = req.getClassId();
         String date = ymd;
@@ -105,7 +114,7 @@ public class AttendanceCheckInController {
         // ⬇ 컬렉션 이름을 하드코딩하지 말고 COLL 사용
         mongoTemplate.upsert(q, up, COLL);
 
-        // 기존 학생 항목 상태/시간 갱신
+        // 기존 학생 항목 상태/시간 갱신 (arrayFilters)
         Update setEntry = new Update()
                 .set("Attendance_List.$[s].Status", status)
                 .set("Attendance_List.$[s].CheckIn_Time", nowLt.format(DateTimeFormatter.ISO_LOCAL_TIME))
@@ -127,7 +136,7 @@ public class AttendanceCheckInController {
         }
 
         CheckInResponse res = new CheckInResponse();
-        res.setStatus(status);
+        res.setStatus(status); // PRESENT / LATE
         res.setClassId(classId);
         res.setDate(date);
         res.setSessionStart(sStr);
