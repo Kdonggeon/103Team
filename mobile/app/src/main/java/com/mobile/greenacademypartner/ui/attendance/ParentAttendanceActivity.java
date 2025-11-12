@@ -130,9 +130,13 @@ public class ParentAttendanceActivity extends AppCompatActivity {
 
         currentDisplayDow = getTodayDowMon1ToSun7();
 
-        String parentId = prefs.getString(KEY_PARENT_ID, null);
+        // ✅ MainActivity처럼 userId도 확인하게 수정
+        String parentId = prefs.getString("userId", null);
+        if (parentId == null || parentId.isEmpty())
+            parentId = prefs.getString(KEY_PARENT_ID, null);
         if (parentId == null || parentId.isEmpty())
             parentId = prefs.getString(KEY_PARENT_ID_FALLBACK, null);
+
 
         if (parentId == null || parentId.isEmpty()) {
             Toast.makeText(this, "학부모 로그인 정보를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();

@@ -2,15 +2,21 @@ server:
   port: 9090  # 사용 중인 포트 그대로
 
 spring:
+<<<<<<< HEAD
   jackson:
     time-zone: Asia/Seoul
     date-format: yyyy-MM-dd'T'HH:mm:ss.SSSXXX
+=======
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/team103  # ✅ 로컬 MongoDB 연결 (DB 이름: team103)
+>>>>>>> new2
 
 # ✅ JWT 서명 키(반드시 Base64로 인코딩된 32바이트 이상)
 jwt:
   secret: "PJHNGrEM43nYOI+QmBxTzsdUuoX4iR/KYYGzbg6iHXI="
 
-# (지금 주신 설정 포함)
+# ✅ Actuator (서버 상태 점검용)
 management:
   endpoints:
     web:

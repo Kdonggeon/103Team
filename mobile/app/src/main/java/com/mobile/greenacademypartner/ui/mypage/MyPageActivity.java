@@ -132,7 +132,6 @@ public class MyPageActivity extends AppCompatActivity {
 
     private void loadUserInfoAndSetTitles() {
         SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
-
         role = pref.getString("role", "unknown").trim().toLowerCase();
 
         String name = pref.getString("name", "");
@@ -143,7 +142,6 @@ public class MyPageActivity extends AppCompatActivity {
         editId.setText(username);
         editPhone.setText(phone);
 
-        // 원래 값 저장
         originalParentName = name;
         originalParentPhone = phone;
 
@@ -200,7 +198,11 @@ public class MyPageActivity extends AppCompatActivity {
         spinnerProfileTarget.setVisibility(View.VISIBLE);
 
         SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        String parentId = pref.getString("parentId", pref.getString("username", ""));
+        // ✅ userId도 함께 확인하도록 수정
+        String parentId = pref.getString("userId",
+                pref.getString("parentId",
+                        pref.getString("username", "")));
+
         String parentName = pref.getString("name", "");
         targets.clear();
         targets.add(new ProfileItem(ProfileItem.Type.SELF, parentId, "나(" + parentName + ")"));
@@ -324,50 +326,40 @@ public class MyPageActivity extends AppCompatActivity {
                 return;
             }
 
-            // 1) 우선 화면 값 전부 읽어서 “한 번에” 정리
+            // 입력값 정리
             String rawId = safe(editId.getText().toString());
             String rawName = safe(editName.getText().toString());
             String rawPhone = safe(editPhone.getText().toString());
             String rawAddress = safe(editAddress.getText().toString());
+            if (rawAddress.isEmpty()) {
+                Student cached = studentCache.get(currentStudentId);
+                if (cached != null && cached.getStudentAddress() != null)
+                    rawAddress = cached.getStudentAddress();
+            }
             String rawSchool = safe(editSchool.getText().toString());
             String rawGender = safe(editGender.getText().toString());
             int gradeTmp;
             try { gradeTmp = Integer.parseInt(safe(editGrade.getText().toString()).trim()); }
             catch (Exception e) { gradeTmp = 0; }
 
-            // 2) 여기서 한 번만 백업값 대입
-            if (rawName == null || rawName.trim().isEmpty()) {
-                rawName = originalParentName;
-            }
-            if (rawPhone == null || rawPhone.trim().isEmpty()) {
-                rawPhone = originalParentPhone;
-            }
+            if (rawName == null || rawName.trim().isEmpty()) rawName = originalParentName;
+            if (rawPhone == null || rawPhone.trim().isEmpty()) rawPhone = originalParentPhone;
 
-            // 3) 이 시점의 값들을 전부 final 로 만들어서 콜백에서 쓸 거야
-            final String fixedId = rawId;
-            final String fixedName = rawName;
-            final String fixedPhone = rawPhone;
-            final String fixedAddress = rawAddress;
-            final String fixedSchool = rawSchool;
-            final String fixedGender = rawGender;
+            final String fixedId = rawId, fixedName = rawName, fixedPhone = rawPhone,
+                    fixedAddress = rawAddress, fixedSchool = rawSchool, fixedGender = rawGender;
             final int fixedGrade = gradeTmp;
 
             SharedPreferences pref = getSharedPreferences("login_prefs", MODE_PRIVATE);
-            final SharedPreferences sharedPrefFinal = pref; // 콜백에서 쓰려고
-
+            final SharedPreferences sharedPrefFinal = pref;
             String token = pref.getString("token", "");
 
             if ("parent".equals(role)) {
-                // ▶ 부모 자기 정보
                 if (currentSelectionType == ProfileItem.Type.SELF) {
-
                     ParentUpdateRequest parent = new ParentUpdateRequest(fixedId, fixedName, fixedPhone);
                     ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
-
                     api.updateParent("Bearer " + token, fixedId, parent)
                             .enqueue(new Callback<Void>() {
-                                @Override
-                                public void onResponse(Call<Void> call, Response<Void> response) {
+                                @Override public void onResponse(Call<Void> call, Response<Void> response) {
                                     boolean ok = response.isSuccessful();
                                     showToast(ok, "학부모");
                                     if (ok) {
@@ -377,48 +369,30 @@ public class MyPageActivity extends AppCompatActivity {
                                                 .putString("name", fixedName)
                                                 .putString("phone", fixedPhone)
                                                 .apply();
-
-                                        // 원본 갱신
                                         originalParentName = fixedName;
                                         originalParentPhone = fixedPhone;
-
                                         loadUserInfoAndSetTitles();
                                         updateCardTitle(parentDisplayName);
-                                    } else {
-                                        Log.e("MyPage", "updateParent 실패 code=" + response.code());
                                     }
                                 }
-
-                                @Override
-                                public void onFailure(Call<Void> call, Throwable t) {
-                                    Log.e("MyPage", "updateParent 실패", t);
+                                @Override public void onFailure(Call<Void> call, Throwable t) {
                                     showToast(false, "학부모");
                                 }
                             });
-
                 }
-                // ▶ 자녀 정보
                 else if (currentSelectionType == ProfileItem.Type.STUDENT && currentStudentId != null) {
-
                     final String fixedStudentId = currentStudentId;
-                    final String parentId = pref.getString("parentId", pref.getString("username", ""));
+                    final String parentId = pref.getString("userId", pref.getString("parentId", pref.getString("username", "")));
 
                     StudentUpdateRequest req = new StudentUpdateRequest(
-                            fixedStudentId,
-                            fixedName,
-                            fixedPhone,
-                            fixedAddress,
-                            fixedSchool,
-                            fixedGrade,
-                            fixedGender
-                    );
+                            fixedStudentId, fixedName, fixedPhone,
+                            fixedAddress, fixedSchool, fixedGrade, fixedGender);
                     req.setParentId(parentId);
 
                     StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
                     api.updateStudent("Bearer " + token, fixedStudentId, req)
                             .enqueue(new Callback<Void>() {
-                                @Override
-                                public void onResponse(Call<Void> call, Response<Void> response) {
+                                @Override public void onResponse(Call<Void> call, Response<Void> response) {
                                     boolean ok = response.isSuccessful();
                                     showToast(ok, "학생");
                                     if (ok) {
@@ -436,14 +410,12 @@ public class MyPageActivity extends AppCompatActivity {
                                                 .putString("last_student_name", fixedName)
                                                 .apply();
                                         updateCardTitle(fixedName);
-                                    } else {
-                                        Log.e("MyPage", "updateStudent 실패 code=" + response.code());
+
+                                        // ✅ 수정 완료 후 최신 정보 다시 불러오기 (주소 갱신)
+                                        loadStudentDetailAsync(fixedStudentId);
                                     }
                                 }
-
-                                @Override
-                                public void onFailure(Call<Void> call, Throwable t) {
-                                    Log.e("MyPage", "updateStudent 실패", t);
+                                @Override public void onFailure(Call<Void> call, Throwable t) {
                                     showToast(false, "학생");
                                 }
                             });
@@ -456,20 +428,16 @@ public class MyPageActivity extends AppCompatActivity {
 
     private void updateSaveButtonState() {
         if (btnSave == null) return;
-        boolean enabled;
-        if ("parent".equals(role)) {
-            enabled = (currentSelectionType == ProfileItem.Type.SELF || currentSelectionType == ProfileItem.Type.STUDENT);
-        } else if ("student".equals(role)) {
-            enabled = false;
-        } else {
-            enabled = (currentSelectionType == ProfileItem.Type.SELF);
-        }
+        boolean enabled = "parent".equals(role)
+                ? (currentSelectionType == ProfileItem.Type.SELF || currentSelectionType == ProfileItem.Type.STUDENT)
+                : !"student".equals(role);
         setSaveEnabled(enabled);
     }
 
-    private void showToast(boolean success, String roleName) {
-        String msg = roleName + (success ? " 정보가 성공적으로 수정되었습니다." : " 정보 수정에 실패했습니다.");
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    private void showToast(boolean success, String who) {
+        Toast.makeText(this,
+                who + (success ? " 정보가 성공적으로 수정되었습니다." : " 정보 수정에 실패했습니다."),
+                Toast.LENGTH_SHORT).show();
     }
 
     private void lockStudentFields() {
@@ -480,10 +448,8 @@ public class MyPageActivity extends AppCompatActivity {
         makeReadOnly(editSchool);
         makeReadOnly(editGrade);
         makeReadOnly(editGender);
-
         tintGray(editId); tintGray(editName); tintGray(editPhone);
         tintGray(editAddress); tintGray(editSchool); tintGray(editGrade); tintGray(editGender);
-
         if (btnSave != null) {
             btnSave.setEnabled(false);
             btnSave.setVisibility(View.GONE);
@@ -495,9 +461,7 @@ public class MyPageActivity extends AppCompatActivity {
         et.setFocusable(false);
         et.setFocusableInTouchMode(false);
         et.setClickable(false);
-        et.setLongClickable(false);
         et.setCursorVisible(false);
-        et.setTextIsSelectable(true);
         et.setKeyListener(null);
     }
 
@@ -512,16 +476,15 @@ public class MyPageActivity extends AppCompatActivity {
         String name = pref.getString("name", "");
         String username = pref.getString("username", "");
         String phone = pref.getString("phone", "");
-
         editName.setText(name);
         editId.setText(username);
         editPhone.setText(phone);
-
-        // 이때도 원본 갱신
         originalParentName = name;
         originalParentPhone = phone;
-
-        editAddress.setText(""); editSchool.setText(""); editGrade.setText(""); editGender.setText("");
+        editAddress.setText("");
+        editSchool.setText("");
+        editGrade.setText("");
+        editGender.setText("");
     }
 
     private void bindStudentToForm(Student s) {
@@ -534,15 +497,13 @@ public class MyPageActivity extends AppCompatActivity {
         try {
             int g = s.getGrade();
             editGrade.setText(g == 0 ? "" : String.valueOf(g));
-        } catch (Exception e) {
-            editGrade.setText("");
-        }
+        } catch (Exception e) { editGrade.setText(""); }
         editGender.setText(safe(s.getGender()));
     }
 
     private void setFormEnabled(boolean enabled) {
-        EditText[] arr = new EditText[]{ editName, editId, editPhone, editAddress, editSchool, editGrade, editGender };
-        for (EditText et : arr) { if (et != null) et.setEnabled(enabled); }
+        EditText[] arr = { editName, editId, editPhone, editAddress, editSchool, editGrade, editGender };
+        for (EditText et : arr) if (et != null) et.setEnabled(enabled);
     }
 
     private void setSaveEnabled(boolean enabled) {
@@ -554,12 +515,8 @@ public class MyPageActivity extends AppCompatActivity {
     private void setRowVisibility(EditText et, int visibility) {
         if (et == null) return;
         et.setVisibility(visibility);
-        View p1 = (View) et.getParent();
-        if (p1 != null) {
-            p1.setVisibility(visibility);
-            View p2 = (View) p1.getParent();
-            if (p2 != null) p2.setVisibility(visibility);
-        }
+        View p = (View) et.getParent();
+        if (p != null) p.setVisibility(visibility);
     }
 
     private void showStudentOnlyFields(boolean show) {
@@ -570,9 +527,9 @@ public class MyPageActivity extends AppCompatActivity {
         setRowVisibility(editGender, v);
         if (!show) {
             if (editAddress != null) editAddress.setText("");
-            if (editSchool  != null) editSchool.setText("");
-            if (editGrade   != null) editGrade.setText("");
-            if (editGender  != null) editGender.setText("");
+            if (editSchool != null) editSchool.setText("");
+            if (editGrade != null) editGrade.setText("");
+            if (editGender != null) editGender.setText("");
         }
     }
 }

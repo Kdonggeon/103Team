@@ -43,4 +43,4 @@ public class StudentUpdateController {
         studentRepository.save(s);
         return ResponseEntity.ok(Map.of("status","ok"));
     }
-}
+}  

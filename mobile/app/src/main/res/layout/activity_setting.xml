@@ -120,12 +120,17 @@
                     android:textColor="@android:color/black"/>
             </RadioGroup>
 
+            <!-- ✅ 폰트 적용 버튼 : 크기 고정 -->
             <Button
                 android:id="@+id/btn_font_apply"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="44dp"
                 android:text="적용"
                 android:textAllCaps="false"
+                android:includeFontPadding="false"
+                android:minHeight="0dp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
                 android:layout_marginTop="8dp"/>
         </LinearLayout>
 
@@ -142,11 +147,16 @@
             android:background="@drawable/bg_theme_color_group"
             android:padding="16dp">
 
+            <!-- ✅ MaterialButton도 고정 높이 + 패딩 제거 -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_add_child_settings"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="44dp"
                 android:text="자녀 추가"
+                android:includeFontPadding="false"
+                android:minHeight="0dp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
                 style="?attr/materialButtonStyle"/>
         </LinearLayout>
 
@@ -173,17 +183,20 @@
             android:visibility="gone"
             android:contentDescription="네비게이션 보이기"/>
 
-
-        <!-- 🔹 툴바 바로 아래 오른쪽에 로그아웃 버튼 -->
+        <!-- ✅ 로그아웃 버튼도 고정 적용 -->
         <Button
             android:id="@+id/btn_logout"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:layout_below="@id/toolbar_setting"
             android:layout_alignParentEnd="true"
             android:layout_marginTop="8dp"
             android:layout_marginEnd="16dp"
             android:text="로그아웃"
+            android:includeFontPadding="false"
+            android:minHeight="0dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
             android:backgroundTint="@color/green"
             android:textColor="@color/white"/>
 

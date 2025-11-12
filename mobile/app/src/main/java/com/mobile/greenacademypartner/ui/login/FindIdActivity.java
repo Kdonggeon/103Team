@@ -40,7 +40,8 @@ public class FindIdActivity extends AppCompatActivity {
 
             // ✅ 입력값 정제
             String cleanedName = name.trim();
-            String cleanedPhone = phone.replaceAll("[^\\d]", ""); // 숫자만 남김
+            String cleanedPhone = phone.trim(); // ✅ 하이픈(-) 포함 그대로 서버로 전송
+
 
             // 필수 입력 검사
             if (cleanedName.isEmpty() || cleanedPhone.isEmpty()) {

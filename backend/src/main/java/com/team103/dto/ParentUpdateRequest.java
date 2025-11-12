@@ -1,8 +1,16 @@
 package com.team103.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class ParentUpdateRequest {
+
+    @JsonProperty("Parents_Number")
     private String parentsId;
+
+    @JsonProperty("Parents_Name")
     private String parentsName;
+
+    @JsonProperty("Parents_Phone")
     private String parentsPhoneNumber;
 
     public ParentUpdateRequest() {}

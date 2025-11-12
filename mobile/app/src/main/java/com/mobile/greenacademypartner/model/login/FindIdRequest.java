@@ -4,24 +4,32 @@ import com.google.gson.annotations.SerializedName;
 
 public class FindIdRequest {
 
+    @SerializedName("name")
     private String name;
 
-    @SerializedName("phone") // JSON 필드명이 "phone"일 때 직렬화 매핑
+    // ✅ 백엔드 DTO와 동일한 필드명 사용
+    @SerializedName("phoneNumber")
     private String phoneNumber;
 
+    @SerializedName("role")
     private String role;
 
+    // ✅ 기본 생성자 (Gson용)
+    public FindIdRequest() {}
+
+    // ✅ 전체 생성자
     public FindIdRequest(String name, String phoneNumber, String role) {
         this.name = name;
         this.phoneNumber = phoneNumber;
         this.role = role;
     }
 
+    // ✅ Getter
     public String getName() { return name; }
     public String getPhoneNumber() { return phoneNumber; }
-    public String getPhone() { return phoneNumber; } // ✅ 추가됨
     public String getRole() { return role; }
 
+    // ✅ Setter
     public void setName(String name) { this.name = name; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
     public void setRole(String role) { this.role = role; }
