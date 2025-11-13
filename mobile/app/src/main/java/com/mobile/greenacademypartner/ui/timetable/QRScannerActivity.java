@@ -26,9 +26,9 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 /**
- * ✅ QR 스캐너 통합 버전 (대기실 이동 없음)
- * - 학원 출석 QR(JSON): {"academyNumber":"103","students":["12345","1111"]}
- * - 좌석 출석 QR(기존 key=value): room=12&seat=2&student=s1002
+ * QR 스캔 화면
+ * - 학생만 사용 가능
+ * - 부모, 교사, 원장은 스캔 페이지 진입 즉시 종료
  */
 public class QRScannerActivity extends AppCompatActivity {
 
@@ -37,6 +37,16 @@ public class QRScannerActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 🔥 로그인 role 확인 (학생만 허용)
+        String role = getSharedPreferences("login_prefs", MODE_PRIVATE)
+                .getString("role", "");
+
+        if (!"student".equalsIgnoreCase(role)) {
+            Toast.makeText(this, "학생 계정만 QR 출석이 가능합니다.", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         // ✅ Retrofit 초기화
         roomApi = RetrofitClient.getClient().create(RoomApi.class);
@@ -63,16 +73,16 @@ public class QRScannerActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    /** ✅ 스캔된 QR 문자열 분석 (자동 분기) */
+    /** QR 문자열 자동 분기 */
     private void handleQRResult(String qrData) {
         try {
-            // ✅ JSON 형태라면 학원 출석 QR
+            // JSON 형태 → 학원 출석 QR
             if (qrData.trim().startsWith("{")) {
                 handleAcademyQR(qrData);
                 return;
             }
 
-            // ✅ 아니면 기존 좌석 QR
+            // 아니면 기존 좌석 QR
             handleSeatQR(qrData);
 
         } catch (Exception e) {
@@ -82,7 +92,7 @@ public class QRScannerActivity extends AppCompatActivity {
         }
     }
 
-    /** ✅ 기존 좌석 출석용 QR 처리 */
+    /** 기존 좌석 출석 QR 처리 */
     private void handleSeatQR(String qrData) {
         try {
             Uri uri = Uri.parse("?" + qrData);
@@ -117,14 +127,14 @@ public class QRScannerActivity extends AppCompatActivity {
         }
     }
 
-    /** ✅ 새 학원 출석용 QR 처리 (대기실 이동 없음) */
+    /** 학원 출석 QR 처리 */
     private void handleAcademyQR(String qrData) {
         try {
             JSONObject qrJson = new JSONObject(qrData);
             String academyNumber = qrJson.getString("academyNumber");
             JSONArray students = qrJson.getJSONArray("students");
 
-            // ✅ 현재 로그인한 학생 ID & 토큰 불러오기
+            // 로그인한 학생 정보
             String studentId = getSharedPreferences("login_prefs", MODE_PRIVATE)
                     .getString("student_id", "");
             String token = getSharedPreferences("login_prefs", MODE_PRIVATE)
@@ -136,7 +146,7 @@ public class QRScannerActivity extends AppCompatActivity {
                 return;
             }
 
-            // ✅ QR 목록에 내 ID가 포함되어 있는지 확인
+            // 내 ID가 QR 목록에 포함되어 있는지 확인
             boolean valid = false;
             for (int i = 0; i < students.length(); i++) {
                 if (studentId.equals(students.getString(i))) {
@@ -151,7 +161,7 @@ public class QRScannerActivity extends AppCompatActivity {
                 return;
             }
 
-            // ✅ 출석 체크 요청
+            // 출석 체크 요청
             AttendanceApi attendanceApi = RetrofitClient.getClient().create(AttendanceApi.class);
             Map<String, String> req = new HashMap<>();
             req.put("academyNumber", academyNumber);
@@ -166,7 +176,7 @@ public class QRScannerActivity extends AppCompatActivity {
                             } else {
                                 Toast.makeText(QRScannerActivity.this, "출석 실패: " + response.code(), Toast.LENGTH_SHORT).show();
                             }
-                            finish(); // ✅ 대기실 이동 없이 바로 종료
+                            finish();
                         }
 
                         @Override
