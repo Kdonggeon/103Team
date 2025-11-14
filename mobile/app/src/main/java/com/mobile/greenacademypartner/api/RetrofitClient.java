@@ -17,13 +17,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitClient {
 
-<<<<<<< HEAD
-    private static final String BASE_URL = "http://127.0.0.1:9090/";
-=======
-    private static final String BASE_URL = "http://192.168.0.23:9090/";
+    public static final String BASE_URL = "http://localhost:9090/";
 
-
->>>>>>> new2
     private static volatile Retrofit retrofit;
 
     private static final SimpleCookieJar cookieJar = new SimpleCookieJar();

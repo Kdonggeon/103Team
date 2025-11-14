@@ -14,12 +14,9 @@ public class Parent {
 
     private String fcmToken;
 
-<<<<<<< HEAD
-    // 소문자 필드 (신규 규칙)
-=======
+
     // ✅ MongoDB의 필드명과 정확히 일치시켜야 함
     @Field("parentsId")
->>>>>>> new2
     private String parentsId;
 
     @Field("parentsPw")
@@ -41,7 +38,6 @@ public class Parent {
     @Field("Parents_Number")
     private String parentsNumber;
 
-<<<<<<< HEAD
     // 여러 자녀 ID
     @Field("Student_ID_List")
     private List<String> studentIds;
@@ -51,17 +47,7 @@ public class Parent {
     private List<Integer> academyNumbers;
 
     // --- 생성자들 ---
-=======
-    @Field("Student_ID_List")
-    private List<String> studentIds;
 
-    @Field("Academy_Numbers")
-    private List<Integer> academyNumbers;
-
-    public Parent() {}
-
-    // ✅ 생성자 (필요 시 그대로 유지)
->>>>>>> new2
     public Parent(String parentsId, String parentsPw, String parentsName,
                   String parentsPhoneNumber, String parentsNumber, int academyNumber) {
         this.parentsId = parentsId;
@@ -84,7 +70,6 @@ public class Parent {
         this.academyNumbers = academyNumbers;
     }
 
-<<<<<<< HEAD
     public Parent() {}
 
     // --- Getter/Setter ---
@@ -136,32 +121,4 @@ public class Parent {
         String t = s.trim();
         return t.isEmpty() ? null : t;
     }
-=======
-    // ✅ Getter / Setter
-    public String getId() { return id; }
-
-    public String getParentsId() { return parentsId; }
-    public void setParentsId(String parentsId) { this.parentsId = parentsId; }
-
-    public String getParentsPw() { return parentsPw; }
-    public void setParentsPw(String parentsPw) { this.parentsPw = parentsPw; }
-
-    public String getParentsName() { return parentsName; }
-    public void setParentsName(String parentsName) { this.parentsName = parentsName; }
-
-    public String getParentsPhoneNumber() { return parentsPhoneNumber; }
-    public void setParentsPhoneNumber(String parentsPhoneNumber) { this.parentsPhoneNumber = parentsPhoneNumber; }
-
-    public String getParentsNumber() { return parentsNumber; }
-    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
-
-    public List<String> getStudentIds() { return studentIds; }
-    public void setStudentIds(List<String> studentIds) { this.studentIds = studentIds; }
-
-    public String getFcmToken() { return fcmToken; }
-    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
-
-    public List<Integer> getAcademyNumbers() { return academyNumbers; }
-    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
->>>>>>> new2
 }

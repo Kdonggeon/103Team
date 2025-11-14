@@ -1,0 +1,17 @@
+server:
+  port: 9090  # 사용 중인 포트 그대로
+
+# ✅ JWT 서명 키(반드시 Base64로 인코딩된 32바이트 이상)
+jwt:
+  secret: "PJHNGrEM43nYOI+QmBxTzsdUuoX4iR/KYYGzbg6iHXI="
+
+# (지금 주신 설정 포함)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true   # /actuator/health/liveness, /actuator/health/readiness

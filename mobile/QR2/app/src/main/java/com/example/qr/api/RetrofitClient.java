@@ -22,7 +22,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitClient {
 
-    private static final String BASE_URL = "http://192.168.0.23:9090/";
+    public static final String BASE_URL = "http://10.0.2.2:9090/";
 
     private static volatile Retrofit retrofit;
     private static volatile Context appContext;
