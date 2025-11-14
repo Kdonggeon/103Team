@@ -146,16 +146,6 @@ function fromSlug(slug: string | null, role: Role | null): string | null {
   return null;
 }
 
-/** 공통 UI */
-function StatCard({ title, value }: { title: string; value: number }) {
-  return (
-    <div className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5 px-6 py-4 text-center min-w-[220px]">
-      <div className="text-sm text-gray-700 mb-1">{title}</div>
-      <div className="text-2xl font-semibold text-gray-900">{value}</div>
-    </div>
-  );
-}
-
 /** 상단 탭 + '마이페이지' 드롭다운 */
 function NavTabs({
   active,
@@ -563,11 +553,6 @@ export default function FamilyPortalPage() {
   const [list, setList] = useState<Array<{ label: string; sub?: string; status?: string }>>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
 
-  // 통계
-  const [present, setPresent] = useState(0);
-  const [late, setLate] = useState(0);
-  const [absent, setAbsent] = useState(0);
-
   // 학원번호 상태(학생/학부모의 Q&A만 사용)
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
 
@@ -693,9 +678,6 @@ export default function FamilyPortalPage() {
         setErr(null);
         setList([]);
         setNotices([]);
-        setPresent(0);
-        setLate(0);
-        setAbsent(0);
         return;
       }
 
@@ -710,12 +692,6 @@ export default function FamilyPortalPage() {
           user.token
         );
         const today = rows.filter((r) => isSameDate(r.date));
-        const p = today.filter((r) => r.status.toUpperCase().includes("PRESENT")).length;
-        const l = today.filter((r) => r.status.toUpperCase().includes("LATE")).length;
-        const a = today.filter((r) => r.status.toUpperCase().includes("ABS")).length;
-        setPresent(p);
-        setLate(l);
-        setAbsent(a);
         setList(
           today.map((r) => ({
             label: r.className,
@@ -905,21 +881,6 @@ export default function FamilyPortalPage() {
 
         {activeTab === "종합정보" && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
-                  오늘
-                </span>
-              </div>
-              {(user?.role === "student" || user?.role === "parent") && (
-                <div className="flex gap-3">
-                  <StatCard title="금일 출석" value={present} />
-                  <StatCard title="금일 지각" value={late} />
-                  <StatCard title="금일 결석" value={absent} />
-                </div>
-              )}
-            </div>
-
             <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-6">
               {user?.role === "student" || user?.role === "parent" ? (
                 <>

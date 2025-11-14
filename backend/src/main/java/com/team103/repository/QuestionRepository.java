@@ -7,13 +7,22 @@ import java.util.Optional;
 import org.springframework.data.mongodb.repository.Query;
 
 public interface QuestionRepository extends MongoRepository<Question, String> {
+
     List<Question> findByAuthor(String author);
+
     List<Question> findByAcademyNumber(int academyNumber);
+
     Optional<Question> findFirstByAcademyNumberAndRoomTrue(int academyNumber);
+
+
     @Query("{ 'room': true, 'academyNumber': ?0, 'roomStudentId': ?1 }")
-    Question findRoomByAcademyAndStudent(int academyNumber, String roomStudentId);
+    List<Question> findRoomByAcademyAndStudent(int academyNumber, String roomStudentId);
+
     @Query("{ 'room': true, 'academyNumber': ?0, 'roomParentId': ?1 }")
-    Question findRoomByAcademyAndParent(int academyNumber, String roomParentId);
+    List<Question> findRoomByAcademyAndParent(int academyNumber, String roomParentId);
+
+
     List<Question> findByAuthorAndAuthorRoleOrderByCreatedAtDesc(String author, String authorRole);
+
     Question findTopByOrderByCreatedAtDesc();
 }
