@@ -907,17 +907,17 @@ export default function FamilyPortalClient() {
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
+                {/* <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
                   오늘
-                </span>
+                </span> */}
               </div>
-              {(user?.role === "student" || user?.role === "parent") && (
+              {/* {(user?.role === "student" || user?.role === "parent") && (
                 <div className="flex gap-3">
                   <StatCard title="금일 출석" value={present} />
                   <StatCard title="금일 지각" value={late} />
                   <StatCard title="금일 결석" value={absent} />
                 </div>
-              )}
+              )} */}
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-6">
