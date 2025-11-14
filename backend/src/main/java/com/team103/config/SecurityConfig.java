@@ -141,7 +141,8 @@ public class SecurityConfig {
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "http://192.168.*:*",
-            "https://103team-web.vercel.app"      // 여기만 나중에 실제 도메인으로 바꾸면 됨
+            "https://103team-web.vercel.app",
+            "https://greenacademy.vercel.app"// 여기만 나중에 실제 도메인으로 바꾸면 됨
             // 예: "https://103team-web.vercel.app", "https://greenacademy.kr" 등
         ));
         cfg.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
