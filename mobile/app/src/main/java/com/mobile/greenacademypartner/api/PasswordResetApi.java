@@ -10,4 +10,3 @@ public interface PasswordResetApi {
     @POST("/api/reset-password")
     Call<Void> resetPassword(@Body PasswordResetRequest request);
 }
-

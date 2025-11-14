@@ -1,4 +1,3 @@
-
 package com.mobile.greenacademypartner.ui.qna;
 
 import android.content.Intent;
@@ -271,20 +270,20 @@ public class QuestionDetailActivity extends AppCompatActivity {
         if (btnSend != null) btnSend.setOnClickListener(v -> onClickSendMessage());
 
         // 스레드 RecyclerView
-               rvThread = findViewById(R.id.rv_answers);
-                LinearLayoutManager lm = new LinearLayoutManager(this);
-                lm.setReverseLayout(false);
-                lm.setStackFromEnd(true);
-                rvThread.setLayoutManager(lm);
-                threadAdapter = new ThreadAdapter();
-                rvThread.setAdapter(threadAdapter);
+        rvThread = findViewById(R.id.rv_answers);
+        LinearLayoutManager lm = new LinearLayoutManager(this);
+        lm.setReverseLayout(false);
+        lm.setStackFromEnd(true);
+        rvThread.setLayoutManager(lm);
+        threadAdapter = new ThreadAdapter();
+        rvThread.setAdapter(threadAdapter);
 
-                                threadAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+        threadAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
             @Override public void onItemRangeInserted(int positionStart, int itemCount) {
-                                                int last = lm.findLastVisibleItemPosition();
-                                                if (last >= threadAdapter.getItemCount() - itemCount - 2) {
-                                                        rvThread.scrollToPosition(threadAdapter.getItemCount() - 1);
-                                                }
+                int last = lm.findLastVisibleItemPosition();
+                if (last >= threadAdapter.getItemCount() - itemCount - 2) {
+                    rvThread.scrollToPosition(threadAdapter.getItemCount() - 1);
+                }
             }});
 
         // 데이터 로드

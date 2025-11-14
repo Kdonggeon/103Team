@@ -38,7 +38,11 @@ public class Student {
     private int grade;
 
     @Field("Parents_Number")
-    private String parentsNumber;
+    private String parentsNumber;   // 기존 학부모 번호
+
+    // 🟢 새로 추가되는 필드
+    @Field("Parent_ID")
+    private String parentId;
 
     @Field("Seat_Number")
     private int seatNumber;
@@ -48,15 +52,17 @@ public class Student {
 
     @Field("Gender")
     private String gender;
-    
+
     @Field("Academy_Numbers")
     private List<Integer> academyNumbers = new ArrayList<>();
 
     public Student() {}
 
-    public Student(String id, String fcmToken, String studentName, String studentId, String studentPw,
-                   String address, String studentPhoneNumber, String school, int grade,
-                   String parentsNumber, int seatNumber, boolean checkedIn, String gender) {
+    public Student(
+            String id, String fcmToken, String studentName, String studentId, String studentPw,
+            String address, String studentPhoneNumber, String school, int grade,
+            String parentsNumber, String parentId, int seatNumber, boolean checkedIn, String gender) {
+
         this.id = id;
         this.fcmToken = fcmToken;
         this.studentName = studentName;
@@ -67,10 +73,13 @@ public class Student {
         this.school = school;
         this.grade = grade;
         this.parentsNumber = parentsNumber;
+        this.parentId = parentId;
         this.seatNumber = seatNumber;
         this.checkedIn = checkedIn;
         this.gender = gender;
     }
+
+    // 기본 getter/setter
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -102,6 +111,9 @@ public class Student {
     public String getParentsNumber() { return parentsNumber; }
     public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
 
+    public String getParentId() { return parentId; }
+    public void setParentId(String parentId) { this.parentId = parentId; }
+
     public int getSeatNumber() { return seatNumber; }
     public void setSeatNumber(int seatNumber) { this.seatNumber = seatNumber; }
 
@@ -110,8 +122,7 @@ public class Student {
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
-    
-    public List<Integer> getAcademyNumbers() {return academyNumbers;}
 
-    public void setAcademyNumbers(List<Integer> academyNumbers) {this.academyNumbers = academyNumbers;}
+    public List<Integer> getAcademyNumbers() { return academyNumbers; }
+    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
 }

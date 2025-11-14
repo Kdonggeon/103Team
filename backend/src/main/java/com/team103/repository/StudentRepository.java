@@ -17,6 +17,9 @@ public interface StudentRepository extends MongoRepository<Student, String> {
     List<Student> findByStudentIdIn(List<String> studentIds);
     void deleteByStudentId(String studentId);
 
+    // 🔥 신규 추가 — 학부모 ID로 자녀 조회 (student.parentId 필드)
+    List<Student> findByParentId(String parentId);
+
     // 이름 + 전화번호 (대소문자/표기 혼합 대응)
     @Query(value =
         "{ $and: [" +
@@ -27,9 +30,6 @@ public interface StudentRepository extends MongoRepository<Student, String> {
 
     // ==========================
     // ✅ 학원 + 이름(부분일치, 대소문자무시)
-    // - 학원: Academy_Numbers / academyNumbers (배열), Academy_Number / academyNumber (단일)
-    // - 타입: 숫자/문자 모두 대응(academyNumber, academyNumberStr)
-    // - 이름: Student_Name / studentName / name
     // ==========================
     @Query(value =
         "{ $and: [" +
@@ -60,7 +60,9 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "] }")
     List<Student> findByAcademyLooseAndGradeAndNameLike(Integer academyNumber, String academyNumberStr, Integer grade, String nameLike);
 
-    // 전역 이름 검색(폴백) — 표기 혼합 지원
+    // ==========================
+    // 전역 이름 검색(폴백)
+    // ==========================
     @Query(value =
         "{ $or: [" +
         "  { 'studentName':  { $regex: ?0, $options: 'i' } }," +
@@ -80,7 +82,9 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "] }")
     List<Student> findByNameLikeAnyAndGrade(String nameLike, Integer grade);
 
-    // (옵션) 페이징 버전들
+    // ==========================
+    // 페이징 버전
+    // ==========================
     @Query(value =
         "{ $and: [" +
         "  { $or: [" +
@@ -110,8 +114,10 @@ public interface StudentRepository extends MongoRepository<Student, String> {
         "] }")
     Page<Student> pageByAcademyLooseAndGradeAndNameLike(Integer academyNumber, String academyNumberStr, Integer grade, String nameLike, Pageable pageable);
 
-    /** ✅ HEAD 브랜치 추가된 쿼리: 정확 일치 필터 (academy + grade + nameLike) */
+    /** 정확 일치 필터 (academy + grade + nameLike) */
     @Query(value = "{ 'Academy_Numbers': ?0, 'Grade': ?1, 'Student_Name': { $regex: ?2, $options: 'i' } }")
     Page<Student> pageByAcademyAndGradeAndNameLike(Integer academyNumber, Integer grade, String nameLike, Pageable pageable);
+
+    List<Student> findByAcademyNumbersContaining(Integer academyNumber);
 
 }

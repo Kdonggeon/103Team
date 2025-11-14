@@ -42,11 +42,15 @@ public class Student {
     @SerializedName(value = "gender", alternate = {"Gender", "sex"})
     private String gender;
 
-    // 서버/DB에 따라 Academy_Numbers / Academy_Number / academyNumbers 등 섞일 수 있어 모두 허용
-    @SerializedName(value = "academyNumbers", alternate = {"Academy_Numbers", "Academy_Number"})
-    private List<Integer> Academy_Numbers;
+    // 🔥 학원번호 필드 — 서버 JSON("academies")까지 매핑하도록 수정 완료
+    @SerializedName(
+            value = "academyNumbers",
+            alternate = {"Academy_Numbers", "Academy_Number", "academies"}  // ← 핵심
+    )
+    private List<Integer> academyNumbers;
 
     // ===== Getter & Setter =====
+
     public String get_id() { return _id; }
     public void set_id(String _id) { this._id = _id; }
 
@@ -83,6 +87,7 @@ public class Student {
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
 
-    public List<Integer> getAcademy_Numbers() { return Academy_Numbers; }
-    public void setAcademy_Numbers(List<Integer> academy_Numbers) { this.Academy_Numbers = academy_Numbers; }
+    // 🔥 공지 필터링에서 사용하는 getter — MainActivity & NoticeActivity 모두 여길 호출함
+    public List<Integer> getAcademyNumbers() { return academyNumbers; }
+    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
 }

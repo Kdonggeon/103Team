@@ -3,6 +3,7 @@ package com.team103.controller;
 import com.team103.model.Academy;
 import com.team103.model.Student;
 import com.team103.repository.AcademyRepository;
+import com.team103.repository.StudentRepository;
 import com.team103.service.AcademyCreateService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,12 +16,14 @@ public class AcademyController {
 
     private final AcademyRepository academyRepo;
     private final AcademyCreateService academyCreateService;
+    private final StudentRepository studentRepository; // ⭐ 추가
 
     public AcademyController(AcademyRepository academyRepo,
-                             AcademyCreateService academyCreateService) {
+                             AcademyCreateService academyCreateService,
+                             StudentRepository studentRepository) {
         this.academyRepo = academyRepo;
         this.academyCreateService = academyCreateService;
-
+        this.studentRepository = studentRepository; // ⭐ 추가
     }
 
     // ✅ 모든 학원 목록
@@ -41,11 +44,21 @@ public class AcademyController {
         return academyRepo.findByName(name);
     }
 
-    // ====== 새 학원 추가(원장 전용): 랜덤 4자리 학원번호(중복 방지) 생성 후 저장 ======
+    // ⭐⭐ 학원 → 학생 목록 조회 (핵심)
+    @GetMapping("/{academyNumber}/students")
+    public ResponseEntity<List<Student>> getStudentsByAcademy(@PathVariable int academyNumber) {
+
+        List<Student> students =
+                studentRepository.findByAcademyNumbersContaining(academyNumber);
+
+        return ResponseEntity.ok(students);
+    }
+
+    // ====== 새 학원 추가(원장 전용) ======
     public static class CreateAcademyRequest {
-        public String name;    // Academy_Name
-        public String phone;   // Academy_Phone_Number
-        public String address; // Academy_Address
+        public String name;
+        public String phone;
+        public String address;
     }
 
     @PostMapping("/directors/{username}")

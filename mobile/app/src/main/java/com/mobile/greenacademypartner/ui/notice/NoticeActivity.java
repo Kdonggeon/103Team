@@ -69,7 +69,7 @@ public class NoticeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice);
 
-        // 1) 바인딩
+        // 1) 뷰 바인딩
         toolbar = findViewById(R.id.toolbar_notice);
         rvNotices = findViewById(R.id.rv_notices);
         progressBar = findViewById(R.id.pb_loading_notices);
@@ -153,24 +153,32 @@ public class NoticeActivity extends AppCompatActivity {
     private void loadAcademyNumbersForRole(String role, SharedPreferences prefs) {
         userAcademyNumbers.clear();
 
-        // 교직원
+        // 🧩 교직원
         if ("teacher".equalsIgnoreCase(role) || "director".equalsIgnoreCase(role)) {
             String academyArray = prefs.getString("academyNumbers", "[]");
             try {
                 JSONArray arr = new JSONArray(academyArray);
-                for (int i = 0; i < arr.length(); i++) userAcademyNumbers.add(arr.getInt(i));
-            } catch (JSONException e) { e.printStackTrace(); }
+                for (int i = 0; i < arr.length(); i++) {
+                    userAcademyNumbers.add(arr.getInt(i));
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
             setupSpinnerAndFetch();
             return;
         }
 
-        // 학생
+        // 🧩 학생
         if ("student".equalsIgnoreCase(role)) {
             String academyArray = prefs.getString("academyNumbers", "[]");
             try {
                 JSONArray arr = new JSONArray(academyArray);
-                for (int i = 0; i < arr.length(); i++) userAcademyNumbers.add(arr.getInt(i));
-            } catch (JSONException e) { e.printStackTrace(); }
+                for (int i = 0; i < arr.length(); i++) {
+                    userAcademyNumbers.add(arr.getInt(i));
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
 
             if (!userAcademyNumbers.isEmpty()) {
                 setupSpinnerAndFetch();
@@ -191,16 +199,19 @@ public class NoticeActivity extends AppCompatActivity {
                 public void onResponse(Call<Student> call, Response<Student> response) {
                     progressBar.setVisibility(View.GONE);
                     if (!response.isSuccessful() || response.body() == null) {
-                        Toast.makeText(NoticeActivity.this, "학생 정보 조회 실패: " + response.code(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(NoticeActivity.this,
+                                "학생 정보 조회 실패: " + response.code(),
+                                Toast.LENGTH_SHORT).show();
                         setupSpinnerAndFetch();
                         return;
                     }
-                    List<Integer> academies = response.body().getAcademy_Numbers();
+                    List<Integer> academies = response.body().getAcademyNumbers();
                     if (academies != null) {
                         // 중복 제거
                         userAcademyNumbers.addAll(new LinkedHashSet<>(academies));
                         // 로컬 prefs에도 저장(다음 진입 시 빠르게 표시)
-                        prefs.edit().putString("academyNumbers", new JSONArray(academies).toString()).apply();
+                        prefs.edit().putString("academyNumbers",
+                                new JSONArray(academies).toString()).apply();
                     }
                     setupSpinnerAndFetch();
                 }
@@ -208,17 +219,20 @@ public class NoticeActivity extends AppCompatActivity {
                 @Override
                 public void onFailure(Call<Student> call, Throwable t) {
                     progressBar.setVisibility(View.GONE);
-                    Toast.makeText(NoticeActivity.this, "학생 정보 네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(NoticeActivity.this,
+                            "학생 정보 네트워크 오류: " + t.getMessage(),
+                            Toast.LENGTH_SHORT).show();
                     setupSpinnerAndFetch();
                 }
             });
             return;
         }
 
-        // 학부모
-        String parentId = prefs.getString("username", "");
+        // 🧩 학부모
+        String parentId = prefs.getString("userId", "");
         if (parentId == null || parentId.trim().isEmpty()) {
             Toast.makeText(this, "학부모 계정 정보가 없습니다.", Toast.LENGTH_SHORT).show();
+            setupSpinnerAndFetch();
             return;
         }
 
@@ -228,28 +242,46 @@ public class NoticeActivity extends AppCompatActivity {
             public void onResponse(Call<List<Student>> call, Response<List<Student>> response) {
                 progressBar.setVisibility(View.GONE);
                 if (!response.isSuccessful() || response.body() == null) {
-                    Toast.makeText(NoticeActivity.this, "자녀 조회 실패: " + response.code(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(NoticeActivity.this,
+                            "자녀 조회 실패: " + response.code(),
+                            Toast.LENGTH_SHORT).show();
+                    setupSpinnerAndFetch();
                     return;
                 }
-                Set<Integer> unique = new LinkedHashSet<>();
+
+                // 🔥 Null-safe 학원번호 수집
+                Set<Integer> academySet = new LinkedHashSet<>();
+
                 for (Student s : response.body()) {
-                    List<Integer> academies = s.getAcademy_Numbers();
+                    List<Integer> academies = s.getAcademyNumbers();
                     if (academies != null) {
-                        for (Integer num : academies) if (num != null) unique.add(num);
+                        for (Integer num : academies) {
+                            if (num != null && num > 0) {
+                                academySet.add(num);
+                            }
+                        }
                     }
                 }
+
                 userAcademyNumbers.clear();
-                userAcademyNumbers.addAll(unique);
+                userAcademyNumbers.addAll(academySet);
+
                 if (userAcademyNumbers.isEmpty()) {
-                    Toast.makeText(NoticeActivity.this, "자녀가 등록된 학원이 없습니다.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(NoticeActivity.this,
+                            "등록된 자녀의 학원이 없습니다.",
+                            Toast.LENGTH_SHORT).show();
                 }
+
                 setupSpinnerAndFetch();
             }
 
             @Override
             public void onFailure(Call<List<Student>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                Toast.makeText(NoticeActivity.this, "자녀 조회 네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(NoticeActivity.this,
+                        "자녀 조회 네트워크 오류: " + t.getMessage(),
+                        Toast.LENGTH_SHORT).show();
+                setupSpinnerAndFetch();
             }
         });
     }
@@ -257,7 +289,9 @@ public class NoticeActivity extends AppCompatActivity {
     /** 스피너 구성 및 최초 fetch */
     private void setupSpinnerAndFetch() {
         List<String> labels = new ArrayList<>();
-        for (Integer num : userAcademyNumbers) labels.add("학원 " + num);
+        for (Integer num : userAcademyNumbers) {
+            labels.add("학원 " + num);
+        }
 
         spinnerAdapter = new ArrayAdapter<>(
                 this,
@@ -268,12 +302,15 @@ public class NoticeActivity extends AppCompatActivity {
         spinnerAcademy.setAdapter(spinnerAdapter);
 
         spinnerAcademy.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position >= 0 && position < userAcademyNumbers.size()) {
                     fetchNotices(userAcademyNumbers.get(position));
                 }
             }
-            @Override public void onNothingSelected(AdapterView<?> parent) {}
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
         });
 
         // 최초 로드
@@ -318,7 +355,8 @@ public class NoticeActivity extends AppCompatActivity {
                     rvNotices.setAdapter(adapter);
                 } else {
                     Toast.makeText(NoticeActivity.this,
-                            "목록 조회 실패: " + response.code(), Toast.LENGTH_SHORT).show();
+                            "목록 조회 실패: " + response.code(),
+                            Toast.LENGTH_SHORT).show();
                 }
             }
 
@@ -326,7 +364,8 @@ public class NoticeActivity extends AppCompatActivity {
             public void onFailure(Call<List<Notice>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 Toast.makeText(NoticeActivity.this,
-                        "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        "네트워크 오류: " + t.getMessage(),
+                        Toast.LENGTH_SHORT).show();
             }
         });
     }

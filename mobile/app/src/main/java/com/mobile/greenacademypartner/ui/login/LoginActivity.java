@@ -47,14 +47,13 @@ public class LoginActivity extends AppCompatActivity {
     private static final String TAG = "LoginActivity";
     private static final String PREFS_NAME = "login_prefs";
 
-    private TextView findAccount;
-    private TextView signupText;
+    private TextView findAccount, signupText;
     private EditText editTextId, editTextPassword;
     private Button loginButton;
     private CheckBox autoLoginCheckBox;
     private ImageView btnTogglePassword;
-    private boolean isPasswordVisible = false;
 
+    private boolean isPasswordVisible = false;
     private SharedPreferences prefs;
 
     @Override
@@ -75,6 +74,7 @@ public class LoginActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_login);
 
+        // UI
         findAccount = findViewById(R.id.find_account);
         signupText = findViewById(R.id.signup_next);
         editTextId = findViewById(R.id.editTextId);
@@ -84,18 +84,15 @@ public class LoginActivity extends AppCompatActivity {
         btnTogglePassword = findViewById(R.id.btn_toggle_password);
 
         autoLoginCheckBox.setChecked(autoLogin);
+
         requestNotificationPermissionIfNeeded();
 
         btnTogglePassword.setOnClickListener(v -> {
             if (isPasswordVisible) {
-                editTextPassword.setInputType(
-                        InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
-                );
+                editTextPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
                 btnTogglePassword.setImageResource(R.drawable.eye_off);
             } else {
-                editTextPassword.setInputType(
-                        InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                );
+                editTextPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
                 btnTogglePassword.setImageResource(R.drawable.eye);
             }
             editTextPassword.setSelection(editTextPassword.length());
@@ -107,6 +104,9 @@ public class LoginActivity extends AppCompatActivity {
         findAccount.setOnClickListener(v ->
                 startActivity(new Intent(this, FindSelectActivity.class)));
 
+        // -------------------------
+        // 로그인 버튼
+        // -------------------------
         loginButton.setOnClickListener(v -> {
             String inputId = safe(editTextId.getText().toString());
             String inputPw = safe(editTextPassword.getText().toString());
@@ -127,62 +127,52 @@ public class LoginActivity extends AppCompatActivity {
                         @Override
                         public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                             if (response.isSuccessful() && response.body() != null) {
-                                Log.d(TAG, "로그인 성공: " + new Gson().toJson(response.body()));
-
                                 LoginResponse res = response.body();
+                                Log.d(TAG, "로그인 성공: " + new Gson().toJson(res));
+
                                 String roleLower = safeLower(res.getRole());
                                 String username  = safe(res.getUsername());
                                 String jwt       = safe(res.getToken());
 
                                 if (username.isEmpty() || roleLower.isEmpty() || jwt.isEmpty()) {
-                                    Toast.makeText(LoginActivity.this,
-                                            "로그인 응답이 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(LoginActivity.this, "로그인 응답이 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
                                     return;
                                 }
 
-                                // ✅ 1. 로그인 정보 저장
+                                // 🔥 로그인 정보 저장
                                 mergeAndSaveLoginToPrefs(res, autoLoginCheckBox.isChecked());
 
-                                // ✅ 2. 학부모 로그인 시 이전 자녀/학원 정보 완전 초기화
-                                if ("parent".equalsIgnoreCase(roleLower)) {
-                                    SharedPreferences.Editor clearEditor = prefs.edit();
-                                    clearEditor.remove("selected_child");
-                                    clearEditor.remove("selected_child_id");
-                                    clearEditor.remove("selected_academy_number");
-                                    clearEditor.remove("academy_numbers_json");
-                                    clearEditor.remove("academy_numbers");
-                                    clearEditor.apply();
-                                    Log.d(TAG, "🧹 학부모 로그인 시 이전 자녀/학원 정보 초기화 완료");
-                                }
-
-                                // ✅ 3. QRScannerActivity용 학생 정보 저장
-                                if ("student".equalsIgnoreCase(roleLower)) {
-                                    SharedPreferences loginPrefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-                                    loginPrefs.edit()
-                                            .putString("student_id", res.getUsername())
-                                            .putString("token", res.getToken())
+                                // 부모는 자녀 선택 초기화
+                                if ("parent".equals(roleLower)) {
+                                    prefs.edit()
+                                            .remove("selected_child")
+                                            .remove("selected_child_id")
+                                            .remove("selected_academy_number")
                                             .apply();
-                                    Log.d(TAG, "✅ QR 스캐너용 student_id/token 저장 완료");
                                 }
 
-                                // ✅ 4. FCM 토큰 업서트
-                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                    upsertFcmTokenImmediately(roleLower, username);
-                                }, 800);
+                                // 학생 → studentId 저장
+                                if ("student".equals(roleLower)) {
+                                    prefs.edit()
+                                            .putString("student_id", username)
+                                            .putString("token", jwt)
+                                            .apply();
+                                }
 
-                                // ✅ 5. 메인 화면 이동
+                                // FCM 업데이트
+                                new Handler(Looper.getMainLooper()).postDelayed(() ->
+                                        upsertFcmTokenImmediately(roleLower, username), 800);
+
                                 Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                 startActivity(intent);
                                 finish();
-
                             } else {
                                 Log.e(TAG, "로그인 실패: code=" + response.code());
                                 try {
                                     Log.e(TAG, "에러 바디: " + response.errorBody().string());
-                                } catch (IOException e) {
-                                    Log.e(TAG, "에러 바디 파싱 실패", e);
-                                }
+                                } catch (IOException ignored) {}
+
                                 Toast.makeText(LoginActivity.this,
                                         "로그인 실패: 아이디 또는 비밀번호를 확인하세요",
                                         Toast.LENGTH_SHORT).show();
@@ -192,16 +182,17 @@ public class LoginActivity extends AppCompatActivity {
                         @Override
                         public void onFailure(Call<LoginResponse> call, Throwable t) {
                             Log.e(TAG, "서버 연결 실패", t);
-                            Toast.makeText(LoginActivity.this,
-                                    "서버 연결 실패",
-                                    Toast.LENGTH_SHORT).show();
+                            Toast.makeText(LoginActivity.this, "서버 연결 실패", Toast.LENGTH_SHORT).show();
                         }
                     });
         });
     }
 
-    // ✅ SharedPreferences 병합 + 학원번호 추가 저장
+    // ---------------------------------------------------------------------
+    // 🔥 로그인 정보 저장 (수정된 부분 포함)
+    // ---------------------------------------------------------------------
     private void mergeAndSaveLoginToPrefs(LoginResponse res, boolean autoLoginChecked) {
+
         SharedPreferences.Editor ed = prefs.edit();
 
         ed.putBoolean("is_logged_in", true);
@@ -210,40 +201,47 @@ public class LoginActivity extends AppCompatActivity {
         ed.putString("role", safeLower(res.getRole()));
         ed.putString("username", safe(res.getUsername()));
         ed.putString("userId", safe(res.getUsername()));
+
+        // 🔥 MainActivity가 읽는 이름 키
+        ed.putString("student_name", safe(res.getName()));  // ★ 추가됨 → 학생 이름 정상 표시
+
+        // 기존 name도 유지 (다른 화면에서 사용 가능)
         ed.putString("name", safe(res.getName()));
+
         ed.putString("phone", safe(res.getPhone()));
         ed.putString("address", safe(res.getAddress()));
         ed.putString("school", safe(res.getSchool()));
         ed.putString("gender", safe(res.getGender()));
         ed.putInt("grade", res.getGrade());
 
+        // 학부모용 필드
+        if ("parent".equalsIgnoreCase(safeLower(res.getRole()))) {
+            ed.putString("parentsNumber", safe(res.getParentsNumber()));
+            ed.putString("childStudentId", safe(res.getChildStudentId()));
+        }
+
+        // 학원 번호
         List<Integer> academyNumbers = res.getAcademyNumbers();
         ed.putString(
                 "academyNumbers",
                 academyNumbers != null ? new JSONArray(academyNumbers).toString() : "[]"
         );
 
-        if ("student".equalsIgnoreCase(safeLower(res.getRole()))) {
-            ed.putString("student_name", safe(res.getName()));
-        }
-
         if (academyNumbers != null && !academyNumbers.isEmpty()) {
-            String json = new JSONArray(academyNumbers).toString();
-            String csv = academyNumbers.toString().replaceAll("\\[|\\]|\\s", "");
-            ed.putString("academy_numbers_json", json);
-            ed.putString("academy_numbers", csv);
+            ed.putString("academy_numbers_json", new JSONArray(academyNumbers).toString());
+            ed.putString("academy_numbers", academyNumbers.toString());
             ed.putInt("academyNumber", academyNumbers.get(0));
-            Log.d(TAG, "✅ 학원번호 저장 완료: " + json);
         } else {
             ed.putString("academy_numbers_json", "[]");
             ed.putString("academy_numbers", "");
-            ed.remove("academyNumber");
-            Log.w(TAG, "⚠️ 학원번호 없음 → 기본값 저장");
         }
 
         ed.commit();
-        Log.d(TAG, "[mergeAndSaveLoginToPrefs] 최종 저장 완료");
     }
+
+    // ---------------------------------------------------------------------
+    // 유틸
+    // ---------------------------------------------------------------------
 
     private boolean isNetworkAvailable() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
@@ -268,30 +266,29 @@ public class LoginActivity extends AppCompatActivity {
     private String safeLower(String s) { return safe(s).toLowerCase(); }
 
     private void requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(
-                        new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
-                        1001
-                );
-            }
+        if (Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                        != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1001);
         }
     }
 
+    // ---------------------------------------------------------------------
+    // FCM 업서트
+    // ---------------------------------------------------------------------
     private void upsertFcmTokenImmediately(String roleLower, String username) {
         FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> {
             if (token == null || token.trim().isEmpty()) {
                 Log.w(TAG, "FCM 토큰이 비어 있습니다.");
                 return;
             }
-            Log.d(TAG, "FCM 토큰 획득: " + token);
 
             String rawJwt = prefs.getString("token", null);
             if (rawJwt == null || rawJwt.trim().isEmpty()) {
                 Log.w(TAG, "JWT 없음 → FCM 업서트 생략");
                 return;
             }
+
             String authHeader = "Bearer " + rawJwt.trim();
 
             try {
@@ -307,7 +304,7 @@ public class LoginActivity extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e(TAG, "FCM 업서트 중 예외", e);
             }
-        }).addOnFailureListener(e -> Log.e(TAG, "FCM 토큰 획득 실패", e));
+        });
     }
 
     private static class VoidLoggingCallback implements Callback<Void> {
@@ -317,7 +314,7 @@ public class LoginActivity extends AppCompatActivity {
         @Override
         public void onResponse(Call<Void> call, Response<Void> response) {
             if (response.isSuccessful()) {
-                Log.d(TAG, "✅ FCM 토큰 업서트 성공(" + tagSuffix + ")");
+                Log.d(TAG, "✅ FCM 업서트 성공(" + tagSuffix + ")");
             } else {
                 Log.e(TAG, "❌ FCM 업서트 실패(" + tagSuffix + "): code=" + response.code());
             }

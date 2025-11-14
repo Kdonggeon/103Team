@@ -56,7 +56,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
 
                 // 아이디 찾기 / 비밀번호 재설정
-                .requestMatchers(HttpMethod.POST, "/api/*/find_id").permitAll()
+             // 아이디 찾기
+                .requestMatchers(HttpMethod.POST, "/api/find-id").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
 
                 // 회원가입 (학생/학부모/교사/원장)

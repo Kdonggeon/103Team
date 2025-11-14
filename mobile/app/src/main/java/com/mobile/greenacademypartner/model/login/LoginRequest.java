@@ -21,4 +21,3 @@ public class LoginRequest {
     public void setPassword(String password) { this.password = password; }
     public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 }
-

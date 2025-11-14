@@ -1,4 +1,3 @@
-
 package com.mobile.greenacademypartner.ui.adapter;
 
 import android.text.TextUtils;

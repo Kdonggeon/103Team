@@ -45,20 +45,22 @@ public class StudentSignupRequest {
     public Student toEntity(String encodedPw) {
         return new Student(
             id,
-            null,             // 생성 시점에 불필요한 필드이면 null
+            null,                 // fcmToken → 회원가입에서 없음 → null
             studentName,
             studentId,
-            encodedPw,        // ← 암호화된 비밀번호 주입
+            encodedPw,            // 암호화된 PW
             address,
-            phoneNumber,
+            phoneNumber,          // ★ studentPhoneNumber → phoneNumber 로 수정
             school,
             grade,
             parentsNumber,
+            null,                 // parentId → 회원가입 단계에서는 null
             seatNumber,
             checkedIn,
             gender
         );
     }
+
 
     // Getters & Setters
     public String getId() { return id; }

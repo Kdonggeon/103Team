@@ -190,7 +190,7 @@ public class QuestionsActivity extends AppCompatActivity {
                 // 자녀들의 academyNumbers 리스트를 모아 중복 제거
                 Set<Integer> unique = new LinkedHashSet<>();
                 for (Student s : response.body()) {
-                    List<Integer> academies = s.getAcademy_Numbers();
+                    List<Integer> academies = s.getAcademyNumbers();
                     if (academies != null) {
                         for (Integer num : academies) {
                             if (num != null) unique.add(num);

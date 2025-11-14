@@ -2,9 +2,12 @@ package com.team103.model;
 
 import java.util.List;
 import java.util.Collections;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Document(collection = "parents")
 public class Parent {
@@ -14,39 +17,51 @@ public class Parent {
 
     private String fcmToken;
 
+    // ============================================================
+    //  기본 계정 정보
+    // ============================================================
 
-    // ✅ MongoDB의 필드명과 정확히 일치시켜야 함
     @Field("parentsId")
+    @JsonProperty("parentsId")
     private String parentsId;
 
     @Field("parentsPw")
+    @JsonProperty("parentsPw")
     private String parentsPw;
 
     @Field("parentsName")
+    @JsonProperty("parentsName")
     private String parentsName;
 
-    // ✅ 레거시 대문자 키도 함께 매핑 (읽기용 폴백)
-    @Field("Parents_ID")
-    private String parentsIdLegacy;
-
-    @Field("Parents_Name")
-    private String parentsNameLegacy;
-
     @Field("Parents_Phone_Number")
+    @JsonProperty("parentsPhoneNumber")
     private String parentsPhoneNumber;
 
     @Field("Parents_Number")
+    @JsonProperty("parentsNumber")
     private String parentsNumber;
 
-    // 여러 자녀 ID
+
+    // ============================================================
+    //  연관 정보 (여기가 문제였던 핵심)
+    // ============================================================
+
+    // 자녀 목록 → JSON에서는 childStudentId 로 내려가야 함
     @Field("Student_ID_List")
+    @JsonProperty("childStudentId")
     private List<String> studentIds;
 
-    // 여러 학원 번호
+    // 학원 목록 → JSON에서는 academyNumbers 로 내려가야 함
     @Field("Academy_Numbers")
+    @JsonProperty("academyNumbers")
     private List<Integer> academyNumbers;
 
-    // --- 생성자들 ---
+
+    // ============================================================
+    //  생성자들
+    // ============================================================
+
+    public Parent() {}
 
     public Parent(String parentsId, String parentsPw, String parentsName,
                   String parentsPhoneNumber, String parentsNumber, int academyNumber) {
@@ -70,34 +85,20 @@ public class Parent {
         this.academyNumbers = academyNumbers;
     }
 
-    public Parent() {}
 
-    // --- Getter/Setter ---
+    // ============================================================
+    //  Getter / Setter
+    // ============================================================
 
     public String getId() { return id; }
 
-    /** ✅ ID 폴백: parentsId → Parents_ID(레거시) */
-    public String getParentsId() {
-        String v = trimOrNull(parentsId);
-        if (v != null) return v;
-        return trimOrNull(parentsIdLegacy);
-    }
-
+    public String getParentsId() { return parentsId; }
     public void setParentsId(String parentsId) { this.parentsId = parentsId; }
 
     public String getParentsPw() { return parentsPw; }
     public void setParentsPw(String parentsPw) { this.parentsPw = parentsPw; }
 
-    /** ✅ 이름 폴백: parentsName(소문자) → Parents_Name(대문자) → parentsId */
-    public String getParentsName() {
-        String v = trimOrNull(parentsName);
-        if (v != null) return v;
-        v = trimOrNull(parentsNameLegacy);
-        if (v != null) return v;
-        // 최후 폴백: ID
-        return getParentsId();
-    }
-
+    public String getParentsName() { return parentsName; }
     public void setParentsName(String parentsName) { this.parentsName = parentsName; }
 
     public String getParentsPhoneNumber() { return parentsPhoneNumber; }
@@ -109,16 +110,9 @@ public class Parent {
     public List<String> getStudentIds() { return studentIds; }
     public void setStudentIds(List<String> studentIds) { this.studentIds = studentIds; }
 
-    public String getFcmToken() { return fcmToken; }
-    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
-
     public List<Integer> getAcademyNumbers() { return academyNumbers; }
     public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
 
-    // --- 내부 유틸 ---
-    private static String trimOrNull(String s) {
-        if (s == null) return null;
-        String t = s.trim();
-        return t.isEmpty() ? null : t;
-    }
+    public String getFcmToken() { return fcmToken; }
+    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 }

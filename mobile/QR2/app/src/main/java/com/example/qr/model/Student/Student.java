@@ -84,4 +84,3 @@ public class Student {
     public List<Integer> getAcademyNumbers() { return academyNumbers; }
     public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
 }
-

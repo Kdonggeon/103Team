@@ -2,7 +2,7 @@ package com.mobile.greenacademypartner.model.login;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
-import java.util.List;  // 추가: List import
+import java.util.List;
 
 public class LoginResponse {
 
@@ -30,7 +30,7 @@ public class LoginResponse {
     @Expose
     private String phone;
 
-    // ✅ 학생 전용 필드
+    // 학생 정보
     @SerializedName("address")
     @Expose
     private String address;
@@ -47,25 +47,22 @@ public class LoginResponse {
     @Expose
     private String gender;
 
-    // ✅ 교사 전용 필드
-    @SerializedName("academyNumber")
+    // 여러 학원
+    @SerializedName("academyNumbers")
     @Expose
-    private int academyNumber;
+    private List<Integer> academyNumbers;
 
-    // ✅ 학부모 전용 필드
+    // 학부모 전용
     @SerializedName("parentsNumber")
     @Expose
     private String parentsNumber;
 
-    // ✅ 학부모가 자녀 출석 조회를 위해 사용하는 자녀 ID
     @SerializedName("childStudentId")
     @Expose
     private String childStudentId;
 
-    // 추가: 학원 여러 개 필드
-    @SerializedName("academyNumbers")
-    @Expose
-    private List<Integer> academyNumbers;
+    // --- 기본 생성자 (Gson용) ---
+    public LoginResponse() { }
 
     // --- Getter / Setter ---
     public String getStatus() { return status; }
@@ -98,38 +95,12 @@ public class LoginResponse {
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
 
-    public int getAcademyNumber() { return academyNumber; }
-    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+    public List<Integer> getAcademyNumbers() { return academyNumbers; }
+    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
 
     public String getParentsNumber() { return parentsNumber; }
     public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
 
     public String getChildStudentId() { return childStudentId; }
     public void setChildStudentId(String childStudentId) { this.childStudentId = childStudentId; }
-
-    public List<Integer> getAcademyNumbers() { return academyNumbers; }
-    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
-
-    // --- 생성자 ---
-
-    public LoginResponse(String status, String role, String username, String name,
-                         String token, String phone, String address, String school,
-                         int grade, String gender, List<Integer> academyNumbers) {
-        this.status = status;
-        this.role = role;
-        this.username = username;
-        this.name = name;
-        this.token = token;
-        this.phone = phone;
-        this.address = address;
-        this.school = school;
-        this.grade = grade;
-        this.gender = gender;
-        this.academyNumbers = academyNumbers;
-    }
-
-
-    public LoginResponse() {
-        // 기본 생성자
-    }
 }

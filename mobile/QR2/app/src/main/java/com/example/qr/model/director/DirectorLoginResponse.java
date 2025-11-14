@@ -18,4 +18,3 @@ public class DirectorLoginResponse {
         return token;
     }
 }
-

@@ -101,66 +101,11 @@ public class StudentTimetableActivity extends AppCompatActivity {
 
         bottomNavigation.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
-<<<<<<< HEAD
-            if (id == R.id.nav_home) {
-                startActivity(new Intent(this, MainActivity.class));
-                overridePendingTransition(0, 0);
-                return true;
-            } else if (id == R.id.nav_attendance) {
-                startActivity(new Intent(this, AttendanceActivity.class));
-                overridePendingTransition(0, 0);
-                return true;
-            } else if (id == R.id.nav_qr) {
-                // ★ QR 스캐너 열 때 studentId를 반드시 넘긴다
-                String sid = (currentStudentId != null && !currentStudentId.trim().isEmpty())
-                        ? currentStudentId.trim()
-                        : null;
-
-                if (sid == null || sid.isEmpty()) {
-                    sid = resolveTargetStudentId();
-                }
-                if (sid == null || sid.isEmpty()) {
-                    SharedPreferences sp1 = getSharedPreferences("login_prefs", MODE_PRIVATE);
-                    SharedPreferences sp2 = getSharedPreferences("session", MODE_PRIVATE);
-                    SharedPreferences sp3 = getSharedPreferences("login", MODE_PRIVATE);
-                    sid = firstNonEmpty(
-                            sp1 != null ? sp1.getString("username", null) : null,
-                            sp1 != null ? sp1.getString("studentId", null) : null,
-                            sp1 != null ? sp1.getString("Student_ID", null) : null,
-                            sp2 != null ? sp2.getString("username", null) : null,
-                            sp2 != null ? sp2.getString("studentId", null) : null,
-                            sp2 != null ? sp2.getString("Student_ID", null) : null,
-                            sp3 != null ? sp3.getString("username", null) : null,
-                            sp3 != null ? sp3.getString("studentId", null) : null,
-                            sp3 != null ? sp3.getString("Student_ID", null) : null
-                    );
-                }
-
-                if (sid == null || sid.trim().isEmpty()) {
-                    Toast.makeText(this, "학생 ID를 찾을 수 없습니다. 다시 로그인해 주세요.", Toast.LENGTH_SHORT).show();
-                    return true;
-                }
-
-                Log.d("StudentTimetable", "QR open with studentId=" + sid);
-                Intent it = new Intent(this, QRScannerActivity.class);
-                it.putExtra("studentId", sid);   // ★ 핵심
-                startActivity(it);
-                return true;
-            } else if (id == R.id.nav_timetable) {
-                return true; // 현재 화면
-            } else if (id == R.id.nav_my) {
-                startActivity(new Intent(this, MyPageActivity.class));
-                overridePendingTransition(0, 0);
-                return true;
-            }
-            return false;
-=======
             if (id == R.id.nav_home) startActivity(new Intent(this, MainActivity.class));
             else if (id == R.id.nav_attendance) startActivity(new Intent(this, AttendanceActivity.class));
             else if (id == R.id.nav_qr) startActivity(new Intent(this, QRScannerActivity.class));
             else if (id == R.id.nav_my) startActivity(new Intent(this, MyPageActivity.class));
             return true;
->>>>>>> new2
         });
 
         setupStudentOrChildrenFlow();
@@ -198,18 +143,6 @@ public class StudentTimetableActivity extends AppCompatActivity {
         String role = safe(prefs.getString("role", "")).toLowerCase();
         Calendar today = Calendar.getInstance(tz, loc);
 
-<<<<<<< HEAD
-        // 1) overrideStudentId가 있으면 최우선
-        String overrideId = getIntent() != null ? getIntent().getStringExtra(EXTRA_OVERRIDE_STUDENT_ID) : null;
-        if (overrideId != null && !overrideId.trim().isEmpty()) {
-            currentStudentId = overrideId.trim();
-            if (spinnerChildren != null) spinnerChildren.setVisibility(View.GONE);
-            loadClassesForDate(today);
-            return;
-        }
-
-=======
->>>>>>> new2
         if ("parent".equals(role)) {
             if (spinnerChildren != null) spinnerChildren.setVisibility(View.VISIBLE);
 
@@ -242,28 +175,18 @@ public class StudentTimetableActivity extends AppCompatActivity {
                 @Override public void onNothingSelected(AdapterView<?> parent) {}
             });
         } else {
-<<<<<<< HEAD
-            if (spinnerChildren != null) spinnerChildren.setVisibility(View.GONE);
-            currentStudentId = resolveTargetStudentId();
-            if (currentStudentId == null || currentStudentId.trim().isEmpty()) {
-                Toast.makeText(this, "학생 ID가 없습니다. 다시 로그인해 주세요.", Toast.LENGTH_SHORT).show();
-=======
             // 학생 로그인일 때
             spinnerChildren.setVisibility(View.GONE);
             currentStudentId = safe(prefs.getString("username", ""));
             if (currentStudentId.isEmpty()) {
                 Toast.makeText(this, "학생 ID가 없습니다.", Toast.LENGTH_SHORT).show();
->>>>>>> new2
                 return;
             }
             loadClassesForDate(today);
         }
     }
 
-<<<<<<< HEAD
-=======
     /** 부모의 자녀 목록 로딩 — 등록된 자녀만 표시 */
->>>>>>> new2
     private void loadChildrenAsync(String parentId, Runnable afterLoad) {
         try {
             ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
@@ -296,18 +219,8 @@ public class StudentTimetableActivity extends AppCompatActivity {
                     childrenAdapter.addAll(names);
                     childrenAdapter.notifyDataSetChanged();
 
-<<<<<<< HEAD
-                    if (!children.isEmpty()) {
-                        currentStudentId = safe(children.get(0).getStudentId());
-                        spinnerChildren.setSelection(0);
-                    } else {
-                        currentStudentId = null;
-                        Toast.makeText(StudentTimetableActivity.this, "등록된 자녀가 없습니다.", Toast.LENGTH_SHORT).show();
-                    }
-=======
                     currentStudentId = safe(children.get(0).getStudentId());
                     spinnerChildren.setSelection(0);
->>>>>>> new2
 
                     if (afterLoad != null) afterLoad.run();
                 }
@@ -325,25 +238,16 @@ public class StudentTimetableActivity extends AppCompatActivity {
         }
     }
 
-<<<<<<< HEAD
-=======
     /** 선택된 날짜(또는 오늘)의 요일에 맞춰 수업 필터 */
->>>>>>> new2
     private void loadClassesForDate(Calendar target) {
         if (currentStudentId == null || currentStudentId.trim().isEmpty()) {
             Toast.makeText(this, "자녀를 선택해주세요.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-<<<<<<< HEAD
-        int dowJavaUtil = target.get(Calendar.DAY_OF_WEEK);
-        int dowMon1 = ((dowJavaUtil + 5) % 7) + 1;
-
-=======
         String studentId = currentStudentId.trim();
         int dowJavaUtil = target.get(Calendar.DAY_OF_WEEK);
         int dowMon1 = ((dowJavaUtil + 5) % 7) + 1;
->>>>>>> new2
         String dateIso = iso.format(target.getTime());
 
         StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
@@ -388,34 +292,6 @@ public class StudentTimetableActivity extends AppCompatActivity {
         });
     }
 
-<<<<<<< HEAD
-    /** 여러 프리퍼런스/키에서 studentId를 복원 */
-    private String resolveTargetStudentId() {
-        // 0) override가 있으면 최우선
-        Intent it = getIntent();
-        if (it != null && it.hasExtra(EXTRA_OVERRIDE_STUDENT_ID)) {
-            String s = it.getStringExtra(EXTRA_OVERRIDE_STUDENT_ID);
-            if (s != null && !s.trim().isEmpty()) return s.trim();
-            int v = it.getIntExtra(EXTRA_OVERRIDE_STUDENT_ID, -1);
-            if (v != -1) return String.valueOf(v);
-        }
-
-        String[] prefNames = {"login_prefs", "session", "login"};
-        String[] keys = {"username", "studentId", "Student_ID"};
-        for (String p : prefNames) {
-            try {
-                SharedPreferences sp = getSharedPreferences(p, MODE_PRIVATE);
-                for (String k : keys) {
-                    String val = sp.getString(k, null);
-                    if (val != null && !val.trim().isEmpty()) return val.trim();
-                }
-            } catch (Exception ignore) {}
-        }
-        return null;
-    }
-
-=======
->>>>>>> new2
     private String firstNonEmpty(String... vals) {
         if (vals == null) return null;
         for (String v : vals) if (v != null && !v.trim().isEmpty()) return v.trim();

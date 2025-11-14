@@ -5,10 +5,14 @@ public class StudentUpdateRequest {
     private String studentId;
     private String studentName;
     private String studentPhoneNumber;
-    private String address;   // ✅ 수정: studentAddress → address
+    private String address;
     private String school;
-    private int grade;
+
+    private Integer grade;          // ← int → Integer 변경 (null 허용)
     private String gender;
+
+    private String parentId;        // ← ★ 추가
+    private String parentsNumber;   // ← ★ 추가
 
     public StudentUpdateRequest() {}
 
@@ -27,9 +31,15 @@ public class StudentUpdateRequest {
     public String getSchool() { return school; }
     public void setSchool(String school) { this.school = school; }
 
-    public int getGrade() { return grade; }
-    public void setGrade(int grade) { this.grade = grade; }
+    public Integer getGrade() { return grade; }
+    public void setGrade(Integer grade) { this.grade = grade; }
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+
+    public String getParentId() { return parentId; }
+    public void setParentId(String parentId) { this.parentId = parentId; }
+
+    public String getParentsNumber() { return parentsNumber; }
+    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
 }

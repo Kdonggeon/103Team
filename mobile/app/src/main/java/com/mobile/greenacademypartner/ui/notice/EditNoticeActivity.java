@@ -1,4 +1,3 @@
-
 package com.mobile.greenacademypartner.ui.notice;
 
 import android.content.Intent;
@@ -74,4 +73,3 @@ public class EditNoticeActivity extends AppCompatActivity {
         });
     }
 }
-

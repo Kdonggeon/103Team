@@ -233,22 +233,22 @@ public class MainActivity extends AppCompatActivity {
     private void loadRecentNoticesAll() {
         String role = prefs.getString("role", "");
 
-        // 🧩 학생
+        // 학생
         if ("student".equalsIgnoreCase(role)) {
             List<Integer> myAcademies = getStudentAcademyNumbers();
             if (myAcademies == null || myAcademies.isEmpty()) {
                 clearNotices();
-                Log.d(TAG, "학생 학원 없음 → 공지 숨김");
                 return;
             }
             fetchAndFilterNotices(myAcademies);
             return;
         }
 
-        // 🧩 학부모
+        // 학부모
         if ("parent".equalsIgnoreCase(role)) {
             String pid = prefs.getString("userId", "");
             ParentApi parentApi = RetrofitClient.getClient().create(ParentApi.class);
+
             parentApi.getChildrenByParentId(pid).enqueue(new Callback<List<Student>>() {
                 @Override
                 public void onResponse(Call<List<Student>> call, Response<List<Student>> res) {
@@ -260,20 +260,38 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
 
-                    List<Integer> nums = new ArrayList<>();
+                    // 🔥 여기 수정됨 — 모든 자녀의 학원번호를 Null-safe로 수집
+                    Set<Integer> academySet = new HashSet<>();
+
                     for (Student s : res.body()) {
-                        if (s.getAcademy_Numbers() != null && !s.getAcademy_Numbers().isEmpty())
-                            nums.addAll(s.getAcademy_Numbers());
+                        List<Integer> list = s.getAcademyNumbers();
+
+                        if (list != null) {
+                            for (Integer num : list) {
+                                if (num != null && num > 0) {
+                                    academySet.add(num);
+                                }
+                            }
+                        }
                     }
+
+                    List<Integer> nums = new ArrayList<>(academySet);
+
                     if (nums.isEmpty()) {
                         clearNotices();
+                        clearQna();
+                        clearAttendance();
                         return;
                     }
+
                     fetchAndFilterNotices(nums);
                 }
 
-                @Override public void onFailure(Call<List<Student>> call, Throwable t) { clearNotices(); }
+                @Override public void onFailure(Call<List<Student>> call, Throwable t) {
+                    clearNotices();
+                }
             });
+
         }
     }
 
