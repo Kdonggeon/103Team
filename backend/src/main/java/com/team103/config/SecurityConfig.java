@@ -25,9 +25,15 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
-    @Bean public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-    @Bean public JwtAuthFilter jwtAuthFilter(JwtUtil jwtUtil) { return new JwtAuthFilter(jwtUtil); }
+    @Bean
+    public JwtAuthFilter jwtAuthFilter(JwtUtil jwtUtil) {
+        return new JwtAuthFilter(jwtUtil);
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter) throws Exception {
@@ -46,13 +52,14 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
                 .requestMatchers("/api/signup/**", "/api/login/**").permitAll()
 
-
-                // ✅ 정적 파일(업로드 이미지) 공개
+                // 정적 파일(업로드 이미지) 공개
                 .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
 
-                // (기존 공개 POST 유지 필요 시)
+                // 아이디 찾기 / 비밀번호 재설정
                 .requestMatchers(HttpMethod.POST, "/api/*/find_id").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
+
+                // 회원가입 (학생/학부모/교사/원장)
                 .requestMatchers(HttpMethod.POST, "/api/directors/signup").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/signup/director").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/students").permitAll()
@@ -60,9 +67,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/teacher").permitAll()
-             // authorizeHttpRequests 안에 추가
-                .requestMatchers("/api/teachermain/**").hasAnyRole("TEACHER","DIRECTOR")
 
+                // 교사용 메인 패널
+                .requestMatchers("/api/teachermain/**").hasAnyRole("TEACHER", "DIRECTOR")
 
                 /* ====== 공지: 읽기(로그인), 쓰기/수정/삭제(교사·원장) ====== */
                 .requestMatchers(HttpMethod.GET,
@@ -70,70 +77,74 @@ public class SecurityConfig {
                 ).authenticated()
                 .requestMatchers(HttpMethod.POST,
                     "/api/notices", "/api/notices/**"
-                ).hasAnyRole("TEACHER","DIRECTOR")
+                ).hasAnyRole("TEACHER", "DIRECTOR")
                 .requestMatchers(HttpMethod.PUT,
                     "/api/notices/**"
-                ).hasAnyRole("TEACHER","DIRECTOR")
+                ).hasAnyRole("TEACHER", "DIRECTOR")
                 .requestMatchers(HttpMethod.PATCH,
                     "/api/notices/**"
-                ).hasAnyRole("TEACHER","DIRECTOR")
+                ).hasAnyRole("TEACHER", "DIRECTOR")
                 .requestMatchers(HttpMethod.DELETE,
                     "/api/notices/**"
-                ).hasAnyRole("TEACHER","DIRECTOR")
-                
+                ).hasAnyRole("TEACHER", "DIRECTOR")
+
+                // 수업 조회
                 .requestMatchers(HttpMethod.GET, "/api/lookup/classes/**").authenticated()
 
                 /* ====== 교사/원장 공통 보호 엔드포인트 ====== */
+                .requestMatchers("/api/teachers/**").hasAnyRole("TEACHER", "DIRECTOR")
+                .requestMatchers("/api/calendar/**").hasAnyRole("TEACHER", "DIRECTOR")
 
-                .requestMatchers("/api/teachers/**").hasAnyRole("TEACHER","DIRECTOR")
-                .requestMatchers("/api/calendar/**").hasAnyRole("TEACHER","DIRECTOR")
-                
                 /* 강의실 조회(교사/원장 허용) */
-                .requestMatchers(HttpMethod.GET, "/api/admin/rooms").hasAnyRole("TEACHER","DIRECTOR")
-                .requestMatchers(HttpMethod.GET, "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER","DIRECTOR")
-                .requestMatchers(HttpMethod.GET, "/api/admin/rooms.vector-lite").hasAnyRole("TEACHER","DIRECTOR")
-                .requestMatchers(HttpMethod.GET, "/api/admin/rooms/vector-lite").hasAnyRole("TEACHER","DIRECTOR")
+                .requestMatchers(HttpMethod.GET, "/api/admin/rooms").hasAnyRole("TEACHER", "DIRECTOR")
+                .requestMatchers(HttpMethod.GET, "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER", "DIRECTOR")
+                .requestMatchers(HttpMethod.GET, "/api/admin/rooms.vector-lite").hasAnyRole("TEACHER", "DIRECTOR")
+                .requestMatchers(HttpMethod.GET, "/api/admin/rooms/vector-lite").hasAnyRole("TEACHER", "DIRECTOR")
 
                 /* 좌석 벡터 저장/수정(교사/원장 허용) */
-                .requestMatchers(HttpMethod.PUT,   "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER","DIRECTOR")
-                .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER","DIRECTOR")
+                .requestMatchers(HttpMethod.PUT,   "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER", "DIRECTOR")
+                .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER", "DIRECTOR")
 
                 /* 그 외 /api/admin/**는 원장 전용 */
                 .requestMatchers(HttpMethod.PUT,   "/api/admin/rooms/**").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/**").hasRole("DIRECTOR")
-
-                .requestMatchers(HttpMethod.DELETE, "/api/admin/rooms/**").hasRole("DIRECTOR")
+                .requestMatchers(HttpMethod.DELETE,"/api/admin/rooms/**").hasRole("DIRECTOR")
 
                 /* ====== 원장 전용 관리 패널(API 분리: /api/manage/**) ====== */
                 .requestMatchers(HttpMethod.GET,    "/api/manage/students").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.DELETE, "/api/manage/students/*").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.GET,    "/api/manage/teachers").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.DELETE, "/api/manage/teachers/*").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.GET, "/api/manage/students/*/classes").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.GET, "/api/manage/students/*/attendance").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.GET, "/api/manage/teachers/*/classes").hasAnyRole("DIRECTOR","TEACHER")
-                .requestMatchers(HttpMethod.GET, "/api/manage/teachers/classes/*/attendance").hasAnyRole("DIRECTOR","TEACHER")
+                .requestMatchers(HttpMethod.GET,    "/api/manage/students/*/classes").hasRole("DIRECTOR")
+                .requestMatchers(HttpMethod.GET,    "/api/manage/students/*/attendance").hasRole("DIRECTOR")
+                .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/*/classes").hasAnyRole("DIRECTOR", "TEACHER")
+                .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/classes/*/attendance").hasAnyRole("DIRECTOR", "TEACHER")
 
                 /* ====== 그 외 admin은 기본적으로 원장 전용 ====== */
                 .requestMatchers("/api/admin/**").hasRole("DIRECTOR")
-                .requestMatchers("/api/director/overview/**").hasAnyRole("DIRECTOR","TEACHER")
-
+                .requestMatchers("/api/director/overview/**").hasAnyRole("DIRECTOR", "TEACHER")
 
                 /* 나머지 인증 필요 */
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
+
+        // ✅ CORS 허용 도메인
         cfg.setAllowedOriginPatterns(List.of(
-            "http://localhost:3000", "http://127.0.0.1:3000",
-            "http://192.168.*:*", "https://your-web-domain.com"
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://192.168.*:*",
+            "https://103team-web.vercel.app"      // 여기만 나중에 실제 도메인으로 바꾸면 됨
+            // 예: "https://103team-web.vercel.app", "https://greenacademy.kr" 등
         ));
-        cfg.setAllowedMethods(List.of("GET","POST","PATCH","PUT","DELETE","OPTIONS"));
+        cfg.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
