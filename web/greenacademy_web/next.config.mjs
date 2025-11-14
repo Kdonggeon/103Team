@@ -5,7 +5,8 @@ const nextConfig = {
     return [
       {
         source: '/backend/:path*',
-        destination: 'http://localhost:9090/:path*', // 백엔드 주소/포트
+        // 🔥 EC2 백엔드 절대 주소로 변경
+        destination: 'http://13.217.211.242:9090/:path*',
       },
     ];
   },
