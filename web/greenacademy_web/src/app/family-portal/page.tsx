@@ -543,8 +543,8 @@ function NoticeCard({ notices, onOpen }: { notices: Notice[]; onOpen: (id: strin
   );
 }
 
-/** 메인 페이지 */
-export default function FamilyPortalPage() {
+/** 메인 페이지 클라이언트 */
+export default function FamilyPortalClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
