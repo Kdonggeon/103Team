@@ -38,6 +38,7 @@ export default function VectorSeatEditor({
   const onSeatContext = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     setSelected((prev) => {
+      if (!id) return prev; // id 없으면 그대로
       const ns = new Set(prev);
       ns.has(id) ? ns.delete(id) : ns.add(id);
       return ns;
@@ -47,25 +48,34 @@ export default function VectorSeatEditor({
   // 좌클릭 드래그 시작
   const onSeatMouseDown = (e: React.MouseEvent, seat: VectorSeat) => {
     if (!svgRef.current || e.button !== 0) return;
+    if (!seat.id) return; // id 없으면 드래그 안 함
+
     const box = svgRef.current.getBoundingClientRect();
     const mx = e.clientX - box.left;
     const my = e.clientY - box.top;
+
     setDragId(seat.id);
-    setDragOff({ dx: mx - toPx(seat.x, "x"), dy: my - toPx(seat.y, "y") });
+    setDragOff({
+      dx: mx - toPx(seat.x, "x"),
+      dy: my - toPx(seat.y, "y"),
+    });
   };
 
   // 드래그 이동(모양 고정 + 겹침 방지 + 1% 스냅)
   const onMouseMove = (e: React.MouseEvent) => {
     if (!dragId || !svgRef.current) return;
+
     const box = svgRef.current.getBoundingClientRect();
     const mx = e.clientX - box.left;
     const my = e.clientY - box.top;
 
     const next = value.map((s) => {
       if (s.id !== dragId) return s;
+
       const nx = fromPx(mx - dragOff.dx, "x");
       const ny = fromPx(my - dragOff.dy, "y");
       const snap = (t: number) => Math.round(t / 0.01) * 0.01;
+
       return {
         ...s,
         x: Math.max(0, Math.min(1 - s.w, snap(nx))),
@@ -73,8 +83,13 @@ export default function VectorSeatEditor({
       };
     });
 
-    const me = next.find((s) => s.id === dragId)!;
-    const overlap = next.some((o) => o.id !== dragId && rectOverlap(me, o, 0.002));
+    const me = next.find((s) => s.id === dragId);
+    if (!me) return;
+
+    const overlap = next.some(
+      (o) => o.id !== dragId && rectOverlap(me, o, 0.002)
+    );
+
     if (!overlap) onChange(next);
   };
 
@@ -85,8 +100,14 @@ export default function VectorSeatEditor({
     if (e.key === "Delete" || e.key === "Backspace") {
       if (selected.size === 0) return;
       e.preventDefault();
+
       const ids = new Set(selected);
-      onChange(value.map((s) => (ids.has(s.id) ? { ...s, disabled: !s.disabled } : s)));
+      onChange(
+        value.map((s) => {
+          const sid = s.id ?? "";
+          return ids.has(sid) ? { ...s, disabled: !s.disabled } : s;
+        })
+      );
     }
   };
 
@@ -110,12 +131,22 @@ export default function VectorSeatEditor({
         height={height}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
-        style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12 }}
+        style={{
+          background: "#f8fafc",
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+        }}
       >
         {gridLines}
+
         {value.map((seat) => {
-          const px = toPx(seat.x, "x"), py = toPx(seat.y, "y");
-          const pw = toPx(seat.w, "x"), ph = toPx(seat.h, "y");
+          if (!seat.id) return null; // id 없는 좌석은 렌더 X
+
+          const px = toPx(seat.x, "x");
+          const py = toPx(seat.y, "y");
+          const pw = toPx(seat.w, "x");
+          const ph = toPx(seat.h, "y");
+
           const isSel = selected.has(seat.id);
           const fontSize = Math.max(12, Math.min(22, pw * 0.22));
 
@@ -124,7 +155,7 @@ export default function VectorSeatEditor({
               key={seat.id}
               transform={`translate(${px},${py}) rotate(${seat.r ?? 0}, ${pw / 2}, ${ph / 2})`}
               onMouseDown={(e) => onSeatMouseDown(e, seat)}
-              onContextMenu={(e) => onSeatContext(e, seat.id)}
+              onContextMenu={(e) => seat.id && onSeatContext(e, seat.id)}
               style={{ cursor: "move" }}
             >
               <rect
@@ -150,6 +181,7 @@ export default function VectorSeatEditor({
           );
         })}
       </svg>
+
       <div className="mt-2 text-xs text-gray-600">
         좌클릭 드래그: 이동 · 우클릭: 선택/해제 · Delete: 선택 좌석 통로처리(on/off)
       </div>
