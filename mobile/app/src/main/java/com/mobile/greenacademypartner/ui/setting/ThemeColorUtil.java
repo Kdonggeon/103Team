@@ -6,6 +6,7 @@ import android.content.res.ColorStateList;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.RadioButton;
 
 import androidx.appcompat.widget.Toolbar;
 
@@ -25,7 +26,6 @@ public class ThemeColorUtil {
             toolbar.setBackgroundColor(color);
         }
 
-        // 버튼 및 FAB에 적용
         applyColorToButtons(activity, color);
     }
 
@@ -35,10 +35,14 @@ public class ThemeColorUtil {
     }
 
     private static void traverseAndColorButtons(View view, int color) {
-        if (view instanceof Button) {
-            ((Button) view).setBackgroundColor(color);
+
+        // ✔ Button 이지만 RadioButton 은 제외!
+        if (view instanceof Button && !(view instanceof RadioButton)) {
+            ((Button) view).setBackgroundTintList(ColorStateList.valueOf(color));
+
         } else if (view instanceof FloatingActionButton) {
             ((FloatingActionButton) view).setBackgroundTintList(ColorStateList.valueOf(color));
+
         } else if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
             for (int i = 0; i < group.getChildCount(); i++) {
