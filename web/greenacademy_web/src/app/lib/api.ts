@@ -159,10 +159,9 @@ export { ApiError };
  * ========================================================================== */
 
 /** 백엔드 베이스 URL: .env에 NEXT_PUBLIC_API_BASE 없으면 localhost:9090 */
-const BASE_URL =
-  (typeof window !== "undefined" && (window as any)?.__API_BASE__) ||
-  process.env.NEXT_PUBLIC_API_BASE ||
-  "http://localhost:9090";
+/** 백엔드 베이스 URL: Next rewrites(/backend → EC2) 사용 */
+const BASE_URL = "/backend";
+
 
 /** 교사 API 공통 프리픽스 */
 const TEACHER_PREFIX = "/api/manage/teachers";
@@ -215,6 +214,7 @@ function resolveUrl(path: string): string {
   if (isAbsolute) return path;
   return `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 }
+
 
 function getAuthToken(): string | null {
   try {

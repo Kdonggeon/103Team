@@ -151,6 +151,7 @@ public class SecurityConfig {
         cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
 
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;
