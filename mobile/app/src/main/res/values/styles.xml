@@ -1,22 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- 🔥 모든 위젯 스타일의 루트 (필수) -->
+    <style name="Widget" />
+
+    <!-- 🔥 루트 스타일 추가 (필수) -->
+    <style name="Widget.App" />
+    <style name="Widget.Green" />
+
     <!-- 버튼 텍스트: 여분 폰트 패딩 제거 -->
     <style name="TextAppearance.App.Button" parent="TextAppearance.Material3.LabelLarge">
         <item name="android:includeFontPadding">false</item>
     </style>
 
-
+    <!-- 스위치(회색 고정) -->
     <style name="ThemeOverlay.NeutralSwitch" parent="">
-        <!-- 체크/활성 상태 기본 색을 회색으로 고정 -->
         <item name="colorControlActivated">#C9CDD2</item>
-        <!-- 구버전/일부 위젯 호환용 -->
         <item name="colorAccent">#C9CDD2</item>
-        <!-- 터치 리플도 연회색 -->
-        <item name="colorControlHighlight">@android:color/transparent</item> <!-- 리플 색 제거 -->
+        <item name="colorControlHighlight">@android:color/transparent</item>
     </style>
 
-    <!-- 기본 버튼: 세로 축소(44dp / 상하 8dp) -->
+    <!-- 기본 버튼(세로 축소 44dp) -->
     <style name="Widget.App.Button.Fixed" parent="Widget.Material3.Button">
         <item name="android:minHeight">44dp</item>
         <item name="android:paddingTop">8dp</item>
@@ -28,7 +32,7 @@
         <item name="android:ellipsize">end</item>
     </style>
 
-    <!-- 외곽선 버튼: 세로 축소(44dp / 상하 8dp) -->
+    <!-- 아웃라인 버튼 -->
     <style name="Widget.App.Button.Outlined.Fixed" parent="Widget.Material3.Button.OutlinedButton">
         <item name="android:minHeight">44dp</item>
         <item name="android:paddingTop">8dp</item>
@@ -40,24 +44,28 @@
         <item name="android:ellipsize">end</item>
     </style>
 
-    <!-- 카드/박스 컨테이너(Material3 CardView): 세로 축소(44dp / 내부패딩 12dp) -->
+    <!-- 카드 박스 -->
     <style name="Widget.App.Card.Fixed" parent="Widget.Material3.CardView.Elevated">
         <item name="android:minHeight">44dp</item>
         <item name="contentPadding">12dp</item>
         <item name="cardCornerRadius">16dp</item>
     </style>
-    <!-- 기존 참조 호환 -->
-    <style name="Widget.App.Card" parent="Widget.App.Card.Fixed" />
 
-    <!-- TextInputLayout(FilledBox): 살짝 축소(52dp) - 필요 없으면 기존 값 유지 가능 -->
-    <style name="Widget.App.TextInputLayout.Fixed"
-        parent="Widget.Material3.TextInputLayout.OutlinedBox">
+    <!-- 호환 스타일 -->
+    <style name="Widget.App.Card">
+        <item name="android:minHeight">44dp</item>
+        <item name="contentPadding">12dp</item>
+        <item name="cardCornerRadius">16dp</item>
+    </style>
+
+    <!-- TextInputLayout(Outlined) -->
+    <style name="Widget.App.TextInputLayout.Fixed" parent="Widget.Material3.TextInputLayout.OutlinedBox">
         <item name="android:minHeight">52dp</item>
         <item name="boxStrokeWidth">1dp</item>
         <item name="boxStrokeWidthFocused">2dp</item>
     </style>
 
-    <!-- 일반 EditText: 기존 그대로(48dp) 유지 -->
+    <!-- EditText -->
     <style name="Widget.App.EditText.Fixed" parent="Widget.AppCompat.EditText">
         <item name="android:minHeight">48dp</item>
         <item name="android:includeFontPadding">false</item>
@@ -65,7 +73,7 @@
         <item name="android:ellipsize">end</item>
     </style>
 
-    <!-- 리스트/아이템 행 루트(필요 시): 기존 유지(56dp) -->
+    <!-- 리스트 아이템 Row (순환 제거 버전) -->
     <style name="Widget.App.ItemRow.Fixed">
         <item name="android:minHeight">56dp</item>
         <item name="android:paddingStart">16dp</item>
@@ -73,10 +81,16 @@
         <item name="android:paddingTop">8dp</item>
         <item name="android:paddingBottom">8dp</item>
     </style>
-    <!-- 기존 참조 호환 -->
-    <style name="Widget.App.ItemRow" parent="Widget.App.ItemRow.Fixed" />
 
-    <!-- 설정 화면 상자(“박스”) 행: 세로 축소(48dp / 상하 10dp) -->
+    <style name="Widget.App.ItemRow">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+    </style>
+
+    <!-- 설정 박스 Row (순환 제거 버전) -->
     <style name="Widget.Green.BoxRow.Fixed">
         <item name="android:minHeight">48dp</item>
         <item name="android:paddingStart">16dp</item>
@@ -85,38 +99,37 @@
         <item name="android:paddingBottom">10dp</item>
         <item name="android:background">@drawable/bg_theme_color_group</item>
     </style>
-    <!-- 기존 참조 호환 -->
-    <style name="Widget.Green.BoxRow" parent="Widget.Green.BoxRow.Fixed" />
-    <!-- 라디오 버튼: 원은 유지하되 색상은 고정 -->
+
+    <style name="Widget.Green.BoxRow">
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+        <item name="android:background">@drawable/bg_theme_color_group</item>
+    </style>
+
+    <!-- 라디오 버튼: 배경색 방지 -->
     <style name="Widget.App.RadioButton" parent="Widget.Material3.CompoundButton.RadioButton">
-        <!-- 테마 색상 무시 -->
         <item name="useMaterialThemeColors">false</item>
-        <!-- 선택/비선택 상태 색상 지정 (회색/검정 등) -->
         <item name="android:buttonTint">@android:color/darker_gray</item>
-        <!-- 배경 없애기 (선택 시 배경색 방지) -->
         <item name="android:background">@null</item>
-        <!-- 텍스트 색 -->
         <item name="android:textColor">@android:color/black</item>
     </style>
-    <!-- 회색 배경 입력칸 스타일 -->
-    <style name="Widget.App.TextInputLayout.Gray"
-        parent="Widget.Material3.TextInputLayout.OutlinedBox">
-        <!-- 내부 배경색 -->
-        <item name="boxBackgroundColor">#F5F5F7</item>   <!-- ✅ 연회색 -->
-        <!-- 테두리 색상 -->
+
+    <!-- 회색 배경 입력창 -->
+    <style name="Widget.App.TextInputLayout.Gray" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxBackgroundColor">#F5F5F7</item>
         <item name="boxStrokeColor">#D9D9D9</item>
-        <!-- 둥근 모서리 -->
+
         <item name="boxCornerRadiusTopStart">12dp</item>
         <item name="boxCornerRadiusTopEnd">12dp</item>
         <item name="boxCornerRadiusBottomStart">12dp</item>
         <item name="boxCornerRadiusBottomEnd">12dp</item>
-        <!-- 테두리 두께 -->
+
         <item name="boxStrokeWidth">1dp</item>
         <item name="boxStrokeWidthFocused">2dp</item>
-        <!-- 여백 줄이기 -->
         <item name="android:minHeight">52dp</item>
     </style>
-
-
 
 </resources>
