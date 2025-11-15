@@ -25,38 +25,45 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
+    /* ====== 비밀번호 인코더 ====== */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /* ====== JWT 필터 Bean ====== */
     @Bean
     public JwtAuthFilter jwtAuthFilter(JwtUtil jwtUtil) {
         return new JwtAuthFilter(jwtUtil);
     }
 
+    /* ====== 메인 Security FilterChain ====== */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter) throws Exception {
+
         http
+            // CORS + CSRF + 세션
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            // 인가 규칙
             .authorizeHttpRequests(auth -> auth
-                /* 항상 허용 */
+                /* ----- 항상 허용 ----- */
                 .requestMatchers("/error", "/error/**").permitAll()
                 .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
 
-                /* 공개 엔드포인트 */
+                // 헬스체크, ping
                 .requestMatchers("/actuator/health/**", "/actuator/info", "/ping").permitAll()
+
+                // CORS preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                /* ----- 로그인/아이디 찾기/비밀번호 재설정/회원가입 (공개) ----- */
                 .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
-                .requestMatchers("/api/signup/**", "/api/login/**").permitAll()
+                .requestMatchers("/api/login/**").permitAll()
+                .requestMatchers("/api/signup/**").permitAll()
 
-                // 정적 파일(업로드 이미지) 공개
-                .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
-
-                // 아이디 찾기 / 비밀번호 재설정
-             // 아이디 찾기
                 .requestMatchers(HttpMethod.POST, "/api/find-id").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/reset-password").permitAll()
 
@@ -69,7 +76,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/teacher").permitAll()
 
-                // 교사용 메인 패널
+                // 업로드된 정적 파일
+                .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
+
+                /* ----- 교사용 메인 패널 ----- */
                 .requestMatchers("/api/teachermain/**").hasAnyRole("TEACHER", "DIRECTOR")
 
                 /* ====== 공지: 읽기(로그인), 쓰기/수정/삭제(교사·원장) ====== */
@@ -89,7 +99,7 @@ public class SecurityConfig {
                     "/api/notices/**"
                 ).hasAnyRole("TEACHER", "DIRECTOR")
 
-                // 수업 조회
+                /* ----- 수업 조회 ----- */
                 .requestMatchers(HttpMethod.GET, "/api/lookup/classes/**").authenticated()
 
                 /* ====== 교사/원장 공통 보호 엔드포인트 ====== */
@@ -106,7 +116,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT,   "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER", "DIRECTOR")
                 .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER", "DIRECTOR")
 
-                /* 그 외 /api/admin/**는 원장 전용 */
+                /* 그 외 /api/admin/** 는 원장 전용 */
                 .requestMatchers(HttpMethod.PUT,   "/api/admin/rooms/**").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/**").hasRole("DIRECTOR")
                 .requestMatchers(HttpMethod.DELETE,"/api/admin/rooms/**").hasRole("DIRECTOR")
@@ -121,37 +131,38 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/*/classes").hasAnyRole("DIRECTOR", "TEACHER")
                 .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/classes/*/attendance").hasAnyRole("DIRECTOR", "TEACHER")
 
-                /* ====== 그 외 admin은 기본적으로 원장 전용 ====== */
+                /* ====== 그 외 admin/overview ====== */
                 .requestMatchers("/api/admin/**").hasRole("DIRECTOR")
                 .requestMatchers("/api/director/overview/**").hasAnyRole("DIRECTOR", "TEACHER")
 
-                /* 나머지 인증 필요 */
+                /* ----- 나머지는 토큰 필요 ----- */
                 .anyRequest().authenticated()
             )
+
+            // JWT 필터 추가
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    /* ====== CORS 설정 ====== */
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
 
-        // ✅ CORS 허용 도메인
+        // 허용 도메인
         cfg.setAllowedOriginPatterns(List.of(
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "http://192.168.*:*",
             "https://103team-web.vercel.app",
-            "https://greenacademy.vercel.app"// 여기만 나중에 실제 도메인으로 바꾸면 됨
-            // 예: "https://103team-web.vercel.app", "https://greenacademy.kr" 등
+            "https://greenacademy.vercel.app"
         ));
         cfg.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
 
-        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;
