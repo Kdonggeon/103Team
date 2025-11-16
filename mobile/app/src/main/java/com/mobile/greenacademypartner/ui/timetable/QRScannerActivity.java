@@ -96,18 +96,42 @@ public class QRScannerActivity extends AppCompatActivity {
     private void handleSeatQR(String qrData) {
         try {
             Uri uri = Uri.parse("?" + qrData);
-            int roomNumber = Integer.parseInt(uri.getQueryParameter("room"));
-            int seatNumber = Integer.parseInt(uri.getQueryParameter("seat"));
-            String studentId = uri.getQueryParameter("student");
 
-            Call<ResponseBody> call = roomApi.checkIn(roomNumber, seatNumber, studentId);
+            // QRGeneratorPanel.tsx에서 만든 포맷:
+            // v=1&type=seat&academyNumber=103&room=403&seat=12&idx=11&...
+            String roomStr = uri.getQueryParameter("room");
+            String seatStr = uri.getQueryParameter("seat");
+            String academyStr = uri.getQueryParameter("academyNumber");
+
+            if (roomStr == null || seatStr == null || academyStr == null) {
+                Toast.makeText(this, "좌석 QR 형식이 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int roomNumber = Integer.parseInt(roomStr);
+            int seatNumber = Integer.parseInt(seatStr);
+            int academyNumber = Integer.parseInt(academyStr);
+
+            // 학생 ID는 QR에 넣지 않고, 로그인 정보에서 가져온다.
+            String studentId = getSharedPreferences("login_prefs", MODE_PRIVATE)
+                    .getString("username", null);
+
+            if (studentId == null || studentId.trim().isEmpty()) {
+                Toast.makeText(this, "로그인 정보가 없습니다. 다시 로그인 후 시도해주세요.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            Call<ResponseBody> call = roomApi.checkIn(roomNumber, academyNumber, seatNumber, studentId);
             call.enqueue(new Callback<ResponseBody>() {
                 @Override
                 public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
                     if (response.isSuccessful()) {
                         Toast.makeText(QRScannerActivity.this, "💺 좌석 출석 완료!", Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(QRScannerActivity.this, "좌석 출석 실패: " + response.code(), Toast.LENGTH_SHORT).show();
+                        // 409, 412 등도 여기로 들어옴
+                        Toast.makeText(QRScannerActivity.this,
+                                "좌석 출석 실패: " + response.code(),
+                                Toast.LENGTH_SHORT).show();
                     }
                     finish();
                 }
