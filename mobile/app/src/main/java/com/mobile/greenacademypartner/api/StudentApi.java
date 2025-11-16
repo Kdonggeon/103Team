@@ -64,13 +64,14 @@ public interface StudentApi {
             @Query("date") String date
     );
 
-    // ✅ FCM 토큰 업데이트 (최신 방식)
+    // ✅ FCM 토큰 업데이트 (수정 완료)
     @PUT("/api/students/{studentId}/fcm-token")
     Call<Void> updateFcmToken(
             @Path("studentId") String studentId,
             @Header("Authorization") String authorization,
-            @Body String fcmToken
+            @Query("token") String fcmToken   // ✔ 서버 요구 방식
     );
+
 
     // 학생의 수업 목록
     @GET("/api/students/{studentId}/classes")

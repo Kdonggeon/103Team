@@ -2,7 +2,19 @@
 import { getSession } from "@/app/lib/session";
 import { roomsVectorApi } from "@/app/lib/rooms.vector";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+/* ===== API URL 구성 ===== */
+const API_BASE =
+  (typeof window !== "undefined" && (window as any).__API_BASE__) ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "";
+
+const BACKEND_PREFIX = process.env.NEXT_PUBLIC_BACKEND_PREFIX ?? "/backend";
+
+function abs(path: string) {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const withPrefix = `${BACKEND_PREFIX}${p}`.replace(/\/{2,}/g, "/");
+  return API_BASE ? `${API_BASE}${withPrefix}` : withPrefix;
+}
 
 /* ===== Types ===== */
 export type TeacherClassLite = {
@@ -34,6 +46,9 @@ export type SeatBoardSeat = {
   studentName?: string | null;
   attendanceStatus?: string | null;
   occupiedAt?: string | null;
+
+  // 선택: 라벨(디버깅/표시용)
+  label?: string | null;
 };
 
 export type SeatBoardResponse = {
@@ -69,16 +84,23 @@ async function _request<T>(url: string, init?: RequestInit): Promise<T> {
   const s = getSession();
   const headers: HeadersInit = {
     ...(init?.headers ?? {}),
+    "Content-Type": "application/json",
     ...(s?.token ? { Authorization: `Bearer ${s.token}` } : {}),
   };
-  const res = await fetch(`${API_BASE}${url}`, { ...init, headers, credentials: "include" });
+
+  const res = await fetch(abs(url), {
+    ...init,
+    headers,
+    credentials: "include",
+    cache: "no-store",
+  });
+
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    const err: any = new Error(text || `HTTP ${res.status}`);
-    err.status = res.status;
-    throw err;
+    throw new Error(`${res.status} ${res.statusText} @ ${abs(url)}`);
   }
-  return (await res.json()) as T;
+
+  const text = await res.text();
+  return text ? (JSON.parse(text) as T) : ({} as T);
 }
 
 /* ===== Public ===== */

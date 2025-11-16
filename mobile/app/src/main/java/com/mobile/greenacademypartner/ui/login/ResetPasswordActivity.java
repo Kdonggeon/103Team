@@ -36,6 +36,7 @@ public class ResetPasswordActivity extends AppCompatActivity {
         radioRole = findViewById(R.id.radio_role);
         btnReset = findViewById(R.id.btn_reset);
 
+        // 🔥 버튼 클릭 이벤트
         btnReset.setOnClickListener(v -> {
             String id = editId.getText().toString().trim();
             String name = editName.getText().toString().trim();
@@ -81,8 +82,10 @@ public class ResetPasswordActivity extends AppCompatActivity {
                     Toast.makeText(ResetPasswordActivity.this, "네트워크 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             });
-            ThemeColorUtil.applyThemeColor(this);
         });
+
+        // 🔥 전체 테마는 Activity 생성 시 1번만 적용 (버튼 클릭 시 재적용하면 UI 깨짐)
+        ThemeColorUtil.applyThemeColor(this);
     }
 
     private String getSelectedRole() {

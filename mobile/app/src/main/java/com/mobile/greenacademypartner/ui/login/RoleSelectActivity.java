@@ -7,6 +7,7 @@ import android.widget.Button;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 import com.mobile.greenacademypartner.ui.signup.ParentSignupActivity;
 import com.mobile.greenacademypartner.ui.signup.StudentSignupActivity;
 //import com.mobile.greenacademypartner.ui.signup.TeacherSignupActivity;
@@ -20,6 +21,9 @@ public class RoleSelectActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_role_select);
+
+        // ✅ 테마 색 적용 (모든 버튼 자동 색 변경)
+        ThemeColorUtil.applyThemeColor(this);
 
         btnStudent = findViewById(R.id.btn_student);
         btnParent = findViewById(R.id.btn_parent);
