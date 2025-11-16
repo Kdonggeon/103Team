@@ -26,7 +26,9 @@ export interface LoginResponse {
 }
 
 // ---------- 환경설정 ----------
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:9090";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ??
+  (typeof window !== "undefined" ? "/backend" : "http://localhost:9090");
 
 // ---------- 세션/토큰 유틸 ----------
 type SavedSession = {

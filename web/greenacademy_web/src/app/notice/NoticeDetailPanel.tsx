@@ -3,10 +3,13 @@
 
 import React, { useEffect, useState } from "react";
 
-/** API 베이스 & fetch 래퍼 (.env 없을 때 9090 폴백 + Next 404 HTML이면 9090 재시도) */
+/** API 베이스 & fetch 래퍼
+ * - 브라우저: NEXT_PUBLIC_API_BASE || "/backend"
+ * - SSR/기타: NEXT_PUBLIC_API_BASE || "http://localhost:9090"
+ */
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ??
-  (typeof window !== "undefined" ? `${location.protocol}//${location.hostname}:9090` : "");
+  (typeof window !== "undefined" ? "/backend" : "http://localhost:9090");
 
 async function fetchApi(path: string, init?: RequestInit) {
   const url = `${API_BASE}${path}`;
@@ -14,14 +17,25 @@ async function fetchApi(path: string, init?: RequestInit) {
     credentials: init?.credentials ?? "include",
     ...init,
   };
+
   const res = await fetch(url, opts);
   const ct = res.headers.get("content-type") || "";
-  if (res.status === 404 && ct.includes("text/html") && typeof window !== "undefined") {
+
+  // 🔹 로컬 개발 편의용: Next dev 서버가 404 HTML 주면 localhost:9090으로 한 번 더 시도
+  if (
+    res.status === 404 &&
+    ct.includes("text/html") &&
+    typeof window !== "undefined" &&
+    (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+  ) {
     try {
-      const devUrl = `${location.protocol}//${location.hostname}:9090${path}`;
+      const devUrl = `http://localhost:9090${path}`;
       return await fetch(devUrl, opts);
-    } catch {}
+    } catch {
+      // ignore, 아래에서 기존 res 반환
+    }
   }
+
   return res;
 }
 
@@ -171,14 +185,12 @@ export default function NoticeDetailPanel({
         </div>
       </header>
 
-      {/* 알림/에러 */}
       {err && (
         <div className="px-4 py-3 rounded-xl text-sm bg-red-50 text-red-700 ring-1 ring-red-200">
           {err}
         </div>
       )}
 
-      {/* 로딩 스켈레톤 */}
       {loading && (
         <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 animate-pulse space-y-3">
           <div className="h-6 bg-gray-200 rounded w-3/5" />
@@ -191,23 +203,18 @@ export default function NoticeDetailPanel({
       {!loading && notice && (
         <article className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm">
           <div className="p-6">
-            {/* 제목 */}
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 break-words">
               {notice.title || "(제목 없음)"}
             </h2>
 
-            {/* 메타 라인 (ID는 표시하지 않음) */}
             <div className="mt-2 text-xs sm:text-sm text-gray-600 flex flex-wrap gap-x-2 gap-y-1">
-              {/* 작성자 */}
               <span className="inline-flex items-center gap-1">
                 <span className="text-gray-500">작성자</span>
                 <span className="text-gray-800 font-medium">{notice.author ?? "관리자"}</span>
               </span>
-              {/* 구분점 */}
               {(notice.academyNumber != null || notice.className || notice.createdAt) && (
                 <span className="text-gray-300">•</span>
               )}
-              {/* 학원번호 */}
               {notice.academyNumber != null && (
                 <span className="inline-flex items-center gap-1">
                   <span className="text-gray-500">학원</span>
@@ -234,12 +241,10 @@ export default function NoticeDetailPanel({
               )}
             </div>
 
-            {/* 본문 */}
             <div className="mt-5 whitespace-pre-wrap text-gray-900 leading-relaxed break-words">
               {notice.content}
             </div>
 
-            {/* 이미지(존재 시) */}
             {Array.isArray(imgList) && imgList.length > 0 && (
               <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {imgList.map((src, i) => (
