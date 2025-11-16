@@ -26,7 +26,9 @@ export interface LoginResponse {
 }
 
 // ---------- 환경설정 ----------
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:9090";
+// next.config.mjs에서 /backend/* 를 백엔드로 rewrite 하므로
+// 기본값은 빈 문자열로 두고, 필요하면 NEXT_PUBLIC_API_BASE로 덮어씀
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 
 // ---------- 세션/토큰 유틸 ----------
 type SavedSession = {
@@ -94,10 +96,24 @@ function isFormData(body: unknown): body is FormData {
   return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
+// ✅ next.config.mjs의 rewrites와 맞춘 URL 조립 함수
 function resolveUrl(path: string): string {
+  // 절대 URL이면 그대로 사용
   if (/^https?:\/\//i.test(path)) return path;
-  if (path.startsWith("/")) return `${API_BASE}${path}`;
-  return `${API_BASE}/${path}`;
+
+  // /backend/* 는 Next가 EC2로 프록시하므로 그대로 둠
+  if (path.startsWith("/backend/")) {
+    return path;
+  }
+
+  // 환경변수로 베이스가 지정된 경우 (예: 로컬에서 직접 백엔드 붙일 때)
+  if (API_BASE) {
+    if (path.startsWith("/")) return `${API_BASE}${path}`;
+    return `${API_BASE}/${path}`;
+  }
+
+  // 그 외에는 상대 경로 그대로 (향후 /api 등 다른 rewrite 구성 시 사용 가능)
+  return path;
 }
 
 /**
@@ -217,14 +233,14 @@ export interface ResetPasswordResponse {
 export const api = {
   // 로그인
   login: (body: LoginRequest) =>
-    request<LoginResponse>("/api/login", {
+    request<LoginResponse>("/backend/api/login", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   // 아이디 찾기
   findId: ({ role, name, phoneNumber }: FindIdRequest) => {
-    const path = `/api/${role}s/find_id`;
+    const path = `/backend/api/${role}s/find_id`;
     return request<FindIdResponse>(path, {
       method: "POST",
       body: JSON.stringify({ name, phoneNumber: normalizePhone(phoneNumber) }),
@@ -233,7 +249,7 @@ export const api = {
 
   // 비밀번호 재설정 (단일 엔드포인트 사용)
   resetPassword: (body: ResetPasswordRequest) =>
-    request<ResetPasswordResponse>("/api/reset-password", {
+    request<ResetPasswordResponse>("/backend/api/reset-password", {
       method: "POST",
       body: JSON.stringify({
         ...body,
