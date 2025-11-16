@@ -5,20 +5,29 @@ import React, { useEffect, useMemo, useState } from "react";
 import NoticeEditorPanel from "./NoticeEditorPanel";
 import NoticeDetailPanel from "./NoticeDetailPanel";
 
-/** API 베이스 & fetch 래퍼 */
+/** API 베이스 & fetch 래퍼
+ * - 브라우저: NEXT_PUBLIC_API_BASE || "/backend"
+ * - SSR/기타: NEXT_PUBLIC_API_BASE || "http://localhost:9090"
+ */
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ??
-  (typeof window !== "undefined" ? `${location.protocol}//${location.hostname}:9090` : "");
+  (typeof window !== "undefined" ? "/backend" : "http://localhost:9090");
 
 async function fetchApi(path: string, init?: RequestInit) {
   const url = `${API_BASE}${path}`;
   const opts: RequestInit = { credentials: init?.credentials ?? "include", ...init };
   const res = await fetch(url, opts);
   const ct = res.headers.get("content-type") || "";
-  // Next의 404 HTML을 받은 경우 로컬 9090로 재시도
-  if (res.status === 404 && ct.includes("text/html") && typeof window !== "undefined") {
+
+  // Next의 404 HTML을 받은 경우 로컬 개발 환경에서만 localhost:9090으로 재시도
+  if (
+    res.status === 404 &&
+    ct.includes("text/html") &&
+    typeof window !== "undefined" &&
+    (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+  ) {
     try {
-      const devUrl = `${location.protocol}//${location.hostname}:9090${path}`;
+      const devUrl = `http://localhost:9090${path}`;
       return await fetch(devUrl, opts);
     } catch {}
   }
@@ -422,7 +431,7 @@ export default function NoticePanel() {
 
   const academyAllLabel = useMemo(() => "전체 학원", [isStaff]);
 
-  // ⬇️ 변경: 과목 스피너의 기본 항목 라벨은 항상 "전체"
+  // 과목 스피너 기본 항목 라벨은 항상 "전체"
   const classAllLabel = useMemo(() => "전체", []);
 
   /** 내 과목 id 집합 (교사/학생/학부모만 의미 있음) */
@@ -459,7 +468,6 @@ export default function NoticePanel() {
       .sort((a, b) => a.label.localeCompare(b.label, "ko"));
 
     const base: { value: string; label: string }[] = [{ value: "", label: classAllLabel }];
-    // ⬇️ 변경: MY_CLASSES_ALL 라벨을 역할에 따라 분기
     if (showMyClassesOption) {
       base.push({
         value: MY_CLASSES_ALL,
