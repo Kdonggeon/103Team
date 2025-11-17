@@ -1,264 +1,335 @@
-// src/lib/api.ts
+// /src/lib/qna.ts
+import { request, getSavedToken, getSavedSession } from "@/lib/api";
 
-// ---------- 공통 타입 ----------
-export type Role = "student" | "teacher" | "parent" | "director";
+export type QnaId = { id?: string; _id?: string };
 
-export interface LoginRequest {
-  username: string;
-  password: string;
-  fcmToken?: string; // 웹은 보통 안 보냄
-}
+export type QnaQuestion = QnaId & {
+  unreadCount?: number;
+  content?: string;
+  title?: string;
+  authorRole?: string;
+  createdAt?: string;
+  followups?: any[]; // 백엔드가 요약/ID만 넣어주는 경우 있음
+  // 선택: 백엔드가 내려줄 수 있는 필드들(있으면 UI에 도움)
+  academyNumber?: number;
+  room?: boolean;
+  teacherNames?: string[];
+  /** 현재 사용자 기준 마지막 읽음 시각(백엔드가 주면 우선, 없으면 프런트 로컬 보강) */
+  lastReadAt?: string;
+  lastStudentMsgAt?: string;
+  lastParentMsgAt?: string;
+  lastFollowupAt?: string;
 
-export interface LoginResponse {
-  status: "success";
-  role: Role;
-  username: string;
-  name: string | null;
-  token: string | null;
-  phone?: string | null;
-  address?: string | null;   // 학생만
-  school?: string | null;    // 학생만
-  grade?: number;            // 학생만
-  gender?: string | null;    // 학생만
-  academyNumbers?: number[]; // 모든 역할 가능 (List<Integer>)
-  parentsNumber?: number;    // 학부모만
-  childStudentId?: string;   // 학부모만 (첫 자녀)
-}
-
-// ---------- 환경설정 ----------
-// NoticePanel 과 동일한 기본값으로 통일
-// - 클라이언트: /backend → next.config.mjs에서 백엔드로 프록시
-// - 서버(SSR): localhost:9090 로 직접 호출
-const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE;
-const API_BASE =
-  RAW_BASE ??
-  (typeof window === "undefined" ? "http://localhost:9090" : "/backend");
-
-// ---------- 세션/토큰 유틸 ----------
-type SavedSession = {
-  token?: string | null;
-  role?: Role | string;
-  username?: string;
-  name?: string | null;
-  academyNumbers?: number[];
-  parentsNumber?: number;
-  childStudentId?: string;
+  student?: { id?: string; _id?: string; name?: string; studentName?: string; displayName?: string };
+  parent?: { id?: string; _id?: string; name?: string; parentName?: string; childStudentName?: string; displayName?: string };
 };
 
-const STORAGE_KEY = "login";
+export type QnaAnswer = QnaId & {
+  content?: string;
+  authorRole?: string; // "teacher" | "director" 등
+  teacherName?: string;
+  createdAt?: string;
+};
 
-export function getSavedToken(): string | null {
-  try {
-    if (typeof window === "undefined") return null; // SSR 보호
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const obj = JSON.parse(raw) as SavedSession;
-    const t = obj?.token;
-    return typeof t === "string" && t.length > 0 ? t : null;
-  } catch {
-    return null;
-  }
-}
+// ======================================================
+// 🔸 Authorization/credentials/cache를 확실히 주입하는 래퍼
+// ======================================================
+async function requestAuthLocal<T = any>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = getSavedToken?.();
 
-export function getSavedSession(): SavedSession | null {
-  try {
-    if (typeof window === "undefined") return null; // SSR 보호
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as SavedSession;
-  } catch {
-    return null;
-  }
-}
-
-export function saveSession(data: LoginResponse, extra?: Record<string, unknown>) {
-  const payload: SavedSession = {
-    token: data.token,
-    role: data.role,
-    username: data.username,
-    name: data.name ?? null,
-    academyNumbers: Array.isArray(data.academyNumbers) ? data.academyNumbers : [],
-    parentsNumber: typeof data.parentsNumber === "number" ? data.parentsNumber : undefined,
-    childStudentId: data.childStudentId ?? undefined,
-    ...(extra ?? {}),
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-}
-
-export function updateSession(patch: Partial<SavedSession>) {
-  const cur = getSavedSession() ?? {};
-  const next = { ...cur, ...patch };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-}
-
-export function clearSession() {
-  localStorage.removeItem(STORAGE_KEY);
-}
-
-// ---------- 공통 유틸 ----------
-function isFormData(body: unknown): body is FormData {
-  return typeof FormData !== "undefined" && body instanceof FormData;
-}
-
-// ✅ NoticePanel / next.config.mjs와 맞춘 URL 조립 함수
-function resolveUrl(path: string): string {
-  // 절대 URL이면 그대로 사용
-  if (/^https?:\/\//i.test(path)) return path;
-
-  // 이미 /backend/* 로 시작하면 그대로 사용 (rewrite 대상)
-  if (path.startsWith("/backend/")) {
-    return path;
-  }
-
-  // API_BASE가 지정된 경우 (env 또는 기본값)
-  if (API_BASE) {
-    const base = API_BASE.replace(/\/+$/, ""); // 끝 슬래시 제거
-    const p = path.startsWith("/") ? path : `/${path}`;
-    return `${base}${p}`;
-  }
-
-  // 이 지점까지 올 일은 거의 없음 (fallback)
-  return path;
-}
-
-/**
- * 공용 fetch 래퍼
- * - 외부(init)에서 준 옵션/헤더를 **보존**
- * - Authorization/Accept/Content-Type은 **없는 경우에만** 채움
- * - 기본값: credentials=include, cache=no-store
- * - 401/403은 AUTH_코드로 throw (라우팅단에서 로그인 유도)
- */
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  // 1) 헤더 병합 (Headers로 대소문자 안전)
+  // 기존 헤더 + Authorization 안전 머지
   const headers = new Headers(init.headers || {});
-
-  // Accept 기본값
-  if (!headers.has("Accept")) {
-    headers.set("Accept", "application/json, text/plain;q=0.9, */*;q=0.8");
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
-
-  // Authorization 자동 주입 (없을 때만)
-  if (!headers.has("Authorization")) {
-    const token = getSavedToken();
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  // JSON 본문이면 Content-Type 지정 (FormData 제외, 이미 있으면 유지)
-  if (init.body && !isFormData(init.body) && !headers.has("Content-Type")) {
+  if (!headers.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
 
-  // 2) URL 조립
-  const url = resolveUrl(path);
-
-  // 3) 최종 init
-  const finalInit: RequestInit = {
+  // 기본 옵션 주입
+  const nextInit: RequestInit = {
     ...init,
     headers,
     credentials: init.credentials ?? "include",
     cache: init.cache ?? "no-store",
   };
 
-  // 4) 요청
-  let res: Response;
+  return request<T>(path, nextInit);
+}
+
+// ======================================================
+/* 🔸 프런트 로컬 lastReadAt 보강 유틸 (사용자/문서별 키) */
+// ======================================================
+function lrKey(questionId: string): string {
   try {
-    res = await fetch(url, finalInit);
-  } catch (e: any) {
-    // 네트워크 오류
-    const msg = typeof e?.message === "string" ? e.message : "네트워크 오류가 발생했습니다.";
-    throw new Error(`NETWORK_ERROR: ${msg}`);
+    const session = getSavedSession?.();
+    const user = (session?.username || "anon").trim();
+    return `qna:lastRead:${user}:${questionId}`;
+  } catch {
+    return `qna:lastRead:anon:${questionId}`;
   }
+}
 
-  // 5) 응답 처리
-  const status = res.status;
-
-  // 204/205 or 빈 본문
-  if (status === 204 || status === 205) {
-    return {} as T;
+function getLocalLastRead(questionId: string): string | null {
+  try {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(lrKey(questionId));
+  } catch {
+    return null;
   }
+}
 
-  const rawText = await res.text();
-
-  if (!res.ok) {
-    if (status === 401 || status === 403) {
-      // 라우팅단에서 이 메시지를 감지해 로그인 페이지로 보낼 수 있도록 AUTH_* 형태로 throw
-      throw new Error(`AUTH_${status}: ${rawText || "인증이 필요합니다. 다시 로그인 해주세요."}`);
-    }
-    // 서버 메시지 보존
-    throw new Error(`${status} ${res.statusText}${rawText ? " | " + rawText : ""}`);
+function setLocalLastRead(questionId: string, iso: string) {
+  try {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(lrKey(questionId), iso);
+  } catch {
+    /* ignore */
   }
+}
 
-  if (!rawText) return {} as T;
+// ======================================================
+// ✅ 학생 / 학부모 / 공통 API
+// ======================================================
 
-  // Content-Type 확인 후 JSON 파싱 시도 (방어적)
-  const ct = res.headers.get("Content-Type") || "";
-  if (ct.toLowerCase().includes("application/json")) {
-    try {
-      return JSON.parse(rawText) as T;
-    } catch {
-      // JSON 표시인데 파싱 실패 시에도 안전하게 텍스트 반환
-      return (rawText as unknown) as T;
-    }
+export function getCounterpartyLatestAt(q: QnaQuestion): number {
+  const t = (s?: string) => (s ? new Date(s).getTime() : 0);
+  return Math.max(t(q.lastStudentMsgAt), t(q.lastParentMsgAt), t(q.lastFollowupAt));
+}
+
+// 학생 방 (학생/교사/원장 접근 가능; 학생은 자기 방)
+export async function getOrCreateStudentRoom(academyNumber: number): Promise<QnaId> {
+  return requestAuthLocal(`/api/questions/room?academyNumber=${academyNumber}`, { method: "GET" });
+}
+
+// 학부모 방 (우선 통합 경로 시도 → 실패 시 전용 경로)
+export async function getOrCreateParentRoom(academyNumber: number): Promise<QnaId> {
+  try {
+    return await requestAuthLocal(`/api/questions/room?academyNumber=${academyNumber}`, { method: "GET" });
+  } catch {
+    return requestAuthLocal(`/api/questions/room/parent?academyNumber=${academyNumber}`, { method: "GET" });
   }
-
-  // JSON 이외 컨텐츠는 원문 텍스트 반환(필요 시 호출부에서 처리)
-  return rawText as unknown as T;
 }
 
-function normalizePhone(phone: string) {
-  return phone.replace(/[^0-9]/g, "");
+// 역할 자동 판별(getOrCreate)
+export async function getOrCreateRoomAuto(academyNumber: number): Promise<QnaId> {
+  const sess = getSavedSession?.();
+  const role = String(sess?.role ?? "").toLowerCase();
+  if (role.includes("parent")) return getOrCreateParentRoom(academyNumber);
+  return getOrCreateStudentRoom(academyNumber);
 }
 
-// ---------- 아이디 찾기 ----------
-type IdFindableRole = Extract<Role, "student" | "parent" | "teacher" | "director">;
-
-export interface FindIdRequest {
-  role: IdFindableRole;
-  name: string;
-  phoneNumber: string;
-}
-export interface FindIdResponse {
-  username: string;
+// 질문 단건 (★ lastReadAt 로컬 보강)
+export async function getQuestion(questionId: string): Promise<QnaQuestion> {
+  const q = await requestAuthLocal<QnaQuestion>(`/api/questions/${questionId}`, { method: "GET" });
+  const id = String(q?.id ?? q?._id ?? questionId);
+  const local = getLocalLastRead(id);
+  // 백엔드 값 우선, 없으면 로컬 값 주입
+  return { ...q, lastReadAt: q.lastReadAt ?? local ?? undefined };
 }
 
-// ---------- 비밀번호 재설정 ----------
-export interface ResetPasswordRequest {
-  role: Role;
-  username: string;     // 로그인 ID (Student_ID / Parents_ID / Teacher_ID / Director.username)
-  name: string;         // 본인 확인용
-  phoneNumber: string;  // 본인 확인용
-  newPassword: string;  // 새 비밀번호
+// 답변 목록
+export async function getAnswers(questionId: string): Promise<QnaAnswer[]> {
+  return requestAuthLocal(`/api/questions/${questionId}/answers`, { method: "GET" });
 }
 
-export interface ResetPasswordResponse {
-  status: "ok";
+// 읽음 처리 (★ 서버 갱신 + 로컬 lastReadAt 동기화)
+export async function markQuestionRead(questionId: string): Promise<void> {
+  await requestAuthLocal(`/api/questions/${questionId}/read`, { method: "PUT" });
+  const now = new Date().toISOString();
+  setLocalLastRead(String(questionId), now);
 }
 
-// ---------- API 컬렉션 ----------
-export const api = {
-  // 로그인
-  login: (body: LoginRequest) =>
-    request<LoginResponse>("/backend/api/login", {
+// 교사/원장 답변 작성
+export async function postAnswer(questionId: string, content: string): Promise<QnaAnswer> {
+  return requestAuthLocal(`/api/questions/${questionId}/answers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+}
+
+/**
+ * ✅ 레거시/모바일 데이터 폴백용 후속질문 조회
+ * 1) /api/questions/{id}/followups
+ * 2) /api/questions?parentId={id}
+ */
+export async function getFollowupsFlexible(rootId: string): Promise<any[]> {
+  try {
+    const a = await requestAuthLocal<any[]>(`/api/questions/${rootId}/followups`, { method: "GET" });
+    if (Array.isArray(a)) return a;
+  } catch {}
+  try {
+    const b = await requestAuthLocal<any[]>(
+      `/api/questions?parentId=${encodeURIComponent(rootId)}`,
+      { method: "GET" }
+    );
+    if (Array.isArray(b)) return b;
+  } catch {}
+  return [];
+}
+
+export async function postFollowupFlexible(
+  parentQuestionId: string,
+  content: string,
+  academyNumber?: number
+): Promise<any> {
+  try {
+    return await requestAuthLocal(`/api/questions/${parentQuestionId}/followups`, {
       method: "POST",
-      body: JSON.stringify(body),
-    }),
-
-  // 아이디 찾기
-  findId: ({ role, name, phoneNumber }: FindIdRequest) => {
-    const path = `/backend/api/${role}s/find_id`;
-    return request<FindIdResponse>(path, {
-      method: "POST",
-      body: JSON.stringify({ name, phoneNumber: normalizePhone(phoneNumber) }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
     });
-  },
+  } catch {}
+  return requestAuthLocal(`/api/questions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ parentId: parentQuestionId, content, academyNumber }),
+  });
+}
 
-  // 비밀번호 재설정 (단일 엔드포인트 사용)
-  resetPassword: (body: ResetPasswordRequest) =>
-    request<ResetPasswordResponse>("/backend/api/reset-password", {
-      method: "POST",
-      body: JSON.stringify({
-        ...body,
-        phoneNumber: normalizePhone(body.phoneNumber),
-      }),
-    }),
+// ======================================================
+// ✅ 최근 QnA 바로가기(API + 라우팅 헬퍼)
+// ======================================================
+
+export type QnaRecent = {
+  questionId: string;
+  answerId?: string | null;
+  source: "ANSWER" | "QUESTION";
 };
+
+/** 서버에서 역할/학원 무관 '최신 QnA 1건' 선정 */
+export async function getRecentQna(): Promise<QnaRecent | null> {
+  try {
+    const data = await requestAuthLocal<QnaRecent>(`/api/qna/recent`, { method: "GET" });
+    if (data && data.questionId) return data;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function openRecentQna(router: { push: (href: string) => void }) {
+  const recent = await getRecentQna();
+  if (recent?.questionId) {
+    router.push(`/family-portal?tab=qna&qnaId=${encodeURIComponent(recent.questionId)}`);
+  } else {
+    alert("최근 QnA가 없습니다.");
+  }
+}
+
+// ======================================================
+// ✅ 교사 / 원장 전용 API
+// ======================================================
+
+/** 교사/원장: 학원별 학생 목록 조회 (여러 엔드포인트를 순차 시도) */
+export async function getStudentsForAcademy(
+  academyNumber: number
+): Promise<Array<{ id: string; name?: string }>> {
+  const tryPaths = [
+    `/api/teachers/students?academyNumber=${academyNumber}`, // 우선 권장
+    `/api/students?academyNumber=${academyNumber}`, // 대안 1
+    `/api/classes?academyNumber=${academyNumber}`, // 대안 2 (수업에서 학생 집계)
+  ];
+
+  for (const p of tryPaths) {
+    try {
+      const res = await requestAuthLocal<any>(p, { method: "GET" });
+      if (!res) continue;
+
+      // 1) 배열 [{id,name}] 형태
+      if (Array.isArray(res) && res.length && (res[0]?.id || res[0]?._id)) {
+        return res.map((x: any) => ({ id: String(x.id ?? x._id), name: x.name ?? x.studentName }));
+      }
+
+      // 2) {students:[{id,name}]} 형태
+      if (Array.isArray(res?.students)) {
+        return res.students.map((x: any) => ({ id: String(x.id ?? x._id), name: x.name ?? x.studentName }));
+      }
+
+      // 3) classes에서 학생 집계
+      if (Array.isArray(res?.content) || Array.isArray(res?.items)) {
+        const arr = (res.content ?? res.items) as any[];
+        const bag: Record<string, { id: string; name?: string }> = {};
+        for (const c of arr) {
+          const sts = c?.students ?? c?.studentIds ?? [];
+          for (const s of sts) {
+            const id = String(s?.id ?? s?._id ?? s);
+            if (!bag[id]) bag[id] = { id, name: s?.name ?? s?.studentName };
+          }
+        }
+        return Object.values(bag);
+      }
+    } catch {
+      // 다음 경로 시도
+    }
+  }
+  return [];
+}
+
+/** 교사/원장: 학원 + 학생ID 기준 방 생성/조회 (교사 답변 전용, 필요 시만 사용) */
+export async function getOrCreateTeacherRoom(
+  academyNumber: number,
+  studentId: string
+): Promise<QnaId> {
+  if (!academyNumber || !studentId) throw new Error("학원 또는 학생 선택이 필요합니다.");
+  const res = await requestAuthLocal(
+    `/api/questions/room?academyNumber=${academyNumber}&studentId=${encodeURIComponent(studentId)}`,
+    { method: "GET" }
+  );
+  if (!res || !(res.id || res._id)) throw new Error("질문 방을 찾거나 생성하지 못했습니다.");
+  return res;
+}
+
+/** ✅ 교사/원장: 학원별 질문 목록 조회 (unreadCount 누락 시 0으로 보강) */
+export async function listQuestions(academyNumber?: number): Promise<QnaQuestion[]> {
+  const qs = academyNumber ? `?academyNumber=${academyNumber}` : "";
+  const raw = await requestAuthLocal<QnaQuestion[]>(`/api/questions${qs}`, { method: "GET" });
+  return Array.isArray(raw) ? raw.map((x) => ({ ...x, unreadCount: x?.unreadCount ?? 0 })) : [];
+}
+
+/** (선택) 교사/원장: ID(학생/학부모)를 넣으면 해당 대상 방 조회/생성 */
+export async function getOrCreateTeacherRoomById(
+  academyNumber: number,
+  targetId: string
+): Promise<QnaId> {
+  return requestAuthLocal(
+    `/api/questions/room/by-id?academyNumber=${academyNumber}&id=${encodeURIComponent(targetId)}`,
+    { method: "GET" }
+  );
+}
+
+export type QnaListItem = {
+  id: string;
+  unreadCount?: number | null;
+  createdAt?: string | null;   // ISO
+  updatedAt?: string | null;   // 서버가 주면 사용 (없으면 createdAt 사용)
+};
+
+// 상대방 최신 시각 → 없으면 updatedAt/createdAt
+function scoreForRecent(i: QnaListItem & Partial<QnaQuestion>): number {
+  const base = Math.max(
+    i.updatedAt ? new Date(i.updatedAt).getTime() : 0,
+    i.createdAt ? new Date(i.createdAt).getTime() : 0
+  );
+  try {
+    const cp = getCounterpartyLatestAt(i as QnaQuestion); // lastStudentMsgAt/lastParentMsgAt/lastFollowupAt
+    return Math.max(cp || 0, base);
+  } catch {
+    return base;
+  }
+}
+
+export function pickLatestTarget(
+  items: Array<QnaListItem & Partial<QnaQuestion>>
+): (QnaListItem & Partial<QnaQuestion>) | undefined {
+  if (!items?.length) return undefined;
+  const unread = items.filter((i) => (i.unreadCount ?? 0) > 0);
+  const pool = unread.length ? unread : items;
+  return [...pool].sort((a, b) => scoreForRecent(b) - scoreForRecent(a))[0];
+}
+
+// (선택) 목록 정렬 헬퍼
+export function sortByCounterpartyLatest<T extends Partial<QnaQuestion>>(arr: T[]): T[] {
+  return [...arr].sort((a, b) => scoreForRecent(b as any) - scoreForRecent(a as any));
+}
