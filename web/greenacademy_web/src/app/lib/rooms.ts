@@ -31,13 +31,16 @@ export type Room = {
   cols?: number;
 };
 
-function getBaseUrl() {
-  if (typeof window !== "undefined" && (window as any)?.__API_BASE__) {
-    return (window as any).__API_BASE__;
-  }
-  return process.env.NEXT_PUBLIC_API_BASE || "http://localhost:9090";
-}
+/**
+ * 베이스 URL
+ * - 실제 운영 기준:
+ *   - NEXT_PUBLIC_API_BASE가 있으면 그걸 사용
+ *   - 없으면 /backend (Next rewrite → 백엔드로 프록시)
+ * - 더 이상 localhost:9090 하드코딩 없음
+ */
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "/backend").replace(/\/$/, "");
 
+/** 백엔드 토큰 가져오기 (로컬스토리지 여러 키 방어적으로 탐색) */
 function getToken(): string | null {
   try {
     const raw =
@@ -46,13 +49,15 @@ function getToken(): string | null {
       localStorage.getItem("auth") ??
       null;
     if (!raw) return null;
+
     let t = raw;
     try {
       const parsed = JSON.parse(raw) as { token?: string };
       t = (parsed?.token ?? raw) as string;
     } catch {
-      /* raw is token */
+      // raw 자체가 토큰인 경우
     }
+
     t = String(t).trim();
     if (!t || t === "null" || t === "undefined") return null;
     if (t.toLowerCase().startsWith("bearer ")) t = t.slice(7).trim();
@@ -63,10 +68,9 @@ function getToken(): string | null {
 }
 
 async function coreFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const base = getBaseUrl();
-  const url = /^https?:\/\//i.test(path)
-    ? path
-    : `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${p}`;
+
   const headers: Record<string, string> = { ...(init.headers as any) };
 
   const token = getToken();
@@ -90,6 +94,7 @@ async function coreFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
       body
     );
   }
+
   return text ? (JSON.parse(text) as T) : ({} as T);
 }
 

@@ -5,32 +5,21 @@ import React, { useEffect, useMemo, useState } from "react";
 import NoticeEditorPanel from "./NoticeEditorPanel";
 import NoticeDetailPanel from "./NoticeDetailPanel";
 
-/** API 베이스 & fetch 래퍼
- * - 브라우저: NEXT_PUBLIC_API_BASE || "/backend"
- * - SSR/기타: NEXT_PUBLIC_API_BASE || "http://localhost:9090"
+/**
+ * API 베이스
+ * - Vercel 배포: NEXT_PUBLIC_API_BASE 없으면 "/backend"
+ *   → next.config.mjs 에서 /backend → EC2 백엔드로 프록시
+ * - 로컬에서 직접 붙이고 싶으면 .env.local 에서만 NEXT_PUBLIC_API_BASE=http://localhost:9090 설정
+ *   (코드에는 localhost 하드코딩 없음)
  */
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ??
-  (typeof window !== "undefined" ? "/backend" : "http://localhost:9090");
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "/backend").replace(/\/$/, "");
 
 async function fetchApi(path: string, init?: RequestInit) {
-  const url = `${API_BASE}${path}`;
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const url = `${API_BASE}${p}`;
   const opts: RequestInit = { credentials: init?.credentials ?? "include", ...init };
   const res = await fetch(url, opts);
-  const ct = res.headers.get("content-type") || "";
-
-  // Next의 404 HTML을 받은 경우 로컬 개발 환경에서만 localhost:9090으로 재시도
-  if (
-    res.status === 404 &&
-    ct.includes("text/html") &&
-    typeof window !== "undefined" &&
-    (location.hostname === "localhost" || location.hostname === "127.0.0.1")
-  ) {
-    try {
-      const devUrl = `http://localhost:9090${path}`;
-      return await fetch(devUrl, opts);
-    } catch {}
-  }
+  // ✅ 더 이상 404 HTML → localhost:9090 재시도 같은 로컬 전용 fallback 없음
   return res;
 }
 
