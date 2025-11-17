@@ -157,6 +157,7 @@ public class SecurityConfig {
             "http://192.168.*:*",
             "https://103team-web.vercel.app",
             "https://greenacademy.vercel.app"
+            
         ));
         cfg.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
