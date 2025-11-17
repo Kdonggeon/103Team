@@ -4,9 +4,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** API 베이스 & fetch 래퍼 (.env 없을 때 9090 폴백 + Next 404 HTML이면 9090 재시도) */
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ??
-  (typeof window !== "undefined" ? `${location.protocol}//${location.hostname}:9090` : "");
+// 무조건 프록시 사용
+const API_BASE = "/backend";
+
 
 async function fetchApi(path: string, init?: RequestInit) {
   const url = `${API_BASE}${path}`;

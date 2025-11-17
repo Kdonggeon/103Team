@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 // ✅ 환경변수 없을 때도 자동으로 백엔드(9090)로 붙도록 폴백
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ??
-  (typeof window !== "undefined" ? `${location.protocol}//${location.hostname}:9090` : "");
+const API_BASE = "/backend";
+
 
 // ✅ Next 404 HTML을 받았을 때 9090으로 한 번 더 재시도하는 래퍼
 async function fetchApi(path: string, init: RequestInit) {

@@ -9,7 +9,8 @@ type LoginSession = { role: Role; username: string; name?: string; token?: strin
 type AttendanceRow = { classId: string; className: string; date: string; status: string; checkInTime?: string };
 
 /** 유틸 */
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.trim() || "/backend";
+const API_BASE = "/backend";
+
 async function apiGet<T>(path: string, token?: string): Promise<T> {
   const r = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },

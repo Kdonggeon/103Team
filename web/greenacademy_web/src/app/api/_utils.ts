@@ -2,17 +2,24 @@ import { NextResponse } from "next/server";
 
 /**
  * 백엔드 베이스 URL
- * 1순위: LOGIN_API_BASE (서버용, Vercel에 http://13.217.211.242:9090 처럼 세팅)
+ * 1순위: LOGIN_API_BASE (서버용, Vercel 등에서 http://13.217.211.242:9090 처럼 세팅)
  * 2순위: NEXT_PUBLIC_API_BASE (없으면)
- * 3순위: 개발용 localhost:9090
+ * 👉 더 이상 localhost 하드코딩 없음
  */
-export const API_BASE =
-  process.env.LOGIN_API_BASE ??
-  process.env.NEXT_PUBLIC_API_BASE ??
-  "http://localhost:9090";
+const RAW_API_BASE =
+  process.env.LOGIN_API_BASE ?? process.env.NEXT_PUBLIC_API_BASE ?? "";
 
+export const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+
+/**
+ * 공통 POST 프록시
+ */
 export async function proxyJsonPost(upstreamPath: string, req: Request) {
   try {
+    if (!API_BASE) {
+      return new NextResponse("API_BASE not configured", { status: 500 });
+    }
+
     const bodyText = await req.text(); // 요청 바디 그대로 전달
 
     const upstream = await fetch(`${API_BASE}${upstreamPath}`, {

@@ -11,7 +11,8 @@ type StudentDetail = Record<string, any>;
 
 /** ===== API 유틸 ===== */
 const RAW = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
-const API_BASE = RAW || "/backend";
+const API_BASE = "/backend";
+
 
 async function api<T>(path: string, opts?: RequestInit & { token?: string }): Promise<T> {
   const { token, ...rest } = opts || {};

@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 
 // ✅ 우선순위
-// 1) LOGIN_API_BASE (서버용, Vercel에 이걸 `http://13.217.211.242:9090` 같은 걸로 세팅)
+// 1) LOGIN_API_BASE (서버용, Vercel 같은 데서 http://13.217.211.242:9090 처럼 세팅)
 // 2) NEXT_PUBLIC_API_BASE (프론트에서 쓰는 값 재활용)
-// 3) 없으면 개발용 localhost:9090
-const API_BASE =
-  process.env.LOGIN_API_BASE ??
-  process.env.NEXT_PUBLIC_API_BASE ;
+const RAW_API_BASE =
+  process.env.LOGIN_API_BASE ?? process.env.NEXT_PUBLIC_API_BASE ?? "";
+
+// 뒤에 슬래시 여러 개 있으면 제거
+const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
 
 export async function POST(req: Request) {
   try {
+    if (!API_BASE) {
+      return new NextResponse("API_BASE not configured", { status: 500 });
+    }
+
     const body = await req.json(); // { username, password, fcmToken? }
     const payload = body;
 
@@ -26,8 +31,7 @@ export async function POST(req: Request) {
       return new NextResponse(raw || "로그인 실패", { status: upstream.status });
     }
 
-    // 1) 백엔드가 세션/리프레시 등을 Set-Cookie로 준 경우 → 그대로 전달
-    const setCookie = upstream.headers.get("set-cookie");
+    // 응답 생성
     const res = new NextResponse(raw || "{}", {
       status: 200,
       headers: {
@@ -36,16 +40,18 @@ export async function POST(req: Request) {
       },
     });
 
-    if (setCookie) {
+    // 1) 백엔드가 Set-Cookie를 준 경우 → 그대로 전달
+    const setCookieHeader = upstream.headers.get("set-cookie");
+    if (setCookieHeader) {
       const cookies =
-        upstream.headers.getSetCookie?.() ??
-        setCookie.split(/,(?=\s*[a-zA-Z0-9_\-]+=)/);
+        (upstream.headers as any).getSetCookie?.() ??
+        setCookieHeader.split(/,(?=\s*[a-zA-Z0-9_\-]+=)/);
 
       for (const ck of cookies) {
         res.headers.append("set-cookie", ck);
       }
     } else {
-      // 2) 토큰 JSON으로 내려주는 경우 → 우리 쪽에서 쿠키로 심기
+      // 2) 토큰을 JSON으로 내려주는 경우 → 여기서 쿠키 심기 (옵션)
       try {
         const data = raw ? JSON.parse(raw) : {};
         if (data?.token) {

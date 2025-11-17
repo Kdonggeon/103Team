@@ -10,7 +10,8 @@ type Role = "parent" | "student" | "teacher" | "director";
 type LoginSession = { role: Role; username: string; name?: string; token?: string; academyNumbers?: number[] };
 type TeacherDetail = Record<string, any>;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.trim() || "/backend";
+const API_BASE = "/backend";
+
 
 function readLogin(): LoginSession | null {
   try { const raw = localStorage.getItem("login"); return raw ? JSON.parse(raw) : null; } catch { return null; }

@@ -18,7 +18,8 @@ type ClassInfo = {
 
 /** 유틸 */
 const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
-const API_BASE = RAW_BASE.length > 0 ? RAW_BASE : "/backend";
+const API_BASE = "/backend";
+
 
 async function apiGet<T>(path: string, token?: string): Promise<T> {
   const url = `${API_BASE}${path}`;
