@@ -28,7 +28,8 @@ type AttendanceRow = {
 };
 
 /** ===== 유틸 ===== */
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.trim() || "/backend";
+const API_BASE = "/backend";
+
 
 // 공통 GET
 async function apiGet<T>(path: string, token?: string): Promise<T> {

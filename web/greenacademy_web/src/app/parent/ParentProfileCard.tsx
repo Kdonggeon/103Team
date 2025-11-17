@@ -21,7 +21,8 @@ type ChildSummary = {
 };
 
 /** ===== API 유틸 ===== */
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/backend";
+const API_BASE = "/backend";
+
 
 async function api<T>(path: string, opts?: RequestInit & { token?: string }): Promise<T> {
   const { token, ...rest } = opts || {};

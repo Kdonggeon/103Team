@@ -56,7 +56,8 @@ type QnaAnswer = IdLike & {
   createdAt?: string;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+const API_BASE = "/backend";
+
 
 /* ======================= 상수/스토리지 ======================= */
 const CLOCK_SKEW_MS = 5000;

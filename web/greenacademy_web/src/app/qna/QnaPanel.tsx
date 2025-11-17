@@ -31,7 +31,8 @@ type QnaPanelProps = {
 type IntervalHandle = ReturnType<typeof setInterval> | null;
 
 // 🔹 API BASE (학부모 자녀 이름 조회용)
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+const API_BASE = "/backend";
+
 
 // 🔹 공용 GET 유틸
 async function apiGet<T>(url: string, token?: string): Promise<T> {
