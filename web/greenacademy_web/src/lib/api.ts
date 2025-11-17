@@ -26,9 +26,13 @@ export interface LoginResponse {
 }
 
 // ---------- 환경설정 ----------
-// next.config.mjs에서 /backend/* 를 백엔드로 rewrite 하므로
-// 기본값은 빈 문자열로 두고, 필요하면 NEXT_PUBLIC_API_BASE로 덮어씀
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+// NoticePanel 과 동일한 기본값으로 통일
+// - 클라이언트: /backend → next.config.mjs에서 백엔드로 프록시
+// - 서버(SSR): localhost:9090 로 직접 호출
+const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE;
+const API_BASE =
+  RAW_BASE ??
+  (typeof window === "undefined" ? "http://localhost:9090" : "/backend");
 
 // ---------- 세션/토큰 유틸 ----------
 type SavedSession = {
@@ -96,23 +100,24 @@ function isFormData(body: unknown): body is FormData {
   return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
-// ✅ next.config.mjs의 rewrites와 맞춘 URL 조립 함수
+// ✅ NoticePanel / next.config.mjs와 맞춘 URL 조립 함수
 function resolveUrl(path: string): string {
   // 절대 URL이면 그대로 사용
   if (/^https?:\/\//i.test(path)) return path;
 
-  // /backend/* 는 Next가 EC2로 프록시하므로 그대로 둠
+  // 이미 /backend/* 로 시작하면 그대로 사용 (rewrite 대상)
   if (path.startsWith("/backend/")) {
     return path;
   }
 
-  // 환경변수로 베이스가 지정된 경우 (예: 로컬에서 직접 백엔드 붙일 때)
+  // API_BASE가 지정된 경우 (env 또는 기본값)
   if (API_BASE) {
-    if (path.startsWith("/")) return `${API_BASE}${path}`;
-    return `${API_BASE}/${path}`;
+    const base = API_BASE.replace(/\/+$/, ""); // 끝 슬래시 제거
+    const p = path.startsWith("/") ? path : `/${path}`;
+    return `${base}${p}`;
   }
 
-  // 그 외에는 상대 경로 그대로 (향후 /api 등 다른 rewrite 구성 시 사용 가능)
+  // 이 지점까지 올 일은 거의 없음 (fallback)
   return path;
 }
 
@@ -197,7 +202,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   }
 
   // JSON 이외 컨텐츠는 원문 텍스트 반환(필요 시 호출부에서 처리)
-  return (rawText as unknown) as T;
+  return rawText as unknown as T;
 }
 
 function normalizePhone(phone: string) {
