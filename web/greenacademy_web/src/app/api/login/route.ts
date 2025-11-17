@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 
-const API_BASE = process.env.LOGIN_API_BASE ?? "http://localhost:9090";
+// ✅ 우선순위
+// 1) LOGIN_API_BASE (서버용, Vercel에 이걸 `http://13.217.211.242:9090` 같은 걸로 세팅)
+// 2) NEXT_PUBLIC_API_BASE (프론트에서 쓰는 값 재활용)
+// 3) 없으면 개발용 localhost:9090
+const API_BASE =
+  process.env.LOGIN_API_BASE ??
+  process.env.NEXT_PUBLIC_API_BASE ;
 
 export async function POST(req: Request) {
   try {
@@ -11,8 +17,6 @@ export async function POST(req: Request) {
     const upstream = await fetch(`${API_BASE}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // ⚠️ server-to-server라 credentials는 쿠키 자동 전파와 무관합니다.
-      // 여기서 중요한 건 응답의 Set-Cookie를 우리가 아래에서 브라우저로 전달하는 것!
       body: JSON.stringify(payload),
     });
 
@@ -24,32 +28,27 @@ export async function POST(req: Request) {
 
     // 1) 백엔드가 세션/리프레시 등을 Set-Cookie로 준 경우 → 그대로 전달
     const setCookie = upstream.headers.get("set-cookie");
-    // 일부 서버는 쿠키 여러 개를 다중 헤더로 내려줍니다.
-    // next/server는 다중 쿠키를 append로 전달 가능.
     const res = new NextResponse(raw || "{}", {
       status: 200,
       headers: {
-        "Content-Type": upstream.headers.get("Content-Type") || "application/json",
+        "Content-Type":
+          upstream.headers.get("Content-Type") || "application/json",
       },
     });
 
     if (setCookie) {
-      // 단일 헤더에 다수 쿠키가 ;, , 로 섞여있을 수 있으니 안전하게 분리
-      // (서버 구현에 따라 다름. 여러 개면 보통 여러 개의 set-cookie 헤더로 옴)
-      const cookies = upstream.headers
-        .getSetCookie?.() // Next 15에서는 getSetCookie가 있습니다(있으면 사용)
-        ?? setCookie.split(/,(?=\s*[a-zA-Z0-9_\-]+=)/); // Fallback: 쿠키 경계 기준 split
+      const cookies =
+        upstream.headers.getSetCookie?.() ??
+        setCookie.split(/,(?=\s*[a-zA-Z0-9_\-]+=)/);
 
       for (const ck of cookies) {
         res.headers.append("set-cookie", ck);
       }
     } else {
-      // 2) 백엔드가 JSON으로 토큰을 내려주는 경우 → 우리 쪽에서 쿠키로 심기(선택)
-      // ex) { token: "..." } 형태 지원
+      // 2) 토큰 JSON으로 내려주는 경우 → 우리 쪽에서 쿠키로 심기
       try {
         const data = raw ? JSON.parse(raw) : {};
         if (data?.token) {
-          // 필요 시 속성 조정: prod에선 Secure, SameSite=None 권장(HTTPS 필요)
           res.cookies.set("access_token", data.token, {
             httpOnly: true,
             sameSite: "lax",
@@ -57,7 +56,7 @@ export async function POST(req: Request) {
           });
         }
       } catch {
-        // JSON이 아니라면 패스
+        // JSON 아니면 무시
       }
     }
 

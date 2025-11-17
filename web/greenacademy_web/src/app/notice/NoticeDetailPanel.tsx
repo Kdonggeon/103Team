@@ -3,39 +3,24 @@
 
 import React, { useEffect, useState } from "react";
 
-/** API 베이스 & fetch 래퍼
- * - 브라우저: NEXT_PUBLIC_API_BASE || "/backend"
- * - SSR/기타: NEXT_PUBLIC_API_BASE || "http://localhost:9090"
+/**
+ * API 베이스
+ * - Vercel 배포: NEXT_PUBLIC_API_BASE 없으면 "/backend"
+ *   → next.config.mjs 에서 /backend → EC2(13.217.211.242:9090) 로 프록시
+ * - 로컬 개발: NEXT_PUBLIC_API_BASE= "http://localhost:9090" 같은 식으로 .env에서 직접 지정
  */
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ??
-  (typeof window !== "undefined" ? "/backend" : "http://localhost:9090");
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "/backend").replace(/\/$/, "");
 
 async function fetchApi(path: string, init?: RequestInit) {
-  const url = `${API_BASE}${path}`;
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const url = `${API_BASE}${p}`;
   const opts: RequestInit = {
     credentials: init?.credentials ?? "include",
     ...init,
   };
 
+  // ✅ 더 이상 localhost fallback 없음
   const res = await fetch(url, opts);
-  const ct = res.headers.get("content-type") || "";
-
-  // 🔹 로컬 개발 편의용: Next dev 서버가 404 HTML 주면 localhost:9090으로 한 번 더 시도
-  if (
-    res.status === 404 &&
-    ct.includes("text/html") &&
-    typeof window !== "undefined" &&
-    (location.hostname === "localhost" || location.hostname === "127.0.0.1")
-  ) {
-    try {
-      const devUrl = `http://localhost:9090${path}`;
-      return await fetch(devUrl, opts);
-    } catch {
-      // ignore, 아래에서 기존 res 반환
-    }
-  }
-
   return res;
 }
 
@@ -43,9 +28,8 @@ async function fetchApi(path: string, init?: RequestInit) {
 function abs(src: string) {
   if (!src) return "";
   if (/^https?:\/\//i.test(src)) return src;
-  const base = (API_BASE || "").replace(/\/$/, "");
-  const path = src.startsWith("/") ? src : `/${src}`;
-  return `${base}${path}`;
+  const p = src.startsWith("/") ? src : `/${src}`;
+  return `${API_BASE}${p}`;
 }
 
 /** 타입 */
@@ -56,14 +40,13 @@ type Notice = {
   id: string;
   title: string;
   content: string;
-  author?: string;            // 컨트롤러에서 teacherName으로 매핑됨
+  author?: string;
   academyNumber?: number;
   createdAt?: string;
   classId?: string | null;
   className?: string | null;
-  // 서버에 따라 다를 수 있으니 방어적으로 처리
-  imageUrls?: string[];       // ["https://...","/files/..."]
-  images?: string[];          // 백호환
+  imageUrls?: string[];
+  images?: string[];
 };
 
 function authHeaders(session: Session | null): HeadersInit {
