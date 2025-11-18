@@ -152,10 +152,8 @@ public class RoomController {
     public ResponseEntity<?> checkIn(
             @PathVariable int roomNumber,
             @RequestParam int academyNumber,
-            // QR에서는 seat=2 로 들어오므로 seatNumber/seat 둘 다 받도록
             @RequestParam(name = "seatNumber", required = false) Integer seatNumber,
             @RequestParam(name = "seat",       required = false) Integer seatParam,
-            // QR 자체에는 없고, 앱에서 붙여서 호출해야 함
             @RequestParam(name = "studentId",  required = false) String studentId) {
 
         // 1) studentId 필수 체크
@@ -227,12 +225,16 @@ public class RoomController {
             }
         }
 
-        // 7) 방금 사용한 waiting_room 문서만 삭제
-        ObjectId wrId = wr.getObjectId("_id");
-        mongoTemplate.remove(new Query(Criteria.where("_id").is(wrId)), "waiting_room");
+        // 7) ✅ 방금 사용한 waiting_room 문서만 삭제 (타입 독립적으로)
+        Object wrId = wr.get("_id");
+        if (wrId != null) {
+            Query rmQ = new Query(Criteria.where("_id").is(wrId));
+            mongoTemplate.remove(rmQ, "waiting_room");
+        }
 
         return ResponseEntity.ok("출석 체크 및 좌석 배치 완료");
     }
+
 
     /** waiting_room에서 academyNumber+studentId 일치 문서 1건 조회(필드/타입 혼재 대응) */
     private Document findWaitingRoomDoc(int academyNumber, String studentId) {
