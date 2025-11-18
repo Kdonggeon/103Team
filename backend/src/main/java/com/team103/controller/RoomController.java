@@ -31,7 +31,7 @@ import com.team103.service.SeatBoardService;
 public class RoomController {
 
     private final RoomRepository roomRepository;
-    private final MongoTemplate mongoTemplate; // waiting_room 조회/삭제 및 vectorLayout 갱신용
+    private final MongoTemplate mongoTemplate; // waiting_room 조회/삭제 및 vectorLayout/Seat_Map 갱신용
     private final SeatBoardService seatBoardService; // 출석/좌석판 연동
 
     public RoomController(RoomRepository roomRepository,
@@ -87,12 +87,12 @@ public class RoomController {
                 .set("Checked_In_At", now)
                 .set("Status", "LOBBY"); // Director 화면에서는 "대기/이동/휴식"으로 묶어 보여줌
         mongoTemplate.upsert(
-                new Query(new Criteria().andOperator(
-                        anyStudentId(studentId),
-                        anyAcademyNumber(academyNumber)
-                )),
-                update,
-                "waiting_room"
+            new Query(new Criteria().andOperator(
+                    anyStudentId(studentId),
+                    anyAcademyNumber(academyNumber)
+            )),
+            update,
+            "waiting_room"
         );
 
         // 2) 현재 강의실/수업 기준으로 좌석/출석 상태도 이동 처리
@@ -138,6 +138,10 @@ public class RoomController {
      * - 좌석 배치 성공 후, 방금 조회한 waiting_room 문서(동일 _id)만 삭제
      * - 이미 점유된 좌석이면 409(CONFLICT)
      * - waiting_room 미존재면 412(PRECONDITION_FAILED)
+     *
+     * ✅ 의도된 최종 구조:
+     *   Seat_Map.<roomNumber>.<seatNumber> = studentId
+     *   + rooms.vectorLayout[seatIndex].Student_ID = studentId
      */
     @PutMapping("/{roomNumber}/check-in")
     public ResponseEntity<?> checkIn(
@@ -170,14 +174,14 @@ public class RoomController {
         String seatOccupiedAtField = "vectorLayout." + seatIndex + ".occupiedAt";
 
         Query seatQuery = new Query(new Criteria().andOperator(
-                Criteria.where("Academy_Number").is(academyNumber),
-                Criteria.where("Room_Number").is(roomNumber),
-                // 비어 있을 때만 업데이트(null/미존재/빈문자열 허용)
-                new Criteria().orOperator(
-                        Criteria.where(seatStudentField).exists(false),
-                        Criteria.where(seatStudentField).is(null),
-                        Criteria.where(seatStudentField).is("")
-                )
+            Criteria.where("Academy_Number").is(academyNumber),
+            Criteria.where("Room_Number").is(roomNumber),
+            // 비어 있을 때만 업데이트(null/미존재/빈문자열 허용)
+            new Criteria().orOperator(
+                    Criteria.where(seatStudentField).exists(false),
+                    Criteria.where(seatStudentField).is(null),
+                    Criteria.where(seatStudentField).is("")
+            )
         ));
 
         Update seatUpdate = new Update()
@@ -190,15 +194,23 @@ public class RoomController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 점유된 좌석입니다");
         }
 
-        // 3) (선택) 이 강의실에 currentClass 가 설정된 경우 → 해당 수업 출석을 "출석"으로 마킹 + seatAssignments 업데이트
+        // 3) 이 강의실에 currentClass 가 설정된 경우:
+        //    → (1) 출석/seatAssignments 처리
+        //    → (2) classes.Seat_Map.<roomNumber>.<seatNumber> = studentId 구조로 업데이트
         Room.CurrentClass cc = room.getCurrentClass();
         if (cc != null && cc.getClassId() != null && !cc.getClassId().isBlank()) {
             try {
-                // seatLabel 은 "좌석 번호 문자열"로 사용 (Course.Seat_Map 키와 동일 규칙)
-                String seatLabel = String.valueOf(seatNumber);
-                seatBoardService.assignSeat(cc.getClassId(), null, seatLabel, studentId);
+                String classId   = cc.getClassId();
+                String seatLabel = String.valueOf(seatNumber); // SeatBoardService용 seatLabel
+
+                // 3-1) 출석/seatAssignments (기존 로직 유지)
+                seatBoardService.assignSeat(classId, null, seatLabel, studentId);
+
+                // 3-2) classes 컬렉션의 Seat_Map.<roomNumber>.<seatNumber> = studentId
+                updateCourseSeatMap(classId, roomNumber, seatNumber, studentId);
+
             } catch (Exception e) {
-                // 출석 연동에 실패해도 좌석 배정/웨이팅룸 삭제는 유지
+                // 출석/Seat_Map 연동 실패해도 좌석 배정/웨이팅룸 삭제는 유지
                 e.printStackTrace();
             }
         }
@@ -217,6 +229,50 @@ public class RoomController {
                 anyStudentId(studentId)
         )).limit(1);
         return mongoTemplate.findOne(q, Document.class, "waiting_room");
+    }
+
+    /**
+     * ✅ Seat_Map.<roomNumber>.<seatNumber> = studentId 구조로 classes 컬렉션 업데이트
+     *
+     * 예)
+     *   Class_ID = "class1763..."
+     *   roomNumber = 2063
+     *   seatNumber = 2
+     *
+     * 결과)
+     *   Seat_Map: {
+     *     "2063": {
+     *       "2": "dlgkrtod"
+     *     }
+     *   }
+     *
+     * classId 가 Class_ID 인지, Mongo _id 인지 모를 수 있으니까 둘 다 매칭 시도
+     */
+    private void updateCourseSeatMap(String classId, int roomNumber, int seatNumber, String studentId) {
+        if (classId == null || classId.isBlank()) return;
+
+        String roomKey = String.valueOf(roomNumber);   // "2063"
+        String seatKey = String.valueOf(seatNumber);   // "2"
+        String path    = "Seat_Map." + roomKey + "." + seatKey;
+
+        List<Criteria> ors = new ArrayList<>();
+        // 1) Class_ID == classId
+        ors.add(Criteria.where("Class_ID").is(classId));
+
+        // 2) _id == classId (ObjectId 가능성 + String 가능성 둘 다)
+        try {
+            ObjectId oid = new ObjectId(classId);
+            ors.add(Criteria.where("_id").is(oid));
+        } catch (Exception ignore) {
+            // classId가 ObjectId 형식이 아니면 String 비교도 한 번 시도
+            ors.add(Criteria.where("_id").is(classId));
+        }
+
+        Query q = new Query(new Criteria().orOperator(ors.toArray(new Criteria[0])));
+        Update u = new Update().set(path, studentId);
+
+        // 컬렉션 이름: "classes"
+        mongoTemplate.updateFirst(q, u, "classes");
     }
 
     /* --------- criteria helpers --------- */
