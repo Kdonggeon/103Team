@@ -64,7 +64,7 @@ export default function AccountDeletePage() {
     setLoading(true);
     setMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/api/account/delete`, {
+      const res = await fetch(`/backend/api/account/delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
