@@ -1,3 +1,4 @@
+// C:\project\103Team-sub\backend\src\main\java\com\team103\controller\TeacherController.java
 package com.team103.controller;
 
 import com.team103.dto.FindIdRequest;
@@ -5,7 +6,6 @@ import com.team103.model.Teacher;
 import com.team103.repository.AttendanceRepository;
 import com.team103.repository.CourseRepository;
 import com.team103.repository.TeacherRepository;
-
 
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,9 +31,10 @@ public class TeacherController {
     private final PasswordEncoder passwordEncoder;
     private final MongoTemplate mongoTemplate;
 
-    @Autowired private CourseRepository courseRepo;       // 기존 필드 유지 (다른 곳에서 참조 가능성)
-    @Autowired private AttendanceRepository attendanceRepo;
-
+    @Autowired
+    private CourseRepository courseRepo;       // 기존 필드 유지
+    @Autowired
+    private AttendanceRepository attendanceRepo;
 
     @Autowired
     public TeacherController(TeacherRepository teacherRepo,
@@ -67,6 +68,82 @@ public class TeacherController {
         return (t == null) ? ResponseEntity.notFound().build() : ResponseEntity.ok(t);
     }
 
+    /** 🔹 교사 기본 정보/소속 학원 업데이트 (프로필 수정에서 사용) */
+    @PutMapping("/{teacherId}")
+    public ResponseEntity<Teacher> updateTeacher(@PathVariable String teacherId,
+                                                 @RequestBody Map<String, Object> payload) {
+        Teacher t = teacherRepo.findByTeacherId(teacherId);
+        if (t == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // 이름
+        Object nameObj = payload.get("teacherName");
+        if (nameObj instanceof String name && !name.isBlank()) {
+            t.setTeacherName(name);
+        }
+
+        // 연락처
+        Object phoneObj = payload.get("teacherPhoneNumber");
+        if (phoneObj instanceof String phone && !phone.isBlank()) {
+            t.setTeacherPhoneNumber(phone);
+        }
+
+        // 학원 번호(단일) -> 리스트에 추가
+        Object academyObj = payload.get("academyNumber");
+        Integer academyNumber = null;
+        if (academyObj instanceof Number) {
+            academyNumber = ((Number) academyObj).intValue();
+        } else if (academyObj instanceof String s && !s.isBlank()) {
+            try {
+                academyNumber = Integer.parseInt(s.trim());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        if (academyNumber != null && academyNumber > 0) {
+            // Teacher 모델에 academyNumbers(List<Integer>)가 있다고 가정
+            List<Integer> current = t.getAcademyNumbers();
+            if (current == null) current = new ArrayList<>();
+            if (!current.contains(academyNumber)) {
+                current.add(academyNumber);
+            }
+            t.setAcademyNumbers(current);
+        }
+
+        Teacher saved = teacherRepo.save(t);
+        return ResponseEntity.ok(saved);
+    }
+
+    /** 🔹 교사 소속 학원 해제 (특정 학원번호 제거) */
+    @PatchMapping("/{teacherId}/academies/detach")
+    public ResponseEntity<Teacher> detachAcademy(@PathVariable String teacherId,
+                                                 @RequestParam("academyNumber") Integer academyNumber) {
+        if (academyNumber == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "academyNumber is required");
+        }
+
+        Teacher t = teacherRepo.findByTeacherId(teacherId);
+        if (t == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<Integer> current = t.getAcademyNumbers();
+        if (current == null || current.isEmpty()) {
+            // 이미 아무 소속도 없으면 그대로 반환
+            return ResponseEntity.ok(t);
+        }
+
+        List<Integer> next = current.stream()
+                .filter(n -> !Objects.equals(n, academyNumber))
+                .distinct()
+                .collect(Collectors.toList());
+
+        t.setAcademyNumbers(next);
+        Teacher saved = teacherRepo.save(t);
+        return ResponseEntity.ok(saved);
+    }
+
     /** FCM 토큰 업데이트 */
     @PutMapping("/{teacherId}/fcm-token")
     public ResponseEntity<Void> updateFcmToken(@PathVariable String teacherId,
@@ -80,15 +157,14 @@ public class TeacherController {
 
     /** 아이디 찾기 (이름 + 전화번호) */
     @PostMapping("/find_id")
-    public ResponseEntity<Map<String,String>> findTeacherId(@RequestBody FindIdRequest req) {
+    public ResponseEntity<Map<String, String>> findTeacherId(@RequestBody FindIdRequest req) {
         String phone = req.normalizedPhone();
         Teacher t = teacherRepo.findByTeacherNameAndTeacherPhoneNumber(req.getName(), phone);
         if (t == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "not found");
         return ResponseEntity.ok(Map.of("username", t.getTeacherId()));
     }
 
-
-    /** ⬇ 신규: 교사 과목 조회 (classes 컬렉션 기반) */
+    /** ⬇ 교사 과목 조회 (classes 컬렉션 기반) */
     @GetMapping("/{teacherId}/subjects")
     public ResponseEntity<Map<String, Object>> getSubjectsOfTeacher(
             @PathVariable String teacherId,
@@ -113,7 +189,7 @@ public class TeacherController {
         return ResponseEntity.ok(body);
     }
 
-    /** ⬇ 신규: 복합 조건 검색 (id/name/subject/academyNumber) + subjects/academyNumbers 집계 포함 */
+    /** ⬇ 복합 조건 검색 (id/name/subject/academyNumber) + subjects/academyNumbers 집계 포함 */
     @GetMapping("/search")
     public ResponseEntity<List<Map<String, Object>>> searchTeachers(
             @RequestParam(value = "teacherId", required = false) String teacherIdQ,
@@ -121,9 +197,9 @@ public class TeacherController {
             @RequestParam(value = "subject", required = false) String subjectQ,
             @RequestParam(value = "academyNumber", required = false) Integer academyNumber) {
 
-        final String idq   = (teacherIdQ == null) ? null : teacherIdQ.trim().toLowerCase();
+        final String idq = (teacherIdQ == null) ? null : teacherIdQ.trim().toLowerCase();
         final String nameq = (nameQ == null) ? null : nameQ.trim().toLowerCase();
-        final String subj  = (subjectQ == null) ? null : subjectQ.trim();
+        final String subj = (subjectQ == null) ? null : subjectQ.trim();
 
         // 1) 1차: Teacher 컬렉션에서 id/name 필터
         List<Teacher> teachers = teacherRepo.findAll();
@@ -170,9 +246,11 @@ public class TeacherController {
                 Object an = d.get("Academy_Number");
                 if (an != null) {
                     try {
-                        int v = (an instanceof Number) ? ((Number) an).intValue() : Integer.parseInt(String.valueOf(an));
+                        int v = (an instanceof Number) ? ((Number) an).intValue()
+                                : Integer.parseInt(String.valueOf(an));
                         academyByTid.computeIfAbsent(tid, k -> new LinkedHashSet<>()).add(v);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
             }
 
@@ -209,4 +287,10 @@ public class TeacherController {
 
         return ResponseEntity.ok(out);
     }
+    
+    @GetMapping("/_debug/detach-test")
+    public ResponseEntity<String> debugDetach() {
+        return ResponseEntity.ok("TeacherController detach DEBUG OK");
+    }
+
 }

@@ -12,9 +12,13 @@ type TeacherDetail = Record<string, any>;
 
 const API_BASE = "/backend";
 
-
 function readLogin(): LoginSession | null {
-  try { const raw = localStorage.getItem("login"); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  try {
+    const raw = localStorage.getItem("login");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 function isEmpty(v: any) {
   if (v === null || v === undefined) return true;
@@ -41,8 +45,17 @@ function unwrapDetail(d: any) {
   if (Array.isArray(d)) return firstObject(d[0], d.find((x) => x && typeof x === "object"));
   return firstObject(
     d,
-    d.data, d.result, d.payload, d.body, d.response,
-    d.teacher, d.Teacher, d.user, d.profile, d.details, d.detail,
+    d.data,
+    d.result,
+    d.payload,
+    d.body,
+    d.response,
+    d.teacher,
+    d.Teacher,
+    d.user,
+    d.profile,
+    d.details,
+    d.detail,
     Array.isArray(d.content) ? d.content[0] : d.content
   );
 }
@@ -85,7 +98,9 @@ function useLockBodyScroll(active: boolean) {
     if (!active) return;
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = original; };
+    return () => {
+      document.body.style.overflow = original;
+    };
   }, [active]);
 }
 
@@ -96,14 +111,16 @@ function ProfileEditModal({
 }: {
   open: boolean;
   onClose: () => void;
-  src?: string; // 필요시 쿼리스트링 부여 가능 (/settings/profile?inModal=1 등)
+  src?: string;
 }) {
   useLockBodyScroll(open);
 
   // ESC 닫기
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
@@ -122,10 +139,7 @@ function ProfileEditModal({
       aria-label="내 정보 수정"
     >
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={onClose} />
       {/* Dialog panel */}
       <div className="relative w-full max-w-[980px] h-[85vh] rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 overflow-hidden">
         {/* Header */}
@@ -144,15 +158,9 @@ function ProfileEditModal({
           </button>
         </div>
 
-        {/* Body: 동일 경로를 iframe으로 로드 (세션/토큰은 동일 출처로 공유) */}
+        {/* Body */}
         <div className="w-full h-[calc(85vh-3rem)] bg-white">
-          <iframe
-            src={src}
-            title="내 정보 수정"
-            className="w-full h-full"
-            // same-origin 이므로 로컬스토리지/쿠키 접근 및 인증 그대로 동작
-            // sandbox는 주지 않음 (동일 출처 전체 기능 필요)
-          />
+          <iframe src={src} title="내 정보 수정" className="w-full h-full" />
         </div>
       </div>
     </div>,
@@ -177,8 +185,9 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
   const [classesErr, setClassesErr] = useState<string | null>(null);
   const [classesLoading, setClassesLoading] = useState(false);
 
-  // 모달 오픈 상태
+  // 모달/소속 해제 모드
   const [openEdit, setOpenEdit] = useState(false);
+  const [detachMode, setDetachMode] = useState(false);
 
   useEffect(() => {
     if (!teacherId) return;
@@ -186,18 +195,22 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
 
     // 1) 교사 상세
     (async () => {
-      setLoading(true); setErr(null);
+      setLoading(true);
+      setErr(null);
       try {
         const candidates = [
           `/api/teachers/${encodeURIComponent(teacherId)}`,
           `/api/teacher/${encodeURIComponent(teacherId)}`,
           `/api/users/${encodeURIComponent(teacherId)}`,
-          `/api/teachers?teacherId=${encodeURIComponent(teacherId)}`
+          `/api/teachers?teacherId=${encodeURIComponent(teacherId)}`,
         ];
         let found: any = null;
         for (const p of candidates) {
           const d = await tryGetJson(p, token);
-          if (d) { found = d; break; }
+          if (d) {
+            found = d;
+            break;
+          }
         }
         const unwrapped = unwrapDetail(found) ?? {};
         if (!aborted) setDetail(unwrapped);
@@ -210,7 +223,8 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
 
     // 2) 담당 반 목록
     (async () => {
-      setClassesLoading(true); setClassesErr(null);
+      setClassesLoading(true);
+      setClassesErr(null);
       try {
         const list = await api.listMyClasses(teacherId);
         if (!aborted) setClasses(list || []);
@@ -221,7 +235,9 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
       }
     })();
 
-    return () => { aborted = true; };
+    return () => {
+      aborted = true;
+    };
   }, [teacherId, token]);
 
   /** 표기 원천 */
@@ -229,24 +245,99 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
 
   // === 값 매핑(정확 키 우선) ===
   const TEACHER_NAME =
-    pick(src, ["Teacher_Name","teacherName","name","displayName"]) ??
-    user?.name ?? login?.name ?? teacherId;
+    pick(src, ["Teacher_Name", "teacherName", "name", "displayName"]) ?? user?.name ?? login?.name ?? teacherId;
 
-  const TEACHER_ID =
-    pick(src, ["Teacher_ID","teacherId","username","userId"]) ?? teacherId;
+  const TEACHER_ID = pick(src, ["Teacher_ID", "teacherId", "username", "userId"]) ?? teacherId;
 
-  const TEACHER_PHONE =
-    pick(src, ["Teacher_Phone_Number","phoneNumber","phone","mobile"]) ?? "—";
+  const TEACHER_PHONE = pick(src, ["Teacher_Phone_Number", "phoneNumber", "phone", "mobile"]) ?? "—";
 
   // 학원번호: 배열로 모두 표시
   const ACADEMY_NUMBERS: number[] = useMemo(() => {
     const v =
-      pick(src, ["Academy_Number","Academy_Numbers","academyNumbers","academies"]) ??
-      user?.academyNumbers ?? login?.academyNumbers ?? [];
-    const arr = Array.isArray(v) ? v : (v == null ? [] : [v]);
+      pick(src, ["Academy_Number", "Academy_Numbers", "academyNumbers", "academies"]) ??
+      user?.academyNumbers ??
+      login?.academyNumbers ??
+      [];
+    const arr = Array.isArray(v) ? v : v == null ? [] : [v];
     const nums = arr.map((x: any) => Number(x)).filter(Number.isFinite);
     return Array.from(new Set(nums));
   }, [src, user, login]);
+
+  /** 🔹 소속 해제 호출 */
+  const handleDetach = async (academyNumber: number) => {
+    if (!teacherId || !academyNumber) return;
+    const ok = window.confirm(`학원 #${academyNumber} 소속을 해제할까요?\n(담당 반 설정 등에도 영향이 있을 수 있습니다.)`);
+    if (!ok) return;
+
+    try {
+      const url = `${API_BASE}/api/teachers/${encodeURIComponent(
+        teacherId
+      )}/academies/detach?academyNumber=${encodeURIComponent(academyNumber)}`;
+
+      // 실제 어떤 URL로 나가는지 확인용 로그
+      console.log("DETACH PATCH →", url);
+
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const text = await res.text();
+
+      if (!res.ok) {
+        alert(`소속 해제에 실패했습니다.\n${text || `${res.status} ${res.statusText}`}`);
+        return;
+      }
+
+      // 1) 백엔드에서 Teacher 전체를 돌려주면 그대로 detail 갱신
+      let updated: any = {};
+      try {
+        updated = text ? JSON.parse(text) : {};
+      } catch {
+        updated = {};
+      }
+      if (updated && typeof updated === "object" && Object.keys(updated).length > 0) {
+        setDetail(updated);
+      } else {
+        // 2) 혹시 모를 경우 로컬 detail에서만 academyNumbers 제거
+        setDetail((prev) => {
+          if (!prev) return prev;
+          const next: any = { ...prev };
+          const raw = next.academyNumbers ?? next.Academy_Numbers ?? next.academies ?? [];
+          const arr = (Array.isArray(raw) ? raw : [raw])
+            .map((x: any) => Number(x))
+            .filter((n: number) => Number.isFinite(n) && n !== academyNumber);
+          if ("academyNumbers" in next) next.academyNumbers = arr;
+          if ("Academy_Numbers" in next) next.Academy_Numbers = arr;
+          if ("academies" in next) next.academies = arr;
+          return next;
+        });
+      }
+
+      // 3) 세션(login)에도 반영해서 왼쪽 사이드바 학원번호도 맞춰줌
+      try {
+        const raw = localStorage.getItem("login");
+        if (raw) {
+          const s = JSON.parse(raw);
+          const acas: number[] = Array.isArray(s.academyNumbers)
+            ? s.academyNumbers.filter((n: number) => n !== academyNumber)
+            : [];
+          localStorage.setItem("login", JSON.stringify({ ...s, academyNumbers: acas }));
+        }
+      } catch {
+        // 세션 갱신 실패해도 치명적이진 않으니 무시
+      }
+
+      alert(`학원 #${academyNumber} 소속이 해제되었습니다.`);
+
+      // 4) 요청대로 전체 새로고침
+      window.location.reload();
+    } catch (e: any) {
+      alert(`소속 해제에 실패했습니다.\n${e?.message ?? String(e)}`);
+    }
+  };
 
   return (
     <>
@@ -262,13 +353,28 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
               <div className="text-sm text-gray-600">아이디: {String(TEACHER_ID)}</div>
             </div>
           </div>
-          <button
-            onClick={() => setOpenEdit(true)}
-            className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm hover:bg-emerald-700 active:scale-[0.99] transition"
-            type="button"
-          >
-            내 정보 수정
-          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDetachMode((p) => !p)}
+              className={`px-3 py-2 rounded-xl text-sm font-medium border ${
+                detachMode
+                  ? "border-red-500 text-red-600 bg-red-50"
+                  : "border-gray-300 text-gray-800 bg-white hover:bg-gray-50"
+              }`}
+            >
+              {detachMode ? "소속 해제 취소" : "소속 해제"}
+            </button>
+
+            <button
+              onClick={() => setOpenEdit(true)}
+              className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm hover:bg-emerald-700 active:scale-[0.99] transition"
+              type="button"
+            >
+              내 정보 수정
+            </button>
+          </div>
         </div>
 
         {/* 본문 — 한글 라벨 + 다중 학원번호 */}
@@ -294,7 +400,17 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
                           key={n}
                           className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium bg-gray-100 text-gray-800 ring-1 ring-gray-200"
                         >
-                          #{n}
+                          <span>#{n}</span>
+                          {detachMode && (
+                            <button
+                              type="button"
+                              onClick={() => handleDetach(n)}
+                              className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-red-100"
+                              aria-label={`학원 #${n} 소속 해제`}
+                            >
+                              <span className="text-[10px] leading-none text-red-600">✕</span>
+                            </button>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -331,12 +447,8 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
         </section>
       </div>
 
-      {/* 수정 모달: 기존 /settings/profile 페이지를 그대로 오버레이로 표시 */}
-      <ProfileEditModal
-        open={openEdit}
-        onClose={() => setOpenEdit(false)}
-        src="/settings/profile"
-      />
+      {/* 수정 모달 */}
+      <ProfileEditModal open={openEdit} onClose={() => setOpenEdit(false)} src="/settings/profile" />
     </>
   );
 }

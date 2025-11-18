@@ -51,7 +51,13 @@ type AttendanceRow = {
   status: "PRESENT" | "LATE" | "ABSENT" | string;
 };
 
-type Notice = { id: string; title: string; createdAt: string };
+type Notice = {
+  id: string;
+  title: string;
+  createdAt: string;
+  academyNumbers?: number[]; // 배열 스키마
+  academyNumber?: number;    // 단일 스키마(혼재 대비)
+};
 
 /** 유틸 */
 // ❗ 빈 값이면 /backend 로 폴백
@@ -82,6 +88,24 @@ async function apiGet<T>(url: string, token?: string): Promise<T> {
   });
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
   return r.json();
+}
+
+/** 숫자 정규화 (공지 학원번호용) */
+function normAcadNum(v: any): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 공지에서 학원번호 배열 추출 (단일/배열 스키마 모두 지원) */
+function getNoticeAcademies(n: Notice): number[] {
+  const nums = Array.isArray(n.academyNumbers)
+    ? n.academyNumbers
+    : typeof n.academyNumber === "number"
+    ? [n.academyNumber]
+    : [];
+  return nums
+    .map((v) => normAcadNum(v))
+    .filter((v): v is number => v !== null);
 }
 
 /** 역할 문자열 정규화(부분일치) */
@@ -574,37 +598,61 @@ export default function FamilyPortalClient() {
   // ✅ 공지 상세용 noticeId (URL 파라미터)
   const noticeIdParam = searchParams.get("noticeId");
 
-  // 세션 로딩
+  // 🔄 세션 로딩 + login 변경 시 재적용
   useEffect(() => {
-    const raw = localStorage.getItem("login");
-    if (!raw) {
-      router.replace("/login");
-      return;
-    }
-    try {
-      const parsed: any = JSON.parse(raw);
-      const nums =
-        Array.isArray(parsed?.academyNumbers)
-          ? parsed.academyNumbers
-              .map((n: any) => Number(n))
-              .filter((n: number) => Number.isFinite(n))
-          : [];
-      const normalized: LoginSession = {
-        role: normalizeRole(parsed?.role),
-        username: parsed?.username ?? "",
-        name: parsed?.name ?? undefined,
-        token: parsed?.token ?? undefined,
-        childStudentId: parsed?.childStudentId ?? null,
-        academyNumbers: nums,
-      };
-      setUser(normalized);
-    } catch {
-      localStorage.removeItem("login");
-      router.replace("/login");
-      return;
-    } finally {
-      setReady(true);
-    }
+    if (typeof window === "undefined") return;
+
+    const applyLogin = () => {
+      const raw = localStorage.getItem("login");
+      if (!raw) {
+        router.replace("/login");
+        return;
+      }
+      try {
+        const parsed: any = JSON.parse(raw);
+        const nums =
+          Array.isArray(parsed?.academyNumbers)
+            ? parsed.academyNumbers
+                .map((n: any) => Number(n))
+                .filter((n: number) => Number.isFinite(n))
+            : [];
+        const normalized: LoginSession = {
+          role: normalizeRole(parsed?.role),
+          username: parsed?.username ?? "",
+          name: parsed?.name ?? undefined,
+          token: parsed?.token ?? undefined,
+          childStudentId: parsed?.childStudentId ?? null,
+          academyNumbers: nums,
+        };
+        setUser(normalized);
+        setReady(true);
+      } catch {
+        localStorage.removeItem("login");
+        router.replace("/login");
+      }
+    };
+
+    // 처음 한 번
+    applyLogin();
+
+    // 다른 탭에서 login이 바뀐 경우
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "login") {
+        applyLogin();
+      }
+    };
+
+    // 같은 탭에서 /settings/profile 등에서 수정 후 다시 돌아왔을 때
+    const onFocus = () => {
+      applyLogin();
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [router]);
 
   // 학원번호 초기값
@@ -688,6 +736,7 @@ export default function FamilyPortalClient() {
     if (activeTab !== "종합정보") return;
 
     (async () => {
+      // 교사/원장은 종합정보 위젯 없음
       if (user.role === "teacher" || user.role === "director") {
         setLoading(false);
         setErr(null);
@@ -705,6 +754,7 @@ export default function FamilyPortalClient() {
         const targetStudentId =
           user.role === "parent" ? user.childStudentId || user.username : user.username;
 
+        // 출결
         const rows = await apiGet<AttendanceRow[]>(
           `${API_BASE}/api/students/${encodeURIComponent(targetStudentId)}/attendance`,
           user.token
@@ -724,12 +774,28 @@ export default function FamilyPortalClient() {
           }))
         );
 
+        // ✅ 최근 공지: 로그인한 학생/학부모의 학원번호에 속한 공지만 필터
         try {
-          const ns = await apiGet<Notice[]>(
+          const nsRaw = await apiGet<Notice[]>(
             `${API_BASE}/api/notices?scope=student&limit=7`,
             user.token
           );
-          setNotices(ns);
+
+          const allowed = new Set<number>(
+            (user.academyNumbers ?? [])
+              .map((n) => normAcadNum(n))
+              .filter((n): n is number => n !== null)
+          );
+
+          const filtered = allowed.size
+            ? nsRaw.filter((n) => {
+                const nums = getNoticeAcademies(n);
+                if (nums.length === 0) return false;
+                return nums.some((x) => allowed.has(x));
+              })
+            : [];
+
+          setNotices(filtered.slice(0, 7));
         } catch {
           setNotices([]);
         }
@@ -907,10 +973,9 @@ export default function FamilyPortalClient() {
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                {/* <span className="px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-900 font-medium">
-                  오늘
-                </span> */}
+                {/* 상단 배지 등 필요하면 복원 */}
               </div>
+              {/* 학생/학부모 통계 카드 필요하면 주석 해제 */}
               {/* {(user?.role === "student" || user?.role === "parent") && (
                 <div className="flex gap-3">
                   <StatCard title="금일 출석" value={present} />

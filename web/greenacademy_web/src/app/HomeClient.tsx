@@ -1,4 +1,5 @@
-// src/app/page.tsx
+// src/app/HomeCilent.tsx  (파일명은 기존 그대로)
+
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -293,7 +294,15 @@ function SidebarProfile({
       : "bg-gray-100 text-gray-700 ring-gray-200";
 
   const roleLabel =
-    role === "teacher" ? "선생님" : role === "director" ? "원장" : role === "parent" ? "학부모" : role === "student" ? "학생" : role ?? "";
+    role === "teacher"
+      ? "선생님"
+      : role === "director"
+      ? "원장"
+      : role === "parent"
+      ? "학부모"
+      : role === "student"
+      ? "학생"
+      : role ?? "";
 
   const academies =
     Array.isArray(user?.academyNumbers) && user!.academyNumbers!.length > 0 ? user!.academyNumbers! : [];
@@ -403,7 +412,7 @@ function WaitingList({
         {!loading &&
           !error &&
           list.map((w, i) => (
-            <div key={i} className="px-3 py-2 border-b last:border-none text-sm bg-white">
+            <div key={i} className="px-3 py-2 border-b last:border-none text-sm bg_WHITE">
               <div className="font-medium text-gray-900">{w.label}</div>
               {w.sub && <div className="text-xs text-gray-600">{w.sub}</div>}
             </div>
@@ -487,12 +496,16 @@ const formatSubtitle = (c: Partial<RawClass>) => {
           .map(
             (d) =>
               (
-                { MON: "월", TUE: "화", WED: "수", THU: "목", FRI: "금", SAT: "토", SUN: "일" } as Record<string, string>
+                { MON: "월", TUE: "화", WED: "수", THU: "목", FRI: "금", SAT: "토", SUN: "일" } as Record<
+                  string,
+                  string
+                >
               )[String(d).toUpperCase()] || d
           )
           .join("·")
       : "";
-  const timeLabel = c.startTime && c.endTime ? `${c.startTime}–${c.endTime}` : c.startTime ? `${c.startTime}~` : "";
+  const timeLabel =
+    c.startTime && c.endTime ? `${c.startTime}–${c.endTime}` : c.startTime ? `${c.startTime}~` : "";
   const room = c.roomNumber != null ? ` · #${c.roomNumber}` : "";
   const combo = [dayLabel, timeLabel].filter(Boolean).join(" ");
   return combo ? `${combo}${room}` : room ? String(room).slice(3) : undefined;
@@ -569,14 +582,33 @@ export default function GreenAcademyDashboard() {
   const [forcedQnaId, setForcedQnaId] = useState<string | null>(null);
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
 
-  /** 세션 로드 & 가드 */
+  /** 🔥 세션 로드 & 가드 (localStorage("login") 우선 반영) */
   useEffect(() => {
-    const s = getSession();
-    if (!s) {
+    // 1) 기본 세션 가져오기 (쿠키/서버 기반)
+    let base = getSession() as LoginResponse | null;
+
+    // 2) 클라이언트에서 localStorage("login") 있으면 덮어쓰기
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("login");
+        if (raw) {
+          const stored = JSON.parse(raw) as LoginResponse;
+          // username이 같거나 base가 없으면 stored를 우선 사용
+          if (!base || stored.username === base.username) {
+            base = { ...(base ?? {}), ...stored };
+          }
+        }
+      } catch {
+        // 파싱 실패 시 무시
+      }
+    }
+
+    if (!base) {
       router.replace("/login");
       return;
     }
-    setUser(s);
+
+    setUser(base);
     setReady(true);
   }, [router]);
 
@@ -591,7 +623,6 @@ export default function GreenAcademyDashboard() {
       attendance: "출결확인",
       qna: "Q&A",
       notice: "공지사항",
-      // guide: (제거)
     };
     const label = map[tab.toLowerCase()] as string | undefined;
     if (label) setActiveTab(label);
@@ -758,7 +789,9 @@ export default function GreenAcademyDashboard() {
             ) : (
               <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">종합정보</h2>
-                <p className="text-sm text-gray-700">학생/학부모 대시보드에서는 ‘오늘 일정’과 ‘출석’ 위젯을 표시하지 않습니다.</p>
+                <p className="text-sm text-gray-700">
+                  학생/학부모 대시보드에서는 ‘오늘 일정’과 ‘출석’ 위젯을 표시하지 않습니다.
+                </p>
               </div>
             )}
           </div>
@@ -798,7 +831,7 @@ export default function GreenAcademyDashboard() {
               <QRGeneratorPanel user={user} />
             )}
             {manageMenu === "QR 생성" && !(user?.role === "teacher" || user?.role === "director") && (
-              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+              <div className="rounded-2xl bg_WHITE ring-1 ring-black/5 shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">QR 생성</h2>
                 <p className="text-sm text-gray-700">현재 역할에서는 이 항목을 사용할 수 없습니다.</p>
               </div>
@@ -815,7 +848,7 @@ export default function GreenAcademyDashboard() {
             {user?.role === "teacher" ? (
               <TeacherSchedulePanelInline user={user} />
             ) : (
-              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+              <div className="rounded-2xl bg_WHITE ring-1 ring-black/5 shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">시간표</h2>
                 <p className="text-sm text-gray-700">현재 역할에는 시간표 기능이 준비 중입니다.</p>
               </div>
@@ -826,12 +859,14 @@ export default function GreenAcademyDashboard() {
         {/* QnA */}
         {activeTab === "Q&A" && (
           <div className="space-y-4">
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
+            <div className="rounded-2xl bg_WHITE ring-1 ring-black/5 shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Q&amp;A</h2>
               {user?.role === "teacher" || user?.role === "director" ? (
                 <TeacherQnaPanel questionId={forcedQnaId ?? undefined} />
               ) : academyNumber == null ? (
-                <p className="text-sm text-gray-700">학원번호를 확인할 수 없습니다. 프로필 또는 로그인 정보를 확인해 주세요.</p>
+                <p className="text-sm text-gray-700">
+                  학원번호를 확인할 수 없습니다. 프로필 또는 로그인 정보를 확인해 주세요.
+                </p>
               ) : (
                 <QnaPanel
                   academyNumber={academyNumber}
@@ -856,7 +891,7 @@ export default function GreenAcademyDashboard() {
 /** 통계 카드 (미사용 보관) */
 function StatCard({ title, value }: { title: string; value: number }) {
   return (
-    <div className="rounded-2xl bg-white shadow-sm ring-1 ring-black/5 px-6 py-4 text-center min-w-[220px]">
+    <div className="rounded-2xl bg_WHITE shadow-sm ring-1 ring-black/5 px-6 py-4 text-center min-w-[220px]">
       <div className="text-sm text-gray-700 mb-1">{title}</div>
       <div className="text-2xl font-semibold text-gray-900">{value}</div>
     </div>

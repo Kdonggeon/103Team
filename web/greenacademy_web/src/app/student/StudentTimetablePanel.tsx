@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { getSession } from "@/app/lib/session";
 
 /** 타입 */
 type Role = "parent" | "student" | "teacher" | "director";
@@ -20,7 +21,6 @@ type ClassInfo = {
 const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
 const API_BASE = "/backend";
 
-
 async function apiGet<T>(path: string, token?: string): Promise<T> {
   const url = `${API_BASE}${path}`;
   const r = await fetch(url, {
@@ -38,21 +38,57 @@ async function apiGet<T>(path: string, token?: string): Promise<T> {
 }
 
 function ymd(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
 }
 function dotYmd(d: Date) {
-  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
 }
-function addDays(d: Date, n: number) { const o = new Date(d); o.setDate(o.getDate()+n); return o; }
+function addDays(d: Date, n: number) {
+  const o = new Date(d);
+  o.setDate(o.getDate() + n);
+  return o;
+}
 function startOfWeekMonday(d: Date) {
-  const day = d.getDay(); const diff = (day === 0 ? -6 : 1 - day);
-  const out = new Date(d); out.setDate(d.getDate()+diff); out.setHours(0,0,0,0); return out;
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const out = new Date(d);
+  out.setDate(d.getDate() + diff);
+  out.setHours(0, 0, 0, 0);
+  return out;
 }
 function minutesFromHHMM(s?: string) {
   if (!s) return 0;
   const m = /^(\d{1,2})\s*:\s*(\d{2})$/.exec(String(s).trim());
   if (!m) return 0;
   return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** 날짜 → 요일 인덱스(0~6, 일=0) */
+function dateToDow0to6(ymdString: string): number | null {
+  if (!ymdString) return null;
+  // "2025-11-19" 형태 가정
+  const t = Date.parse(`${ymdString}T00:00:00`);
+  if (Number.isNaN(t)) return null;
+  const d = new Date(t);
+  return d.getDay(); // 0(일)~6(토)
+}
+
+/** Date_Time_Overrides에서 하나 골라 시간 꺼내기 */
+function pickOverrideTime(raw: any): { start?: string; end?: string } {
+  const map = raw?.Date_Time_Overrides ?? raw?.dateTimeOverrides;
+  if (!map || typeof map !== "object") return {};
+  const keys = Object.keys(map);
+  if (!keys.length) return {};
+  // 날짜 오름차순으로 정렬해서 가장 이른 날짜 하나 사용
+  keys.sort();
+  const first = map[keys[0]] ?? {};
+  const start = first.start ?? first.Start ?? undefined;
+  const end = first.end ?? first.End ?? undefined;
+  return { start, end };
 }
 
 /** 날짜 선택 팝오버 */
@@ -72,7 +108,9 @@ function MiniDatePicker({
   const [pos, setPos] = React.useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [val, setVal] = React.useState<string>(() => ymd(value));
 
-  React.useEffect(() => { setVal(ymd(value)); }, [value]);
+  React.useEffect(() => {
+    setVal(ymd(value));
+  }, [value]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -138,7 +176,11 @@ const COLORS = [
   "bg-cyan-200/70 text-cyan-950 ring-cyan-300",
   "bg-fuchsia-200/70 text-fuchsia-950 ring-fuchsia-300",
 ];
-function colorFor(id: string) { let h=0; for (let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return COLORS[h%COLORS.length]; }
+function colorFor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return COLORS[h % COLORS.length];
+}
 
 function dayToNum(v: any): number | null {
   const s = String(v ?? "").trim().toUpperCase();
@@ -147,41 +189,100 @@ function dayToNum(v: any): number | null {
     if (n >= 0 && n <= 6) return n;
     if (n >= 1 && n <= 7) return n === 7 ? 0 : n - 1; // 1~7 → 0~6
   }
-  if (["SUN","일"].some(k=>s.includes(k))) return 0;
-  if (["MON","월"].some(k=>s.includes(k))) return 1;
-  if (["TUE","화"].some(k=>s.includes(k))) return 2;
-  if (["WED","수"].some(k=>s.includes(k))) return 3;
-  if (["THU","목"].some(k=>s.includes(k))) return 4;
-  if (["FRI","금"].some(k=>s.includes(k))) return 5;
-  if (["SAT","토"].some(k=>s.includes(k))) return 6;
+  if (["SUN", "일"].some((k) => s.includes(k))) return 0;
+  if (["MON", "월"].some((k) => s.includes(k))) return 1;
+  if (["TUE", "화"].some((k) => s.includes(k))) return 2;
+  if (["WED", "수"].some((k) => s.includes(k))) return 3;
+  if (["THU", "목"].some((k) => s.includes(k))) return 4;
+  if (["FRI", "금"].some((k) => s.includes(k))) return 5;
+  if (["SAT", "토"].some((k) => s.includes(k))) return 6;
   return null;
 }
 function normalizeDays(any: any): number[] {
   if (
     Array.isArray(any) &&
     any.length === 7 &&
-    any.every(v => v === true || v === false || v === 0 || v === 1 || v === "0" || v === "1")
+    any.every((v) => v === true || v === false || v === 0 || v === 1 || v === "0" || v === "1")
   ) {
-    return any.map((v, i) => (v === true || v === 1 || v === "1") ? i : null)
-              .filter((n): n is number => n !== null);
+    return any
+      .map((v, i) => (v === true || v === 1 || v === "1") ? i : null)
+      .filter((n): n is number => n !== null);
   }
   const arr = Array.isArray(any) ? any : [any];
   const out = arr.map(dayToNum).filter((n): n is number => typeof n === "number");
-  return out.length ? out : []; // 비어 있으면 전 요일 취급
+  return out.length ? out : [];
 }
 
 function normalizeClass(raw: any): ClassInfo | null {
-  const classId   = raw?.Class_ID ?? raw?.classId ?? raw?.ClassId ?? raw?.id ?? raw?.Class_No ?? raw?.class_no;
-  const className = raw?.Class_Name ?? raw?.className ?? raw?.name ?? raw?.Title ?? raw?.title;
+  const classId =
+    raw?.Class_ID ??
+    raw?.classId ??
+    raw?.ClassId ??
+    raw?.id ??
+    raw?.Class_No ??
+    raw?.class_no;
+
+  const className =
+    raw?.Class_Name ??
+    raw?.className ??
+    raw?.name ??
+    raw?.Title ??
+    raw?.title;
+
   if (!classId || !className) return null;
-  const days = normalizeDays(raw?.Days_Of_Week ?? raw?.daysOfWeek ?? raw?.days ?? raw?.Days ?? []);
+
+  // 1) 우선 Days_Of_Week / daysOfWeek 그대로 시도
+  let days = normalizeDays(
+    raw?.Days_Of_Week ?? raw?.daysOfWeek ?? raw?.days ?? raw?.Days ?? []
+  );
+
+  // 2) 그래도 비어 있으면 Extra_Dates로 요일 계산
+  if (!days.length) {
+    const extraDates = raw?.Extra_Dates ?? raw?.extraDates;
+    if (Array.isArray(extraDates) && extraDates.length) {
+      const set = new Set<number>();
+      for (const d of extraDates) {
+        const dow = dateToDow0to6(String(d));
+        if (dow !== null) set.add(dow);
+      }
+      if (set.size) {
+        days = Array.from(set.values());
+      }
+    }
+  }
+
+  // 3) 시간: Start_Time / startTime 우선, 없으면 Date_Time_Overrides에서 가져오기
+  let startTime: string | undefined =
+    raw?.Start_Time ??
+    raw?.startTime ??
+    undefined;
+  let endTime: string | undefined =
+    raw?.End_Time ??
+    raw?.endTime ??
+    undefined;
+
+  if (!startTime || !endTime) {
+    const override = pickOverrideTime(raw);
+    if (!startTime && override.start) startTime = override.start;
+    if (!endTime && override.end) endTime = override.end;
+  }
+
   return {
     classId: String(classId),
     className: String(className),
     teacherId: raw?.Teacher_ID ?? raw?.teacherId ?? raw?.teacher ?? undefined,
-    roomNumber: raw?.roomNumber ?? raw?.Room ?? undefined,
-    startTime: raw?.Start_Time ?? raw?.startTime ?? undefined,
-    endTime: raw?.End_Time ?? raw?.endTime ?? undefined,
+    // 단일 roomNumber + 배열 roomNumbers/Room_Numbers 모두 대응
+    roomNumber:
+      raw?.roomNumber ??
+      raw?.Room ??
+      (Array.isArray(raw?.roomNumbers) && raw.roomNumbers.length
+        ? raw.roomNumbers[0]
+        : undefined) ??
+      (Array.isArray(raw?.Room_Numbers) && raw.Room_Numbers.length
+        ? raw.Room_Numbers[0]
+        : undefined),
+    startTime,
+    endTime,
     daysOfWeek: days,
   };
 }
@@ -201,11 +302,21 @@ function Spinner({ label }: { label?: string }) {
 
 /** 메인 */
 export default function StudentTimetablePanel() {
-  // 로그인 세션 안전하게 로드
+  // 로그인 세션 안전하게 로드 (공통 세션 헬퍼 사용)
   const [login, setLogin] = useState<LoginSession | null>(null);
+
   useEffect(() => {
-    try { const raw = localStorage.getItem("login"); setLogin(raw ? JSON.parse(raw) : null); }
-    catch { setLogin(null); }
+    const s = getSession();
+    if (s) {
+      setLogin({
+        role: s.role as Role,
+        username: s.username,
+        name: s.name ?? undefined,
+        token: (s.token ?? "") as string,
+      });
+    } else {
+      setLogin(null);
+    }
   }, []);
 
   const token = login?.token ?? "";
@@ -218,8 +329,8 @@ export default function StudentTimetablePanel() {
   // 보기 날짜 / 주간
   const [viewDate, setViewDate] = useState<Date>(() => new Date());
   const weekStart = useMemo(() => startOfWeekMonday(viewDate), [viewDate]);
-  const dayOrder: number[] = [1,2,3,4,5,6,0]; // 월~일
-  const weekDates = useMemo(() => dayOrder.map((_,i)=> addDays(weekStart, i)), [weekStart]);
+  const dayOrder: number[] = [1, 2, 3, 4, 5, 6, 0]; // 월~일
+  const weekDates = useMemo(() => dayOrder.map((_, i) => addDays(weekStart, i)), [weekStart]);
   const weekRangeText = `${dotYmd(weekDates[0])} ~ ${dotYmd(weekDates[6])}`;
 
   // 날짜 선택 팝오버
@@ -231,7 +342,8 @@ export default function StudentTimetablePanel() {
     if (!studentId) return;
     let aborted = false;
     (async () => {
-      setLoading(true); setErr(null);
+      setLoading(true);
+      setErr(null);
       try {
         const raw = await apiGet<any[]>(
           `/api/students/${encodeURIComponent(studentId)}/classes`,
@@ -254,29 +366,47 @@ export default function StudentTimetablePanel() {
         if (!aborted) setLoading(false);
       }
     })();
-    return () => { aborted = true; };
+    return () => {
+      aborted = true;
+    };
   }, [studentId, token]);
 
   // 레이아웃 계산 (08:00 ~ 23:00)
-  const MIN_START = 8 * 60, MAX_END = 23 * 60;
-  const hours = useMemo(() => { const out:number[]=[]; for (let t=MIN_START;t<=MAX_END;t+=60) out.push(t); return out; }, []);
+  const MIN_START = 8 * 60,
+    MAX_END = 23 * 60;
+  const hours = useMemo(() => {
+    const out: number[] = [];
+    for (let t = MIN_START; t <= MAX_END; t += 60) out.push(t);
+    return out;
+  }, []);
   const PX_PER_MIN = 1;
   const GRID_HEIGHT = (MAX_END - MIN_START) * PX_PER_MIN;
-  const hhmm = (m:number)=>`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
+  const hhmm = (m: number) =>
+    `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
-  type PlacedClass = ClassInfo & { top:number; height:number };
+  type PlacedClass = ClassInfo & { top: number; height: number };
   const byDay = useMemo(() => {
     const map = new Map<number, PlacedClass[]>();
-    [1,2,3,4,5,6,0].forEach(d=>map.set(d,[]));
+    [1, 2, 3, 4, 5, 6, 0].forEach((d) => map.set(d, []));
     for (const c of classes) {
-      const st = minutesFromHHMM(c.startTime), et = minutesFromHHMM(c.endTime) || (st+60);
-      const top = Math.max(0, (Math.max(st, MIN_START)-MIN_START)*PX_PER_MIN);
-      const height = Math.max(24, (Math.min(et, MAX_END)-Math.max(st, MIN_START))*PX_PER_MIN);
-      const days = (Array.isArray(c.daysOfWeek) && c.daysOfWeek.length) ? c.daysOfWeek : [1,2,3,4,5];
-      days.forEach(d => { if (!map.has(d)) map.set(d, []); map.get(d)!.push({ ...c, top, height }); });
+      const st = minutesFromHHMM(c.startTime),
+        et = minutesFromHHMM(c.endTime) || st + 60;
+      const top = Math.max(0, (Math.max(st, MIN_START) - MIN_START) * PX_PER_MIN);
+      const height = Math.max(24, (Math.min(et, MAX_END) - Math.max(st, MIN_START)) * PX_PER_MIN);
+      const days =
+        Array.isArray(c.daysOfWeek) && c.daysOfWeek.length ? c.daysOfWeek : [1, 2, 3, 4, 5];
+      days.forEach((d) => {
+        if (!map.has(d)) map.set(d, []);
+        map.get(d)!.push({ ...c, top, height });
+      });
     }
     for (const d of map.keys()) {
-      map.set(d, map.get(d)!.sort((a,b)=> minutesFromHHMM(a.startTime) - minutesFromHHMM(b.startTime)));
+      map.set(
+        d,
+        map.get(d)!.sort(
+          (a, b) => minutesFromHHMM(a.startTime) - minutesFromHHMM(b.startTime)
+        )
+      );
     }
     return map;
   }, [classes]);
@@ -287,12 +417,29 @@ export default function StudentTimetablePanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg md:text-xl font-semibold text-gray-900">시간표</h2>
-          <p className="text-sm text-gray-700 mt-1">보고 있는 날짜: <b>{ymd(viewDate)}</b> · 주간: <b>{weekRangeText}</b></p>
+          <p className="text-sm text-gray-700 mt-1">
+            보고 있는 날짜: <b>{ymd(viewDate)}</b> · 주간: <b>{weekRangeText}</b>
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-1.5 rounded-lg ring-1 ring-gray-300 text-gray-900 hover:bg-gray-50" onClick={() => setViewDate(addDays(viewDate, -7))}>← 이전 주</button>
-          <button className="px-3 py-1.5 rounded-lg ring-1 ring-gray-300 text-gray-900 hover:bg-gray-50" onClick={() => setViewDate(new Date())}>오늘</button>
-          <button className="px-3 py-1.5 rounded-lg ring-1 ring-gray-300 text-gray-900 hover:bg-gray-50" onClick={() => setViewDate(addDays(viewDate, 7))}>다음 주 →</button>
+          <button
+            className="px-3 py-1.5 rounded-lg ring-1 ring-gray-300 text-gray-900 hover:bg-gray-50"
+            onClick={() => setViewDate(addDays(viewDate, -7))}
+          >
+            ← 이전 주
+          </button>
+          <button
+            className="px-3 py-1.5 rounded-lg ring-1 ring-gray-300 text-gray-900 hover:bg-gray-50"
+            onClick={() => setViewDate(new Date())}
+          >
+            오늘
+          </button>
+          <button
+            className="px-3 py-1.5 rounded-lg ring-1 ring-gray-300 text-gray-900 hover:bg-gray-50"
+            onClick={() => setViewDate(addDays(viewDate, 7))}
+          >
+            다음 주 →
+          </button>
           <button
             ref={pickerBtnRef}
             className="px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-black"
@@ -309,24 +456,35 @@ export default function StudentTimetablePanel() {
         anchorRef={pickerBtnRef as unknown as React.RefObject<HTMLElement | null>}
         value={viewDate}
         onCancel={() => setPickerOpen(false)}
-        onConfirm={(d: Date) => { setPickerOpen(false); setViewDate(d); }}
+        onConfirm={(d: Date) => {
+          setPickerOpen(false);
+          setViewDate(d);
+        }}
       />
 
       {/* 그리드 */}
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm">
         {/* 요일 헤더 */}
-        <div className="grid border-b border-gray-200" style={{ gridTemplateColumns: `64px repeat(7, minmax(0,1fr))` }}>
+        <div
+          className="grid border-b border-gray-200"
+          style={{ gridTemplateColumns: `64px repeat(7, minmax(0,1fr))` }}
+        >
           <div className="h-12" />
           {weekDates.map((date, i) => (
             <div key={`head-${i}`} className="h-12 flex flex-col items-center justify-center">
-              <div className="text-sm font-semibold text-gray-900">{["월","화","수","목","금","토","일"][i]}</div>
+              <div className="text-sm font-semibold text-gray-900">
+                {["월", "화", "수", "목", "금", "토", "일"][i]}
+              </div>
               <div className="text-[11px] text-gray-600 -mt-0.5">{ymd(date)}</div>
             </div>
           ))}
         </div>
 
         {/* 본문 */}
-        <div className="grid" style={{ gridTemplateColumns: `64px repeat(7, minmax(0,1fr))`, columnGap: `8px` }}>
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: `64px repeat(7, minmax(0,1fr))`, columnGap: `8px` }}
+        >
           {/* 왼쪽 시간축 */}
           <div className="relative" style={{ height: GRID_HEIGHT }}>
             {hours.map((t, i) => {
@@ -340,23 +498,38 @@ export default function StudentTimetablePanel() {
           </div>
 
           {/* 각 요일 */}
-          {[1,2,3,4,5,6,0].map((d) => (
-            <div key={`col-${d}`} className="relative border-l border-gray-200" style={{ height: GRID_HEIGHT }}>
+          {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+            <div
+              key={`col-${d}`}
+              className="relative border-l border-gray-200"
+              style={{ height: GRID_HEIGHT }}
+            >
               {hours.map((t, i) => {
                 const top = (t - MIN_START) * 1;
-                return <div key={`line-${d}-${i}`} className="absolute left-0 right-0 border-t border-gray-100" style={{ top }} />;
+                return (
+                  <div
+                    key={`line-${d}-${i}`}
+                    className="absolute left-0 right-0 border-t border-gray-100"
+                    style={{ top }}
+                  />
+                );
               })}
               {byDay.get(d)?.map((c) => (
                 <div
                   key={`${c.classId}-${c.startTime}-${c.endTime}-${d}`}
-                  className={`absolute left-1 right-1 rounded-lg ring-1 p-2 text-xs font-medium shadow-sm ${colorFor(c.classId)}`}
+                  className={`absolute left-1 right-1 rounded-lg ring-1 p-2 text-xs font-medium shadow-sm ${colorFor(
+                    c.classId
+                  )}`}
                   style={{ top: c.top, height: c.height, minHeight: 24 }}
-                  title={`${c.className} | ${c.startTime ?? "??:??"} ~ ${c.endTime ?? "??:??"}`}
+                  title={`${c.className} | ${c.startTime ?? "??:??"} ~ ${
+                    c.endTime ?? "??:??"
+                  }`}
                 >
                   <div className="truncate">{c.className}</div>
                   <div className="text-[11px] opacity-80">
                     {(c.startTime ?? "??:??")}~{(c.endTime ?? "??:??")}
-                    {typeof c.roomNumber !== "undefined" ? ` · ${c.roomNumber}실` : ""}{c.teacherId ? ` · ${c.teacherId}` : ""}
+                    {typeof c.roomNumber !== "undefined" ? ` · ${c.roomNumber}실` : ""}
+                    {c.teacherId ? ` · ${c.teacherId}` : ""}
                   </div>
                 </div>
               ))}
@@ -368,7 +541,9 @@ export default function StudentTimetablePanel() {
         <div className="p-3">
           {loading && <Spinner label="시간표 불러오는 중" />}
           {err && <div className="text-sm text-red-600 break-words">오류: {err}</div>}
-          {!loading && !err && classes.length === 0 && <div className="text-sm text-gray-700">표시할 수업이 없습니다.</div>}
+          {!loading && !err && classes.length === 0 && (
+            <div className="text-sm text-gray-700">표시할 수업이 없습니다.</div>
+          )}
         </div>
       </div>
     </div>

@@ -77,7 +77,6 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/teacher").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/account/delete").authenticated()
 
-
                 // 업로드된 정적 파일
                 .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
 
@@ -105,6 +104,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/lookup/classes/**").authenticated()
 
                 /* ====== 교사/원장 공통 보호 엔드포인트 ====== */
+                // 🔹 교사 소속 해제: 선생/원장 둘 다 허용
+                .requestMatchers(HttpMethod.PATCH, "/api/teachers/*/academies/detach")
+                    .hasAnyRole("TEACHER", "DIRECTOR")
+
+                // 나머지 /api/teachers/** 도 선생/원장만 접근
                 .requestMatchers("/api/teachers/**").hasAnyRole("TEACHER", "DIRECTOR")
                 .requestMatchers("/api/calendar/**").hasAnyRole("TEACHER", "DIRECTOR")
 
@@ -159,7 +163,6 @@ public class SecurityConfig {
             "http://192.168.*:*",
             "https://103team-web.vercel.app",
             "https://greenacademy.vercel.app"
-            
         ));
         cfg.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
