@@ -58,12 +58,10 @@ type QnaAnswer = IdLike & {
 
 const API_BASE = "/backend";
 
-
 /* ======================= 상수/스토리지 ======================= */
 const CLOCK_SKEW_MS = 5000;
 const READ_AT_KEY_BASE = "qna:readAt";
 const MIN_SPIN_MS = 200;
-
 
 function readKeyForUser() {
   const user = getSavedSession?.()?.username ?? "anon";
@@ -600,6 +598,7 @@ export default function TeacherQnaPanel({ questionId, recentShortcut = false }: 
           return;
         }
 
+        // 전체 요약 + 현재 학원 리스트 세팅
         await refreshGlobalAndList(initialAcademy, acads);
 
         // ① 자동 오픈 조건: (a) prop 제공 or (b) 최근바로가기 모드에서만 URL의 questionId 인정
@@ -611,18 +610,46 @@ export default function TeacherQnaPanel({ questionId, recentShortcut = false }: 
 
         // ② 최근 QnA 바로가기 모드: bestId 선택
         if (recentShortcutRef.current) {
-          const bestId = await pickBestRoomForShortcut(acads);
-          if (bestId) {
-            await openQuestion(bestId);
+          const bestIdFromShortcut = await pickBestRoomForShortcut(acads);
+          if (bestIdFromShortcut) {
+            await openQuestion(bestIdFromShortcut);
             return;
           }
         }
 
-        // ③ 일반 진입: 자동 입장 ❌ → 선택 안내 + 남은 파라미터 제거
-        setCurrentId(null);
-        setQuestion(null);
-        setAnswers([]);
-        setQuerySafe({ academy: String(initialAcademy ?? ""), questionId: undefined, recent: undefined });
+        // ③ 일반 진입: 현재 학원의 첫 번째 방 자동 오픈 시도 → 없으면 전체 중 best 선택
+        let opened = false;
+
+        if (initialAcademy != null) {
+          const listForInitial = await listQuestions(initialAcademy);
+          const arr = Array.isArray(listForInitial) ? (listForInitial as QnaQuestion[]) : [];
+          const sorted = [...arr].sort((a, b) => getSortTime(b) - getSortTime(a));
+          setQuestions(sorted);
+
+          if (sorted.length > 0) {
+            const firstId = (sorted[0] as any)?.id || (sorted[0] as any)?._id;
+            if (firstId) {
+              await openQuestion(String(firstId));
+              opened = true;
+            }
+          }
+        }
+
+        if (!opened) {
+          const bestId = await pickBestRoomForShortcut(acads);
+          if (bestId) {
+            await openQuestion(bestId);
+            opened = true;
+          }
+        }
+
+        if (!opened) {
+          // 정말 열 수 있는 방이 아무 것도 없을 때만 안내 문구 유지
+          setCurrentId(null);
+          setQuestion(null);
+          setAnswers([]);
+          setQuerySafe({ academy: String(initialAcademy ?? ""), questionId: undefined, recent: undefined });
+        }
       } catch (e: any) {
         const msg = String(e?.message ?? "");
         if (/^AUTH_(401|403)/.test(msg) || /^(401|403)\b/.test(msg) || /Unauthorized|Forbidden/i.test(msg)) {
@@ -636,14 +663,14 @@ export default function TeacherQnaPanel({ questionId, recentShortcut = false }: 
   }, []); // StrictMode에서도 동작하도록 내부 IIFE
 
   // 외부에서 questionId/쿼리 바뀌면 해당 스레드 열기 (deps 길이 고정)
-useEffect(() => {
-  if (!qidFromQuery) return;
-  if (currentIdRef.current === qidFromQuery) return; // 동일 방이면 noop
-  startTransition(() => {
-    openQuestion(String(qidFromQuery));
-  });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [qidFromQuery, depsAnchor.current]); // ← 항상 길이 2 유지
+  useEffect(() => {
+    if (!qidFromQuery) return;
+    if (currentIdRef.current === qidFromQuery) return; // 동일 방이면 noop
+    startTransition(() => {
+      openQuestion(String(qidFromQuery));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qidFromQuery, depsAnchor.current]); // ← 항상 길이 2 유지
 
   // 학원 파라미터 변경 → 상태 동기화
   useEffect(() => {
@@ -963,6 +990,7 @@ useEffect(() => {
     </div>
   );
 
+  // 학원 변경 시: 그 학원의 첫 번째 방 자동 오픈
   async function onChangeAcademy(academyNoRaw: number | string) {
     const academyNo = typeof academyNoRaw === "string" ? parseInt(academyNoRaw, 10) : academyNoRaw;
     if (!Number.isFinite(academyNo) || academyNo === selectedAcademy) return;
@@ -973,21 +1001,32 @@ useEffect(() => {
       setError(null);
       setSelectedAcademy(academyNo);
 
-      // URL 동기화(+ questionId/recent 제거로 “채팅방 선택” 안내 보장)
+      // URL 동기화(+ questionId/recent 제거)
       setQuerySafe({ academy: String(academyNo), questionId: undefined, recent: undefined });
 
-      // 학원 리스트만 갱신(자동 오픈 없음)
-      const buckets = await loadAllAcademyQuestions(academies);
-      const listRaw = buckets.find((b) => b.academy === academyNo)?.items ?? [];
-      const list = [...listRaw].sort((a, b) => getSortTime(b) - getSortTime(a));
-      setQuestions(list);
+      // 해당 학원 리스트만 로드
+      const listRaw = await listQuestions(academyNo);
+      const list = Array.isArray(listRaw) ? (listRaw as QnaQuestion[]) : [];
+      const sorted = [...list].sort((a, b) => getSortTime(b) - getSortTime(a));
+      setQuestions(sorted);
 
-      // 전환 시 현재 방 비우기
-      setCurrentId(null);
-      setQuestion(null);
-      setAnswers([]);
-      prevReadAtRef.current = null;
-      prevOpenedIdRef.current = null;
+      if (sorted.length > 0) {
+        const firstIdRaw = (sorted[0] as any)?.id || (sorted[0] as any)?._id;
+        if (firstIdRaw) {
+          const idStr = String(firstIdRaw);
+          prevReadAtRef.current = readAtById[idStr] ?? null;
+          setCurrentId(idStr);
+          setQuerySafe({ academy: String(academyNo), questionId: idStr, recent: undefined });
+          await reloadThread(idStr);
+        }
+      } else {
+        // 질문 없으면 오른쪽 비우고 안내 유지
+        setCurrentId(null);
+        setQuestion(null);
+        setAnswers([]);
+        prevReadAtRef.current = null;
+        prevOpenedIdRef.current = null;
+      }
     } catch (e: any) {
       setError(e?.message ?? "학원 전환 중 오류가 발생했습니다.");
     } finally {

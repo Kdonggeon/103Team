@@ -216,7 +216,7 @@ function RoleFields() {
         <Field name="parentsPw" label="비밀번호" type="password" />
         <Field name="parentsName" label="이름" />
         <Field name="parentsPhoneNumber" label="전화번호" placeholder="010-1234-5678" />
-        <Field name="parentsNumber" label="학부모 번호(선택)" />
+        {/* <Field name="parentsNumber" label="학부모 번호(선택)" /> */}
         <Field name="academyNumber" label="학원 번호" type="number" />
       </div>
     );

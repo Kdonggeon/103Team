@@ -57,6 +57,23 @@ async function patchAcademy(
   return text ? (JSON.parse(text) as Academy) : null;
 }
 
+/** DELETE: 학원 삭제 */
+// DirectorMyInfoCard 안에서
+async function deleteAcademy(academyNumber: number): Promise<void> {
+  const token = getSession()?.token ?? null;
+  const res = await fetch(`/backend/api/directors/academies/${encodeURIComponent(academyNumber)}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? " | " + text : ""}`);
+}
+
+
 /** POST: 원장 전용 학원 생성(랜덤 4자리 번호, 서버에서 중복 방지) */
 async function postCreateAcademyForDirector(
   username: string,
@@ -156,6 +173,9 @@ export default function DirectorMyInfoCard() {
   const [editing, setEditing] = React.useState<number | null>(null);
   const [form, setForm] = React.useState<{ name?: string; address?: string; phone?: string }>({});
   const [saving, setSaving] = React.useState(false);
+
+  // 삭제 상태(해당 학원 번호)
+  const [deleting, setDeleting] = React.useState<number | null>(null);
 
   // 새 학원 추가 상태
   const [addOpen, setAddOpen] = React.useState(false);
@@ -265,6 +285,32 @@ export default function DirectorMyInfoCard() {
       setAddErr(e?.message ?? "생성 실패");
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleDelete = async (academyNumber: number) => {
+    if (!window.confirm("해당 학원을 삭제하시겠습니까?\n관련 데이터가 있다면 서버 정책에 따라 막히거나 함께 처리될 수 있습니다.")) {
+      return;
+    }
+    try {
+      setErr(null);
+      setDeleting(academyNumber);
+      await deleteAcademy(academyNumber);
+
+      // 프론트 목록에서 제거
+      setAcademies((prev) => prev.filter((a) => a.academyNumber !== academyNumber));
+      setMe((prev) =>
+        prev
+          ? {
+              ...prev,
+              academyNumbers: (prev.academyNumbers || []).filter((n) => n !== academyNumber),
+            }
+          : prev
+      );
+    } catch (e: any) {
+      setErr(e?.message || "삭제에 실패했습니다.");
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -383,7 +429,7 @@ export default function DirectorMyInfoCard() {
         )}
       </section>
 
-      {/* 소속 학원 (편집 가능) */}
+      {/* 소속 학원 (편집/삭제 가능) */}
       <section className="space-y-3">
         <h3 className="text-lg font-bold text-black">소속 학원</h3>
         {loading ? (
@@ -394,6 +440,7 @@ export default function DirectorMyInfoCard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {academies.map((a) => {
               const isEdit = editing === a.academyNumber;
+              const isDeleting = deleting === a.academyNumber;
               return (
                 <div key={a.academyNumber} className="bg-white ring-1 ring-black/5 rounded-2xl p-5">
                   <div className="flex items-center justify-between">
@@ -447,17 +494,27 @@ export default function DirectorMyInfoCard() {
 
                   <div className="mt-4 flex gap-2 justify-end">
                     {!isEdit ? (
-                      <button
-                        onClick={() => onEdit(a)}
-                        className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black"
-                        type="button"
-                      >
-                        편집
-                      </button>
+                      <>
+                        <button
+                          disabled={isDeleting}
+                          onClick={() => handleDelete(a.academyNumber)}
+                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-red-400 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          type="button"
+                        >
+                          {isDeleting ? "삭제 중…" : "삭제"}
+                        </button>
+                        <button
+                          onClick={() => onEdit(a)}
+                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black"
+                          type="button"
+                        >
+                          편집
+                        </button>
+                      </>
                     ) : (
                       <>
                         <button
-                          disabled={saving}
+                          disabled={saving || isDeleting}
                           onClick={onCancel}
                           className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black disabled:opacity-50"
                           type="button"
@@ -465,7 +522,7 @@ export default function DirectorMyInfoCard() {
                           취소
                         </button>
                         <button
-                          disabled={saving}
+                          disabled={saving || isDeleting}
                           onClick={() => onSave(a.academyNumber)}
                           className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black disabled:opacity-50"
                           type="button"
