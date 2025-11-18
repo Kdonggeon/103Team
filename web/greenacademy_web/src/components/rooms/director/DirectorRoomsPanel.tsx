@@ -113,21 +113,24 @@ export default function DirectorRoomsPanel({ user }: { user: NonNullable<LoginRe
     }
   };
 
+  // ✅ 저장 후 항상 강의실 목록 새로고침 되도록 정리
   const save = async () => {
     if (!academyNumber || !layout) return;
     setErr(null); setMsg(null);
     try {
-      await roomsVectorApi.put(roomNumber, academyNumber, layout);
-      setMsg("저장 완료");
-      await loadList();
-    } catch (e1: any) {
       try {
+        // 기본 포맷
+        await roomsVectorApi.put(roomNumber, academyNumber, layout);
+        setMsg("저장 완료");
+      } catch (e1: any) {
+        // 호환 포맷 (백엔드가 layout 래핑 버전만 받는 경우)
         await (roomsVectorApi as any).put(roomNumber, academyNumber, { layout });
         setMsg("저장 완료(호환 포맷)");
-        await loadList();
-      } catch (e2: any) {
-        setErr(e2?.message ?? e1?.message ?? "저장 실패");
       }
+      // ✅ 저장이 성공한 경우에만 목록 새로고침
+      await loadList();
+    } catch (e2: any) {
+      setErr(e2?.message ?? "저장 실패");
     }
   };
 

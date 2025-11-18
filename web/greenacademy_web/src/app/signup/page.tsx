@@ -16,8 +16,7 @@ import { useRouter } from "next/navigation";
 const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
 const API_BASE = "/backend";
 
-
-console.log('[signup] API_BASE =', API_BASE);
+console.log("[signup] API_BASE =", API_BASE);
 
 type Role = "student" | "parent" | "teacher" | "director";
 
@@ -29,12 +28,6 @@ const phoneString = (label: string) =>
   baseRequired(label).regex(/^[0-9\-+() ]{7,20}$/i, {
     message: `${label} 형식이 올바르지 않습니다.`,
   });
-
-// Director 다중 번호
-const academyNumbersArray = z
-  .array(z.coerce.number().int().nonnegative({ message: "0 이상의 정수여야 합니다." }))
-  .min(1, { message: "학원 번호를 1개 이상 입력하세요." })
-  .optional();
 
 // ===== 역할별 스키마 (백엔드 DTO 네이밍 맞춤) =====
 const studentSchema = z.object({
@@ -69,13 +62,13 @@ const teacherSchema = z.object({
   academyNumber: z.coerce.number().int().nonnegative().optional(), // 단일 숫자
 });
 
+// ✅ 원장은 학원번호 입력 안 함 (백엔드에서 자동 생성)
 const directorSchema = z.object({
   role: z.literal("director"),
   directorId: baseRequired("아이디"),
   directorPw: baseRequired("비밀번호").min(4),
   directorName: baseRequired("이름"),
   directorPhoneNumber: phoneString("전화번호"),
-  academyNumbers: academyNumbersArray, // [number]
 });
 
 const unionSchema = z.discriminatedUnion("role", [
@@ -133,13 +126,13 @@ export function payloadMapper(values: FormValues) {
         academyNumber: values.academyNumber ?? 0,
       };
     case "director":
-  return {
-    username: values.directorId,
-    password: values.directorPw,
-    name: values.directorName,
-    phone: values.directorPhoneNumber,
-    academyNumbers: values.academyNumbers ?? [],
-  };
+      // ✅ 학원번호는 백엔드에서 자동 생성
+      return {
+        username: values.directorId,
+        password: values.directorPw,
+        name: values.directorName,
+        phone: values.directorPhoneNumber,
+      };
   }
 }
 
@@ -148,7 +141,8 @@ const submitUrlByRole: Record<Role, string> = {
   student: `${API_BASE}/api/students`,
   parent: `${API_BASE}/api/parents`,
   teacher: `${API_BASE}/api/teachers`,
-  director: `${API_BASE}/api/directors/signup`,
+  // ✅ 백엔드 컨트롤러: @RequestMapping("/api/signup/director")
+  director: `${API_BASE}/api/signup/director`,
 };
 
 // ===== 공용 필드 컴포넌트 =====
@@ -180,80 +174,6 @@ function Field({
         }`}
       />
       {err && <p className="text-xs text-red-400">{err}</p>}
-    </div>
-  );
-}
-
-function ChipsNumberArray({
-  name,
-  label,
-  placeholder,
-}: {
-  name: "academyNumbers";
-  label: string;
-  placeholder?: string;
-}) {
-  const { setValue, watch } = useFormContext<FormValues>();
-  const arr = (watch(name) as number[] | undefined) ?? [];
-  const [chip, setChip] = React.useState("");
-
-  function addChip() {
-    if (!chip.trim()) return;
-    const n = Number(chip);
-    if (Number.isNaN(n)) return;
-    setValue(name, [...arr, n] as any, { shouldValidate: true });
-    setChip("");
-  }
-  function removeChip(i: number) {
-    const next = [...arr];
-    next.splice(i, 1);
-    setValue(name, next as any, { shouldValidate: true });
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="text-sm text-gray-200">{label}</label>
-      <div className="flex gap-2">
-        <input
-          value={chip}
-          onChange={(e) => setChip(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addChip();
-            }
-          }}
-          placeholder={placeholder}
-          className="flex-1 rounded-xl px-3 py-2 bg-gray-800 text-gray-100 outline-none ring-1 ring-gray-700 focus:ring-2 focus:ring-green-400"
-        />
-        <button
-          type="button"
-          onClick={addChip}
-          className="rounded-xl px-3 py-2 bg-green-500 text-black font-medium"
-        >
-          추가
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {arr.map((n, i) => (
-          <span
-            key={i}
-            className="rounded-full px-3 py-1 bg-gray-700 text-gray-100 text-sm inline-flex items-center gap-2"
-          >
-            {n}
-            <button
-              type="button"
-              onClick={() => removeChip(i)}
-              className="text-gray-300 hover:text-white"
-            >
-              ×
-            </button>
-          </span>
-        ))}
-        {arr.length === 0 && (
-          <span className="text-xs text-gray-400">아직 추가된 번호가 없습니다.</span>
-        )}
-      </div>
     </div>
   );
 }
@@ -314,20 +234,14 @@ function RoleFields() {
     );
   }
 
-  // director
+  // director (학원번호 입력 없음)
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Field name="directorId" label="아이디" />
       <Field name="directorPw" label="비밀번호" type="password" />
       <Field name="directorName" label="이름" />
       <Field name="directorPhoneNumber" label="전화번호" placeholder="010-1234-5678" />
-      <div className="md:col-span-2">
-        <ChipsNumberArray
-          name={"academyNumbers"}
-          label="학원 번호(들)"
-          placeholder="예: 1, 2, 3 각각 추가"
-        />
-      </div>
+      {/* 학원번호는 백엔드에서 자동 생성하므로 필드 없음 */}
     </div>
   );
 }
@@ -482,9 +396,11 @@ if (process.env.NODE_ENV !== "production") {
       directorPw: "pw",
       directorName: "원장",
       directorPhoneNumber: "010-7777-8888",
-      academyNumbers: [1, 2, 3],
     } as any);
-    console.assert(Array.isArray(d.academyNumbers) && (d.academyNumbers?.length ?? 0) === 3, "director payload shape ok");
+    console.assert(
+      "username" in d && !("academyNumbers" in d),
+      "director payload shape ok (auto academyNumber)"
+    );
   } catch (e) {
     console.warn("[dev-tests] payloadMapper tests failed:", e);
   }

@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -41,10 +40,11 @@ public class DirectorSignupController {
         // 3) 비밀번호 암호화
         final String encPw = passwordEncoder.encode(req.getPassword());
 
-        // 4) academyNumbers null 안전 처리
-        List<Integer> academies = req.getAcademyNumbers() != null ? req.getAcademyNumbers() : Collections.emptyList();
+        // 4) 학원 번호 6자리 자동 생성 (100000 ~ 999999)
+        int academyNumber = generateAcademyNumber();
+        List<Integer> academies = List.of(academyNumber);
 
-        // 5) 엔티티 생성 및 저장 (Director 필드명에 맞게 조립)
+        // 5) 엔티티 생성 및 저장
         Director director = new Director();
         director.setUsername(req.getUsername());
         director.setPassword(encPw);
@@ -54,13 +54,26 @@ public class DirectorSignupController {
 
         directorRepo.save(director);
 
-        // 6) 성공 응답
+        // 6) 성공 응답 (발급된 학원번호 같이 리턴)
         return ResponseEntity.ok(Map.of(
             "status", "success",
             "message", "원장 회원가입 성공",
-            "username", director.getUsername()
+            "username", director.getUsername(),
+            "academyNumber", academyNumber,
+            "academyNumbers", academies
         ));
     }
 
-    private boolean isBlank(String s) { return s == null || s.isBlank(); }
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    /** 다른 원장이 쓰고 있지 않은 6자리 학원 번호 생성 */
+    private int generateAcademyNumber() {
+        int n;
+        do {
+            n = 100000 + (int) (Math.random() * 900000); // 100000 ~ 999999
+        } while (directorRepo.existsByAcademyNumbersContains(n));
+        return n;
+    }
 }

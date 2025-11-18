@@ -23,6 +23,40 @@ type Selection =
   | { type: "waiting" }
   | { type: "room"; roomNumber: number };
 
+/* ====== 기존 좌석판 + 새 좌석판 머지 (색/상태만 갱신) ====== */
+function mergeSeatBoard(prev: SeatBoardResponse | null, next: SeatBoardResponse): SeatBoardResponse {
+  if (!prev || !prev.seats || !next.seats) return next;
+
+  // seatNumber > (row,col) > index 순으로 매칭
+  const keyOf = (s: any, idx: number) => {
+    if (s.seatNumber != null) return `seat-${s.seatNumber}`;
+    if (s.row != null && s.col != null) return `rc-${s.row}-${s.col}`;
+    return `idx-${idx}`;
+  };
+
+  const nextMap = new Map<string, any>();
+  next.seats.forEach((s, idx) => nextMap.set(keyOf(s, idx), s));
+
+  const mergedSeats = prev.seats.map((old, idx) => {
+    const k = keyOf(old, idx);
+    const newer = nextMap.get(k);
+    if (!newer) return old;
+    // 위치/크기는 그대로 두고, 상태/이름/ID 등만 덮어쓰기
+    return {
+      ...old,
+      attendanceStatus: newer.attendanceStatus ?? old.attendanceStatus,
+      studentId: newer.studentId ?? old.studentId,
+      studentName: newer.studentName ?? old.studentName,
+    };
+  });
+
+  return {
+    ...prev,
+    ...next,
+    seats: mergedSeats,
+  };
+}
+
 /* ====================== 메인 ====================== */
 export default function DirectorOverviewPanel({ user }: { user: NonNullable<LoginResponse> }) {
   const academyNumber =
@@ -62,11 +96,12 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
 
   React.useEffect(() => {
     load();
+    // ✅ 전체 개요는 15초마다 새로고침
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, [load]);
 
-  // 좌측에서 방을 선택했을 때 좌석판 로드 (vector가 아니고 classId가 있으면)
+  // 좌측에서 방을 선택했을 때 좌석판 로드 + 3초 폴링 (vector가 아니고 classId가 있으면)
   React.useEffect(() => {
     if (!data || !sel || sel.type !== "room") {
       setBoard(null);
@@ -78,7 +113,7 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
       return;
     }
 
-    // vector는 우측에서 room.seats를 바로 그림
+    // vector는 우측에서 room.seats를 바로 그림 (fetchSeatBoard 안 씀)
     if (isVectorRoom(room)) {
       setBoard(null);
       return;
@@ -91,19 +126,29 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
     }
 
     let alive = true;
-    (async () => {
+
+    const loadBoard = async (showSpinner: boolean) => {
       try {
-        setLoadingBoard(true);
+        if (showSpinner) setLoadingBoard(true);
         const b = await fetchSeatBoard(room.classId!, ymd);
-        if (alive) setBoard(b);
+        if (!alive) return;
+        setBoard((prev) => mergeSeatBoard(prev, b));
       } catch {
-        if (alive) setBoard(null);
+        if (!alive) return;
+        setBoard(null);
       } finally {
-        if (alive) setLoadingBoard(false);
+        if (alive && showSpinner) setLoadingBoard(false);
       }
-    })();
+    };
+
+    // 처음 선택 시 한 번 로드 (로딩 문구 표시)
+    loadBoard(true);
+    // 이후 3초마다 자동 갱신 (로딩 문구 없이 색/상태만 바뀜)
+    const timer = setInterval(() => loadBoard(false), 3000);
+
     return () => {
       alive = false;
+      clearInterval(timer);
     };
   }, [data, sel, ymd]);
 
@@ -208,7 +253,14 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
             ? `강의실 ${selectedRoom.roomNumber} — 좌석 현황`
             : "좌석 현황"
         }
-        right={<span className="text-xs text-gray-600">{data?.date ?? ymd}</span>}
+        right={
+          <span className="text-xs text-gray-600">
+            {data?.date ?? ymd}
+            {selectedRoom && !isVectorRoom(selectedRoom) && board
+              ? " · 3초마다 좌석 자동 갱신"
+              : ""}
+          </span>
+        }
       >
         {/* 상단 합계 */}
         <div className="mb-3 flex flex-wrap items-center gap-3 text-xs">

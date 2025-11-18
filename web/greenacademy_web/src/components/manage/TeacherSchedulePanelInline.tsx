@@ -10,7 +10,8 @@ import Panel, { PanelGrid } from "@/components/ui/Panel";
 import WeekCalendar, { type CalendarEvent } from "@/components/ui/calendar/week-calendar";
 import MonthCalendar, { type MonthEvent, type Holiday } from "@/components/ui/calendar/month-calendar";
 import { roomsApi, type Room } from "@/app/lib/rooms";
-import ScheduleEditModal from "@/components/teacher/ScheduleEditModal"; // ✅ 추가
+import ScheduleEditModal from "@/components/teacher/ScheduleEditModal";
+
 /* ───────── helpers ───────── */
 const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
 const ymd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -260,16 +261,16 @@ function ClassDetailPanelModal({
 }
 
 /* ================== 월간 모달 ================== */
-/* ================== 월간 모달 ================== */
-
 
 function MonthCenterModal({
-  open, onClose, teacherId, academyNumber,
+  open, onClose, teacherId, academyNumber, onChanged,
 }: {
   open: boolean;
   onClose: () => void;
   teacherId: string;
   academyNumber?: number | string | null;
+  /** 모달에서 스케줄이 바뀌었을 때(추가/수정/삭제/닫기 후) 주간 캘린더 갱신용 콜백 */
+  onChanged?: () => void;
 }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -321,12 +322,19 @@ function MonthCenterModal({
   const onPrev = () => setMonth(m => { if (m === 1) { setYear(y => y - 1); return 12; } return m - 1; });
   const onNext = () => setMonth(m => { if (m === 12) { setYear(y => y + 1); return 1; } return m + 1; });
 
+  // ✅ 닫기 + 주간 새로고침
+  const handleClose = () => {
+    onClose();
+    onChanged?.();
+  };
+
   // ✅ 일정 삭제 함수
   const handleDelete = async (scheduleId?: string) => {
     if (!scheduleId) return;
     try {
       await api.deleteSchedule(teacherId, scheduleId);
       await fetchMonth();
+      onChanged?.();     // 주간 캘린더도 조용히 갱신
     } catch (e: any) {
       alert(e?.message ?? "삭제 실패");
     }
@@ -338,6 +346,7 @@ function MonthCenterModal({
   }) => {
     await api.createSchedule(teacherId, patch); // 기존 일정 덮어쓰기
     await fetchMonth();
+    onChanged?.();       // 주간 갱신
   };
 
   if (!open) return null;
@@ -350,7 +359,7 @@ function MonthCenterModal({
           <div className="font-semibold text-black">월간 스케줄</div>
           <div className="flex items-center gap-2">
             {loading && <span className="text-xs text-gray-600">불러오는 중…</span>}
-            <button onClick={onClose} className="px-3 py-1.5 rounded border text-black">닫기</button>
+            <button onClick={handleClose} className="px-3 py-1.5 rounded border text-black">닫기</button>
           </div>
         </div>
 
@@ -423,7 +432,10 @@ function MonthCenterModal({
         teacherId={teacherId}
         academyNumber={academyNumber}
         onClose={() => setAddOpen(false)}
-        onCreated={() => fetchMonth()}
+        onCreated={async () => {
+          await fetchMonth();
+          onChanged?.();        // 추가 후에도 주간 갱신
+        }}
       />
 
       {/* ✅ 이벤트 클릭 → 스케줄 수정 모달 */}
@@ -440,14 +452,13 @@ function MonthCenterModal({
           roomNumber: editEvent.roomNumber ?? "",
         }}
         onSave={handleSave}
-  onDelete={(id) => (id ? handleDelete(id) : Promise.resolve())}
-  teacherId={teacherId}          // ✅ 여기!
-  academyNumber={academyNumber}  // ✅ 여기!
+        onDelete={(id) => (id ? handleDelete(id) : Promise.resolve())}
+        teacherId={teacherId}
+        academyNumber={academyNumber}
       />
     </div>
   );
 }
-
 
 /* ================== 메인(주간 + 월간 모달 버튼) ================== */
 export default function TeacherSchedulePanelInline({ user: userProp }: { user?: LoginResponse | null }) {
@@ -491,7 +502,8 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
 
   const range = useMemo(() => weekRange(baseDate), [baseDate]);
 
-  const loadByRange = async () => {
+  // ✅ 주간 스케줄 로더 (깜빡임 없이도 호출할 수 있게 loading 토글은 밖에서만)
+  const loadByRange = useCallback(async () => {
     setErr(null);
     try {
       const data = await api.listSchedules(teacherId, range.from, range.to);
@@ -499,7 +511,7 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
     } catch (e: any) {
       setErr(e?.message ?? "스케줄을 불러오지 못했습니다.");
     }
-  };
+  }, [teacherId, range.from, range.to]);
 
   useEffect(() => {
     (async () => {
@@ -507,8 +519,7 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
       await loadByRange();
       setLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teacherId, range.from, range.to]);
+  }, [loadByRange]);
 
   // 방 목록
   useEffect(() => {
@@ -557,6 +568,8 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
       <PanelGrid>
         <Panel
           title="주간 캘린더"
+          // ✅ PanelGrid 안에서 가로 두 칸(=전체 폭) 차지하게 해서 좁지 않게
+          className="md:col-span-2"
           right={
             // ⬇️ 우측 고정폭 스페이서로 기존 “틀” 느낌 유지
             <div className="min-w-[320px] flex flex-wrap items-center gap-3 justify-end">
@@ -580,7 +593,7 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
                 </select>
               </div>
 
-              {/* 월간 모달 열기만 유지 */}
+              {/* 월간 모달 열기 */}
               <button
                 onClick={() => setOpenMonth(true)}
                 className="px-3 py-1.5 rounded bg-black text-white text-sm hover:bg-black/90"
@@ -593,8 +606,8 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
           {loading ? (
             <div className="text-sm text-gray-700">로딩 중…</div>
           ) : (
-            // ⬇️ 캘린더 좌우 패딩으로 본문 틀 유지
-            <div className="px-4 sm:px-6">
+            // ⬇️ 캘린더 좌우 패딩으로 본문 틀 유지, 가로는 가득 채움
+            <div className="px-4 sm:px-6 w-full">
               <WeekCalendar
                 startHour={8}
                 endHour={22}
@@ -624,6 +637,7 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
         onClose={() => setOpenMonth(false)}
         teacherId={user.username}
         academyNumber={academyNumber}
+        onChanged={loadByRange}        // ✅ 모달 닫기 / 변경 시 주간만 조용히 새로고침
       />
 
       {/* 주간 이벤트 클릭 → ClassDetail 패널 모달 */}
