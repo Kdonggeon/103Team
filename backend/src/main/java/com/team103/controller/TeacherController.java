@@ -68,53 +68,6 @@ public class TeacherController {
         return (t == null) ? ResponseEntity.notFound().build() : ResponseEntity.ok(t);
     }
 
-    /** 🔹 교사 기본 정보/소속 학원 업데이트 (프로필 수정에서 사용) */
-    @PutMapping("/{teacherId}")
-    public ResponseEntity<Teacher> updateTeacher(@PathVariable String teacherId,
-                                                 @RequestBody Map<String, Object> payload) {
-        Teacher t = teacherRepo.findByTeacherId(teacherId);
-        if (t == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        // 이름
-        Object nameObj = payload.get("teacherName");
-        if (nameObj instanceof String name && !name.isBlank()) {
-            t.setTeacherName(name);
-        }
-
-        // 연락처
-        Object phoneObj = payload.get("teacherPhoneNumber");
-        if (phoneObj instanceof String phone && !phone.isBlank()) {
-            t.setTeacherPhoneNumber(phone);
-        }
-
-        // 학원 번호(단일) -> 리스트에 추가
-        Object academyObj = payload.get("academyNumber");
-        Integer academyNumber = null;
-        if (academyObj instanceof Number) {
-            academyNumber = ((Number) academyObj).intValue();
-        } else if (academyObj instanceof String s && !s.isBlank()) {
-            try {
-                academyNumber = Integer.parseInt(s.trim());
-            } catch (NumberFormatException ignored) {
-            }
-        }
-
-        if (academyNumber != null && academyNumber > 0) {
-            // Teacher 모델에 academyNumbers(List<Integer>)가 있다고 가정
-            List<Integer> current = t.getAcademyNumbers();
-            if (current == null) current = new ArrayList<>();
-            if (!current.contains(academyNumber)) {
-                current.add(academyNumber);
-            }
-            t.setAcademyNumbers(current);
-        }
-
-        Teacher saved = teacherRepo.save(t);
-        return ResponseEntity.ok(saved);
-    }
-
     /** 🔹 교사 소속 학원 해제 (특정 학원번호 제거) */
     @PatchMapping("/{teacherId}/academies/detach")
     public ResponseEntity<Teacher> detachAcademy(@PathVariable String teacherId,
