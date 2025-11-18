@@ -80,6 +80,10 @@ public class SecurityConfig {
                 // 업로드된 정적 파일
                 .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
 
+                /* ✅ 출석 QR (입구/수업) */
+                // 토큰 있는 학생만 허용하고 싶으면 hasRole("STUDENT") 로 바꿔도 됨
+                .requestMatchers(HttpMethod.POST, "/api/attendance/check-in").authenticated()
+
                 /* ----- 교사용 메인 패널 ----- */
                 .requestMatchers("/api/teachermain/**").hasAnyRole("TEACHER", "DIRECTOR")
 
