@@ -150,7 +150,10 @@ public class NoticeController {
             @RequestParam("title") String title,
             @RequestParam("content") String content,
             @RequestParam(value = "author", required = false) String author,          // 교사ID
-            @RequestParam(value = "academyNumber", required = false) Integer academyNumber,
+            // ✅ 프론트에서 FormData로 보내는 academyNumbers (복수형)
+            @RequestParam(value = "academyNumbers", required = false) List<Integer> academyNumbers,
+            // ✅ 혹시 단일 academyNumber로만 보내는 클라이언트가 있다면 fallback
+            @RequestParam(value = "academyNumber", required = false) Integer legacyAcademyNumber,
             @RequestParam(value = "classId", required = false) String classId,
             @RequestParam(value = "className", required = false) String className,
             @RequestPart(value = "images", required = false) List<MultipartFile> images
@@ -159,9 +162,28 @@ public class NoticeController {
         n.setTitle(title);
         n.setContent(content);
         n.setAuthor(author);
-        if (academyNumber != null) n.setAcademyNumber(academyNumber);
-        if (classId != null) n.setClassId(classId);
-        if (className != null) n.setClassName(className);
+
+        // 🔹 다중 학원번호 우선
+        if (academyNumbers != null && !academyNumbers.isEmpty()) {
+            try {
+                n.setAcademyNumbers(academyNumbers);
+            } catch (NoSuchMethodError | UnsupportedOperationException ignored) {
+                // Notice에 academyNumbers 필드가 없다면 무시
+            }
+        } else if (legacyAcademyNumber != null) {
+            // 단일 학원번호 fallback
+            try {
+                n.setAcademyNumbers(Collections.singletonList(legacyAcademyNumber));
+            } catch (NoSuchMethodError | UnsupportedOperationException ignored) {
+            }
+            try {
+                n.setAcademyNumber(legacyAcademyNumber);
+            } catch (NoSuchMethodError | UnsupportedOperationException ignored) {
+            }
+        }
+
+        if (classId != null && !classId.isBlank()) n.setClassId(classId.trim());
+        if (className != null && !className.isBlank()) n.setClassName(className.trim());
         n.setCreatedAt(new Date());
 
         List<String> urls = saveImages(images);
@@ -204,7 +226,9 @@ public class NoticeController {
             @PathVariable String id,
             @RequestParam("title") String title,
             @RequestParam("content") String content,
-            @RequestParam(value = "academyNumber", required = false) Integer academyNumber,
+            // ✅ 생성과 동일하게 academyNumbers/academyNumber 둘 다 지원
+            @RequestParam(value = "academyNumbers", required = false) List<Integer> academyNumbers,
+            @RequestParam(value = "academyNumber", required = false) Integer legacyAcademyNumber,
             @RequestParam(value = "classId", required = false) String classId,
             @RequestParam(value = "className", required = false) String className,
             @RequestPart(value = "images", required = false) List<MultipartFile> images
@@ -213,7 +237,23 @@ public class NoticeController {
                 .map(ex -> {
                     ex.setTitle(title);
                     ex.setContent(content);
-                    if (academyNumber != null) ex.setAcademyNumber(academyNumber);
+
+                    if (academyNumbers != null && !academyNumbers.isEmpty()) {
+                        try {
+                            ex.setAcademyNumbers(academyNumbers);
+                        } catch (NoSuchMethodError | UnsupportedOperationException ignored) {
+                        }
+                    } else if (legacyAcademyNumber != null) {
+                        try {
+                            ex.setAcademyNumbers(Collections.singletonList(legacyAcademyNumber));
+                        } catch (NoSuchMethodError | UnsupportedOperationException ignored) {
+                        }
+                        try {
+                            ex.setAcademyNumber(legacyAcademyNumber);
+                        } catch (NoSuchMethodError | UnsupportedOperationException ignored) {
+                        }
+                    }
+
                     if (classId != null) ex.setClassId(classId);
                     if (className != null) ex.setClassName(className);
 

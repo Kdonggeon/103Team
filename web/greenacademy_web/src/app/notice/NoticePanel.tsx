@@ -205,14 +205,31 @@ export default function NoticePanel() {
     try {
       setLoadingList(true);
       setError(null);
+
       const r = await fetchApi("/api/notices", { headers: authHeaders(session) });
       if (!r.ok) {
         if (r.status === 401) throw new Error("로그인이 필요합니다. (401)");
         if (r.status === 403) throw new Error("공지 조회 권한이 없습니다. (403)");
         throw new Error(await r.text());
       }
+
       const raw = (await r.json()) as Notice[];
-      setNotices((raw ?? []).map(normalizeAcademies));
+      const normalized = (raw ?? []).map(normalizeAcademies);
+
+      // ✅ 여기서부터: 세션의 academyNumbers 기준으로 한 번 더 필터
+      const allowedNums = new Set<number>(
+        (session.academyNumbers ?? [])
+          .map(normAcadNum)
+          .filter((n): n is number => n !== null)
+      );
+
+      const filtered = allowedNums.size
+        ? normalized.filter((n) =>
+            (n.academyNumbers ?? []).some((a) => allowedNums.has(a))
+          )
+        : normalized;
+
+      setNotices(filtered);
     } catch (e: any) {
       setError(e?.message || "공지 목록을 불러오지 못했습니다.");
     } finally {
