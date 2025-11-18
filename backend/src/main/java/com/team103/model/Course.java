@@ -24,10 +24,6 @@ public class Course {
     @Field("Teacher_ID")
     private String teacherId;
 
-    /**
-     * ✅ DB에는 숫자/문자 혼재 가능 → 원본은 Object로 받는다.
-     *    JSON(프론트)에는 항상 문자열 배열로 내려준다.
-     */
     @Field("Students")
     @JsonIgnore
     private List<Object> studentsRaw;
