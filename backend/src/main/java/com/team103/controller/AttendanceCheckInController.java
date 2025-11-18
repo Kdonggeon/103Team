@@ -77,6 +77,7 @@ public class AttendanceCheckInController {
         // ================================
         if (classId == null || classId.isEmpty()) {
 
+            // 1) attendances 컬렉션: entrance 타입 upsert
             Query q = new Query(Criteria.where("Date").is(ymd).and("Type").is("entrance"));
             Update up = new Update()
                     .setOnInsert("Type", "entrance")
@@ -95,20 +96,36 @@ public class AttendanceCheckInController {
                     FindAndModifyOptions.options().upsert(true).returnNew(true),
                     Attendance.class, ATTENDANCE_COLL);
 
-            // waiting_room 추가
-            Integer academyNumber = academyNumberFromReq != null ? academyNumberFromReq :
-                    (stu.getAcademyNumbers() != null && !stu.getAcademyNumbers().isEmpty() ? stu.getAcademyNumbers().get(0) : null);
+            // 2) waiting_room upsert (기존 insert → upsert 로 변경)
+            Integer academyNumber =
+                    academyNumberFromReq != null
+                            ? academyNumberFromReq
+                            : (stu.getAcademyNumbers() != null && !stu.getAcademyNumbers().isEmpty()
+                                ? stu.getAcademyNumbers().get(0)
+                                : null);
 
-            Map<String, Object> waitingEntry = new HashMap<>();
-            waitingEntry.put("studentId", studentId);
-            waitingEntry.put("academyNumber", academyNumber);
-            waitingEntry.put("studentName", stu.getStudentName());
-            waitingEntry.put("school", stu.getSchool());
-            waitingEntry.put("grade", stu.getGrade());
-            waitingEntry.put("checkedInAt", now.toLocalDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-            waitingEntry.put("status", "LOBBY");
+            // academyNumber가 null이어도 일단 저장은 할 수 있지만,
+            // 구분 위해 studentId + date 기준으로 묶어줌
+            Query wq = new Query(
+                    Criteria.where("studentId").is(studentId)
+                            .and("date").is(ymd)
+            );
+            if (academyNumber != null) {
+                wq.addCriteria(Criteria.where("academyNumber").is(academyNumber));
+            }
 
-            mongoTemplate.insert(waitingEntry, WAITING_ROOM_COLL);
+            Update wup = new Update()
+                    .set("studentId", studentId)
+                    .set("academyNumber", academyNumber)
+                    .set("studentName", stu.getStudentName())
+                    .set("school", stu.getSchool())
+                    .set("grade", stu.getGrade())
+                    .set("date", ymd) // 조회 편하게 날짜 필드도 명시
+                    .set("checkedInAt", now.toLocalDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                    .set("status", "LOBBY"); // 입구 대기 상태
+
+            // 🔥 upsert: 같은 학생/날짜(/학원) 레코드는 한 줄만 유지
+            mongoTemplate.upsert(wq, wup, WAITING_ROOM_COLL);
 
             CheckInResponse res = new CheckInResponse();
             res.setStatus("입구 출석");
@@ -121,7 +138,7 @@ public class AttendanceCheckInController {
         }
 
         // ================================
-        // 2️⃣ QR 출석 로직
+        // 2️⃣ QR 출석 로직 (수업 기반)
         // ================================
         Course course = courseRepository.findByClassId(classId).orElse(null);
         if (course == null) return ResponseEntity.badRequest().body("수업을 찾을 수 없음");
