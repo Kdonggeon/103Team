@@ -64,6 +64,21 @@ export default function ProfileSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // 🔥 계정 삭제 후 부모 페이지 새로고침 트리거
+useEffect(() => {
+  const handler = (e: MessageEvent) => {
+    if (e.data === "account:deleted") {
+      // 세션 제거
+      localStorage.removeItem("login");
+
+      // 🔥 로그인 페이지로 이동
+      window.location.href = "/login";
+    }
+  };
+
+  window.addEventListener("message", handler);
+  return () => window.removeEventListener("message", handler);
+}, []);
 
   useEffect(() => {
     const raw = localStorage.getItem("login");

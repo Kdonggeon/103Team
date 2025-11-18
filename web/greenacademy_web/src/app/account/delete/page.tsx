@@ -57,44 +57,48 @@ export default function AccountDeletePage() {
 
   const canSubmit = !!me && !!password && confirm && !loading;
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!me) return;
+const onSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!me) return;
 
-    setLoading(true);
-    setMsg(null);
-    try {
-      const res = await fetch(`/backend/api/account/delete`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // 토큰 검증을 서버에서 쓴다면: Authorization 헤더도 같이 보낼 수 있음
-          ...(me.token ? { Authorization: `Bearer ${me.token}` } : {}),
-        },
-        body: JSON.stringify({
-          role: me.role,
-          id: me.username,
-          password,
-          reason: why,
-          confirm: true,
-        }),
-      });
+  setLoading(true);
+  setMsg(null);
+  try {
+    const res = await fetch(`/backend/api/account/delete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(me.token ? { Authorization: `Bearer ${me.token}` } : {}),
+      },
+      body: JSON.stringify({
+        role: me.role,
+        id: me.username,
+        password,
+        reason: why,
+        confirm: true,
+      }),
+    });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.message || `탈퇴 실패 (${res.status})`);
-      }
-
-      // 세션 정리 후 로그인으로
-      localStorage.removeItem("login");
-      alert("계정이 삭제되었습니다. 이용해 주셔서 감사합니다.");
-      router.replace("/login");
-    } catch (err: any) {
-      setMsg(err?.message ?? "처리 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.message || `탈퇴 실패 (${res.status})`);
     }
-  };
+      // 삭제 성공
+      localStorage.removeItem("login");
+
+      // 부모에게만 알림 보내기
+      window.parent.postMessage("account:deleted", "*");
+
+      // ❌ 본인이 이동하면 안 됨 (여기서 끝)
+      return;
+
+
+  } catch (err: any) {
+    setMsg(err?.message ?? "처리 중 오류가 발생했습니다.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (!ready) return null;
 

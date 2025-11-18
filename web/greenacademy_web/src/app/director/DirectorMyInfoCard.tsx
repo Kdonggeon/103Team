@@ -58,7 +58,6 @@ async function patchAcademy(
 }
 
 /** DELETE: 학원 삭제 */
-// DirectorMyInfoCard 안에서
 async function deleteAcademy(academyNumber: number): Promise<void> {
   const token = getSession()?.token ?? null;
   const res = await fetch(`/backend/api/directors/academies/${encodeURIComponent(academyNumber)}`, {
@@ -73,8 +72,7 @@ async function deleteAcademy(academyNumber: number): Promise<void> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}${text ? " | " + text : ""}`);
 }
 
-
-/** POST: 원장 전용 학원 생성(랜덤 4자리 번호, 서버에서 중복 방지) */
+/** POST: 원장 전용 학원 생성 */
 async function postCreateAcademyForDirector(
   username: string,
   payload: { name: string; phone?: string; address?: string }
@@ -99,28 +97,24 @@ function ProfileEditModal({
   open,
   onClose,
   onSaved,
-  src = "/settings/profile", // 기존 수정 화면을 그대로 사용 (라우팅 이동 대신 모달로)
+  src = "/settings/profile",
 }: {
   open: boolean;
   onClose: () => void;
-  onSaved: () => void; // 저장 완료 시 콜백(데이터 재조회)
+  onSaved: () => void;
   src?: string;
 }) {
   React.useEffect(() => {
     if (!open) return;
     const handler = (e: MessageEvent) => {
-      // 동일 출처 확인(필요 시 e.origin === window.location.origin 강화)
       const data = e?.data;
       const ok = data === "profile:saved" || (data && typeof data === "object" && data.type === "profile:saved");
-      if (ok) {
-        onSaved();
-      }
+      if (ok) onSaved();
     };
     window.addEventListener("message", handler);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
+
     return () => {
       window.removeEventListener("message", handler);
       document.removeEventListener("keydown", onKey);
@@ -132,32 +126,19 @@ function ProfileEditModal({
   return (
     <div
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="내 정보 수정"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl ring-1 ring-black/10 w-full max-w-3xl h-[80vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-2xl shadow-xl ring-1 ring-black/10 w-full max-w-3xl h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h3 className="text-base font-semibold text-gray-900">내 정보 수정</h3>
-          <button
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm text-gray-700 hover:bg-gray-100"
-            aria-label="닫기"
-            type="button"
-          >
+          <button onClick={onClose} className="px-2 py-1 rounded hover:bg-gray-100">
             닫기
           </button>
         </div>
-        <iframe
-          title="profile-edit"
-          src={src}
-          className="w-full h-full"
-          // 저장 화면에서 window.parent.postMessage('profile:saved','*') 호출 필요
-        />
+        <iframe title="profile-edit" src={src} className="w-full h-full" />
       </div>
     </div>
   );
@@ -169,15 +150,12 @@ export default function DirectorMyInfoCard() {
   const [loading, setLoading] = React.useState(true);
   const [err, setErr] = React.useState<string | null>(null);
 
-  // 편집 상태
   const [editing, setEditing] = React.useState<number | null>(null);
   const [form, setForm] = React.useState<{ name?: string; address?: string; phone?: string }>({});
   const [saving, setSaving] = React.useState(false);
 
-  // 삭제 상태(해당 학원 번호)
   const [deleting, setDeleting] = React.useState<number | null>(null);
 
-  // 새 학원 추가 상태
   const [addOpen, setAddOpen] = React.useState(false);
   const [addName, setAddName] = React.useState("");
   const [addPhone, setAddPhone] = React.useState("");
@@ -185,19 +163,29 @@ export default function DirectorMyInfoCard() {
   const [adding, setAdding] = React.useState(false);
   const [addErr, setAddErr] = React.useState<string | null>(null);
 
-  // 프로필 수정 모달
   const [openEdit, setOpenEdit] = React.useState(false);
-  const [refreshTick, setRefreshTick] = React.useState(0); // 저장 후 재조회 트리거
+  const [refreshTick, setRefreshTick] = React.useState(0);
+
+  /** 🔥 계정 삭제 이벤트 수신 */
+  React.useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data === "account:deleted") {
+        setOpenEdit(false);
+        localStorage.removeItem("login");
+        window.location.href = "/login";
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   const reload = React.useCallback(async () => {
     setLoading(true);
     setErr(null);
     try {
-      // 1) 원장 본인 정보
       const mine = await apiGet<DirectorMe>("/api/directors/me");
       setMe(mine);
 
-      // 2) 소속 학원 정보
       if (mine.academyNumbers?.length) {
         const q = encodeURIComponent(mine.academyNumbers.join(","));
         const acads = await apiGet<Academy[]>(`/api/directors/academies?numbers=${q}`);
@@ -249,10 +237,8 @@ export default function DirectorMyInfoCard() {
     try {
       setAddErr(null);
       if (!me) throw new Error("세션 정보가 없습니다.");
-      if (!addName.trim()) {
-        setAddErr("학원 이름을 입력하세요.");
-        return;
-      }
+      if (!addName.trim()) return setAddErr("학원 이름을 입력하세요.");
+
       setAdding(true);
       const created = await postCreateAcademyForDirector(me.username, {
         name: addName.trim(),
@@ -260,7 +246,6 @@ export default function DirectorMyInfoCard() {
         address: addAddress.trim() || undefined,
       });
 
-      // 목록/내 정보에 즉시 반영
       setAcademies((prev) => [
         {
           academyNumber: created.academyNumber,
@@ -270,13 +255,13 @@ export default function DirectorMyInfoCard() {
         },
         ...prev,
       ]);
+
       setMe((prev) =>
         prev
           ? { ...prev, academyNumbers: [...new Set([created.academyNumber, ...(prev.academyNumbers || [])])] }
           : prev
       );
 
-      // 폼 리셋
       setAddName("");
       setAddPhone("");
       setAddAddress("");
@@ -289,22 +274,18 @@ export default function DirectorMyInfoCard() {
   };
 
   const handleDelete = async (academyNumber: number) => {
-    if (!window.confirm("해당 학원을 삭제하시겠습니까?\n관련 데이터가 있다면 서버 정책에 따라 막히거나 함께 처리될 수 있습니다.")) {
-      return;
-    }
+    if (!window.confirm("해당 학원을 삭제하시겠습니까?\n관련 데이터가 있다면 서버 정책에 따라 막힐 수 있습니다.")) return;
+
     try {
       setErr(null);
       setDeleting(academyNumber);
       await deleteAcademy(academyNumber);
 
-      // 프론트 목록에서 제거
       setAcademies((prev) => prev.filter((a) => a.academyNumber !== academyNumber));
+
       setMe((prev) =>
         prev
-          ? {
-              ...prev,
-              academyNumbers: (prev.academyNumbers || []).filter((n) => n !== academyNumber),
-            }
+          ? { ...prev, academyNumbers: (prev.academyNumbers || []).filter((n) => n !== academyNumber) }
           : prev
       );
     } catch (e: any) {
@@ -322,7 +303,6 @@ export default function DirectorMyInfoCard() {
       <section className="bg-white ring-1 ring-black/5 rounded-2xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-black">기본 정보</h2>
-          {/* ▶ 우상단 버튼: 수정 모달 열기 (기존 router.push 대체) */}
           <button
             onClick={() => setOpenEdit(true)}
             className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black"
@@ -378,7 +358,6 @@ export default function DirectorMyInfoCard() {
           <button
             className="text-sm underline text-black"
             onClick={() => setAddOpen((v) => !v)}
-            aria-expanded={addOpen}
             type="button"
           >
             {addOpen ? "닫기" : "열기"}
@@ -390,7 +369,7 @@ export default function DirectorMyInfoCard() {
             <label className="grid gap-1">
               <span className="text-xs text-gray-500">학원 이름 *</span>
               <input
-                className="px-3 py-2 rounded-lg border bg-white text-black outline-none"
+                className="px-3 py-2 rounded-lg border bg-white text-black"
                 value={addName}
                 onChange={(e) => setAddName(e.target.value)}
                 placeholder="예) 103학"
@@ -399,7 +378,7 @@ export default function DirectorMyInfoCard() {
             <label className="grid gap-1">
               <span className="text-xs text-gray-500">대표번호</span>
               <input
-                className="px-3 py-2 rounded-lg border bg-white text-black outline-none"
+                className="px-3 py-2 rounded-lg border bg-white text-black"
                 value={addPhone}
                 onChange={(e) => setAddPhone(e.target.value)}
                 placeholder="예) 8221234567"
@@ -408,7 +387,7 @@ export default function DirectorMyInfoCard() {
             <label className="grid gap-1">
               <span className="text-xs text-gray-500">주소</span>
               <input
-                className="px-3 py-2 rounded-lg border bg-white text-black outline-none"
+                className="px-3 py-2 rounded-lg border bg-white text-black"
                 value={addAddress}
                 onChange={(e) => setAddAddress(e.target.value)}
                 placeholder="예) 인천광역시 중"
@@ -429,7 +408,7 @@ export default function DirectorMyInfoCard() {
         )}
       </section>
 
-      {/* 소속 학원 (편집/삭제 가능) */}
+      {/* 소속 학원 목록 */}
       <section className="space-y-3">
         <h3 className="text-lg font-bold text-black">소속 학원</h3>
         {loading ? (
@@ -441,6 +420,7 @@ export default function DirectorMyInfoCard() {
             {academies.map((a) => {
               const isEdit = editing === a.academyNumber;
               const isDeleting = deleting === a.academyNumber;
+
               return (
                 <div key={a.academyNumber} className="bg-white ring-1 ring-black/5 rounded-2xl p-5">
                   <div className="flex items-center justify-between">
@@ -450,7 +430,6 @@ export default function DirectorMyInfoCard() {
                           className="w-[14rem] rounded-lg border px-3 py-1 outline-none"
                           value={form.name ?? ""}
                           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                          placeholder="학원명"
                         />
                       ) : (
                         a.name || "—"
@@ -468,7 +447,6 @@ export default function DirectorMyInfoCard() {
                             className="w-full rounded-lg border px-3 py-1 outline-none"
                             value={form.address ?? ""}
                             onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                            placeholder="주소"
                           />
                         ) : (
                           a.address ?? "—"
@@ -483,7 +461,6 @@ export default function DirectorMyInfoCard() {
                             className="w-full rounded-lg border px-3 py-1 outline-none"
                             value={form.phone ?? ""}
                             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                            placeholder="숫자/하이픈 자유 입력"
                           />
                         ) : (
                           a.phone ?? "—"
@@ -498,15 +475,13 @@ export default function DirectorMyInfoCard() {
                         <button
                           disabled={isDeleting}
                           onClick={() => handleDelete(a.academyNumber)}
-                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-red-400 text-red-600 hover:bg-red-50 disabled:opacity-50"
-                          type="button"
+                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-red-400 text-red-600 hover:bg-red-50"
                         >
                           {isDeleting ? "삭제 중…" : "삭제"}
                         </button>
                         <button
                           onClick={() => onEdit(a)}
-                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black"
-                          type="button"
+                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50"
                         >
                           편집
                         </button>
@@ -516,16 +491,14 @@ export default function DirectorMyInfoCard() {
                         <button
                           disabled={saving || isDeleting}
                           onClick={onCancel}
-                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black disabled:opacity-50"
-                          type="button"
+                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50"
                         >
                           취소
                         </button>
                         <button
                           disabled={saving || isDeleting}
                           onClick={() => onSave(a.academyNumber)}
-                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50 text-black disabled:opacity-50"
-                          type="button"
+                          className="px-3 py-1.5 text-sm rounded-lg ring-1 ring-gray-300 hover:bg-gray-50"
                         >
                           {saving ? "저장 중…" : "저장"}
                         </button>
@@ -539,13 +512,13 @@ export default function DirectorMyInfoCard() {
         )}
       </section>
 
-      {/* 프로필 수정 모달 (기존 /settings/profile 화면을 iframe으로 띄움) */}
+      {/* 프로필 수정 모달 */}
       <ProfileEditModal
         open={openEdit}
         onClose={() => setOpenEdit(false)}
         onSaved={() => {
           setOpenEdit(false);
-          setRefreshTick((t) => t + 1); // 저장 후 즉시 재조회
+          setRefreshTick((t) => t + 1);
         }}
         src="/settings/profile"
       />
