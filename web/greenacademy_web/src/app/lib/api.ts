@@ -372,17 +372,22 @@ export const api = {
       { method: "PATCH", body: JSON.stringify(body) }
     ),
 
-  deleteSchedule: (teacherId: string, scheduleId: string) =>
-    request<void>(
-      `${TEACHER_PREFIX}/${encodeURIComponent(
-        teacherId
-      )}/schedules/${encodeURIComponent(scheduleId)}`
-    ),
+deleteSchedule: (teacherId: string, scheduleId: string) =>
+  request<void>(
+    `${TEACHER_PREFIX}/${encodeURIComponent(
+      teacherId
+    )}/schedules/${encodeURIComponent(scheduleId)}`,
+    { method: "DELETE" }            // ⬅⬅⬅ 이거 필수
+  ),
 
-  deleteScheduleByClassDate: (teacherId: string, classId: string, date: string) =>
-    request<void>(
-      `${TEACHER_PREFIX}/${encodeURIComponent(teacherId)}/schedules/${encodeURIComponent(`${classId}_${date}`)}`
-    ),
+deleteScheduleByClassDate: (teacherId: string, classId: string, date: string) =>
+  request<void>(
+    `${TEACHER_PREFIX}/${encodeURIComponent(
+      teacherId
+    )}/schedules/${encodeURIComponent(`${classId}_${date}`)}`,
+    { method: "DELETE" }            // ⬅⬅⬅ 이것도
+  ),
+
 
   /** ───────── 좌석/강의실(보드/관리) ───────── */
   getSeatBoard: (classId: string, date: string) =>

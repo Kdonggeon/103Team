@@ -5,7 +5,8 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
-import api, { type LoginResponse, type ScheduleItem } from "@/app/lib/api";
+import api, { type LoginResponse, type ScheduleItem, type CourseLite } from "@/app/lib/api";
+
 import Panel, { PanelGrid } from "@/components/ui/Panel";
 import WeekCalendar, { type CalendarEvent } from "@/components/ui/calendar/week-calendar";
 import MonthCalendar, { type MonthEvent, type Holiday } from "@/components/ui/calendar/month-calendar";
@@ -14,7 +15,7 @@ import ScheduleEditModal from "@/components/teacher/ScheduleEditModal";
 
 /* ───────── helpers ───────── */
 const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
-const ymd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const ymd = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1 < 10 ? "0" : ""}${d.getMonth() + 1}-${d.getDate() < 10 ? "0" : ""}${d.getDate()}`;
 function jsToIsoDow(jsDow: number) { return (jsDow === 0 ? 7 : (jsDow as 1|2|3|4|5|6|7)); }
 const getRoomNumber = (r: Room) =>
   Number((r as any).roomNumber ?? (r as any).number ?? (r as any).Room_Number);
@@ -83,50 +84,124 @@ function ScheduleAddModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [courses, setCourses] = useState<Array<{ classId: string; className: string }>>([]);
+  // ✅ 전체 반 정보 그대로 들고 있음 (roomNumber / roomNumbers 사용)
+  const [courses, setCourses] = useState<CourseLite[]>([]);
   const [classId, setClassId] = useState("");
+
   const [title, setTitle] = useState("");
   const [startTime, setStartTime] = useState("10:00");
   const [endTime, setEndTime] = useState("11:00");
 
-  // ✅ 관리에서 저장한 강의실 목록을 그대로 조회해서 칩으로 선택
+  // ✅ 학원 전체 방 목록 (roomName 포함) + 선택한 반에서 허용된 방만 필터링한 리스트
+  const [allRooms, setAllRooms] = useState<Array<{ roomNumber: number; roomName?: string }>>([]);
   const [myRooms, setMyRooms] = useState<Array<{ roomNumber: number; roomName?: string }>>([]);
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // ▽ 첫 오픈 시: 내 반 목록 + 전체 방 정보를 가져오고, 첫 번째 반 기준으로 필터 초기화
   useEffect(() => {
     if (!open) return;
     (async () => {
       try {
         setErr(null);
+
         // 1) 내 반 목록
         const list = await api.listMyClasses(teacherId);
-        const mapped = (list ?? []).map((c: any) => ({ classId: c.classId, className: c.className ?? c.classId }));
-        setCourses(mapped);
-        if (mapped.length) setClassId(mapped[0].classId);
+        const safeList: CourseLite[] = Array.isArray(list) ? list : [];
+        setCourses(safeList);
 
-        // 2) 학원 방 목록 (칩으로 표시)
+        let initialClassId = "";
+        if (safeList.length > 0) {
+          initialClassId = safeList[0].classId;
+          setClassId(initialClassId);
+        }
+
+        // 2) 학원 전체 방 목록 (이름 포함)
+        let roomInfo: Array<{ roomNumber: number; roomName?: string }> = [];
         if (academyNumber != null) {
           const rooms = await roomsApi.listRooms(Number(academyNumber));
-          const clean = Array.isArray(rooms)
-            ? rooms.map((r: any) => ({
-                roomNumber: Number(r.roomNumber ?? r.Room_Number ?? r.number),
-                roomName: r.roomName ?? r.name ?? undefined,
-              })).filter((r) => Number.isFinite(r.roomNumber))
+          roomInfo = Array.isArray(rooms)
+            ? rooms
+                .map((r: any) => ({
+                  roomNumber: Number(r.roomNumber ?? r.Room_Number ?? r.number),
+                  roomName: r.roomName ?? r.name ?? undefined,
+                }))
+                .filter((r) => Number.isFinite(r.roomNumber))
             : [];
-          setMyRooms(clean);
-          setSelectedRoom(clean.length ? clean[0].roomNumber : null);
+        }
+        setAllRooms(roomInfo);
+
+        // 3) 첫 반 기준으로 사용 가능한 방만 필터
+        const targetClassId = initialClassId || classId;
+        if (targetClassId) {
+          const c = safeList.find((x) => x.classId === targetClassId);
+          const nums =
+            c?.roomNumbers && c.roomNumbers.length > 0
+              ? c.roomNumbers
+              : c?.roomNumber != null
+              ? [c.roomNumber]
+              : [];
+
+          const filtered = nums.map((n) => {
+            const info = roomInfo.find((r) => r.roomNumber === n);
+            return { roomNumber: n, roomName: info?.roomName };
+          }).filter((r) => Number.isFinite(r.roomNumber));
+
+          setMyRooms(filtered);
+          setSelectedRoom(filtered.length ? filtered[0].roomNumber : null);
         } else {
           setMyRooms([]);
           setSelectedRoom(null);
         }
       } catch (e: any) {
         setErr(e?.message ?? "데이터를 불러오지 못했습니다.");
+        setCourses([]);
+        setAllRooms([]);
+        setMyRooms([]);
+        setSelectedRoom(null);
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, teacherId, academyNumber]);
+
+  // ▽ 반 선택이 바뀔 때마다: 그 반에서 사용 가능한 방만 필터
+  useEffect(() => {
+    if (!open) return;
+    if (!classId) {
+      setMyRooms([]);
+      setSelectedRoom(null);
+      return;
+    }
+
+    const c = courses.find((x) => x.classId === classId);
+    const nums =
+      c?.roomNumbers && c.roomNumbers.length > 0
+        ? c.roomNumbers
+        : c?.roomNumber != null
+        ? [c.roomNumber]
+        : [];
+
+    if (!nums.length) {
+      setMyRooms([]);
+      setSelectedRoom(null);
+      return;
+    }
+
+    const filtered = nums
+      .map((n) => {
+        const info = allRooms.find((r) => r.roomNumber === n);
+        return { roomNumber: n, roomName: info?.roomName };
+      })
+      .filter((r) => Number.isFinite(r.roomNumber));
+
+    setMyRooms(filtered);
+    setSelectedRoom((prev) => {
+      if (prev && filtered.some((r) => r.roomNumber === prev)) return prev;
+      return filtered.length ? filtered[0].roomNumber : null;
+    });
+  }, [open, classId, courses, allRooms]);
 
   const submit = async () => {
     if (!date || !classId) { setErr("날짜/반을 선택하세요."); return; }
@@ -143,7 +218,7 @@ function ScheduleAddModal({
         title: title || undefined,
         startTime,
         endTime,
-        roomNumber: selectedRoom ?? undefined,
+        roomNumber: selectedRoom ?? undefined,  // ✅ 선택한 반에서 허용된 방만
       });
       onCreated();
       onClose();
@@ -172,15 +247,19 @@ function ScheduleAddModal({
             value={classId}
             onChange={(e) => setClassId(e.target.value)}
           >
-            {courses.map(c => <option key={c.classId} value={c.classId} className="text-black">{c.className}</option>)}
+            {courses.map(c => (
+              <option key={c.classId} value={c.classId} className="text-black">
+                {c.className}
+              </option>
+            ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-sm mb-1 text-black">강의실 선택(여러 개 중 1개)</label>
-          <div className="border rounded-xl p-2 flex flex-wrap gap-2">
+          <label className="block text-sm mb-1 text-black">강의실 선택</label>
+          <div className="border rounded-xl p-2 flex flex-wrap gap-2 min-h-[40px]">
             {myRooms.length === 0 ? (
-              <div className="text-sm text-gray-600">등록된 강의실이 없습니다.</div>
+              <div className="text-sm text-gray-600">이 반에 연결된 강의실이 없습니다.</div>
             ) : myRooms.map(r => {
               const active = selectedRoom === r.roomNumber;
               return (
@@ -199,7 +278,7 @@ function ScheduleAddModal({
             })}
           </div>
           {myRooms.length > 0 && (
-            <div className="mt-1 text-xs text-gray-600">방 {myRooms.length}개</div>
+            <div className="mt-1 text-xs text-gray-600">이 반에서 사용 가능한 방 {myRooms.length}개</div>
           )}
         </div>
 
@@ -340,13 +419,13 @@ function MonthCenterModal({
     }
   };
 
-  // ✅ 수정 저장 함수
+  // ✅ 수정 저장 함수 (지금은 create로 새로 만드는 구조 유지)
   const handleSave = async (patch: {
     date: string; classId: string; title: string; startTime: string; endTime: string; roomNumber?: number;
   }) => {
-    await api.createSchedule(teacherId, patch); // 기존 일정 덮어쓰기
+    await api.createSchedule(teacherId, patch);
     await fetchMonth();
-    onChanged?.();       // 주간 갱신
+    onChanged?.();
   };
 
   if (!open) return null;
@@ -380,7 +459,6 @@ function MonthCenterModal({
             onPrevMonth={onPrev}
             onNextMonth={onNext}
             onEventClick={(ev) => {
-              // ✅ 달력 칩 클릭 → 수정 모달
               setEditEvent(ev);
               setEditOpen(true);
             }}
@@ -406,7 +484,7 @@ function MonthCenterModal({
                     <div className="flex gap-2">
                       <button
                         onClick={() => { setEditEvent(ev); setEditOpen(true); }}
-                        className="px-3 py-1.5 rounded border text-black"
+                        className="px-3 py-1.5 rounded border text.black"
                       >
                         수정
                       </button>
@@ -434,11 +512,11 @@ function MonthCenterModal({
         onClose={() => setAddOpen(false)}
         onCreated={async () => {
           await fetchMonth();
-          onChanged?.();        // 추가 후에도 주간 갱신
+          onChanged?.();
         }}
       />
 
-      {/* ✅ 이벤트 클릭 → 스케줄 수정 모달 */}
+      {/* 일정 클릭 → 스케줄 수정 모달 */}
       <ScheduleEditModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
@@ -464,11 +542,9 @@ function MonthCenterModal({
 export default function TeacherSchedulePanelInline({ user: userProp }: { user?: LoginResponse | null }) {
   const router = useRouter();
 
-  // user 없으면 클라이언트에서 복구
   const [user, setUser] = useState<LoginResponse | null>(userProp ?? null);
   useEffect(() => { setUser(userProp ?? loadUserFromClient()); }, [userProp]);
 
-  // 로그인 가드
   if (!user) {
     return (
       <div className="space-y-4">
@@ -488,7 +564,7 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
   const teacherId = user.username;
   const academyNumber = user.academyNumbers?.[0] ?? null;
 
-  const [baseDate] = useState<Date>(new Date()); // 날짜 이동 UI 제거 → 상태만 유지
+  const [baseDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -496,13 +572,11 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
   const [rows, setRows] = useState<ScheduleItem[]>([]);
   const [openMonth, setOpenMonth] = useState(false);
 
-  // 주간에서 반 상세 모달
   const [classOpen, setClassOpen] = useState(false);
   const [classIdForPanel, setClassIdForPanel] = useState<string | null>(null);
 
   const range = useMemo(() => weekRange(baseDate), [baseDate]);
 
-  // ✅ 주간 스케줄 로더 (깜빡임 없이도 호출할 수 있게 loading 토글은 밖에서만)
   const loadByRange = useCallback(async () => {
     setErr(null);
     try {
@@ -521,7 +595,6 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
     })();
   }, [loadByRange]);
 
-  // 방 목록
   useEffect(() => {
     (async () => {
       if (!academyNumber) return;
@@ -534,7 +607,6 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
     })();
   }, [academyNumber]);
 
-  /** 주간 이벤트 */
   const weekEvents: CalendarEvent[] = useMemo(() => {
     const out: CalendarEvent[] = [];
     for (const s of rows) {
@@ -568,12 +640,9 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
       <PanelGrid>
         <Panel
           title="주간 캘린더"
-          // ✅ PanelGrid 안에서 가로 두 칸(=전체 폭) 차지하게 해서 좁지 않게
           className="md:col-span-2"
           right={
-            // ⬇️ 우측 고정폭 스페이서로 기존 “틀” 느낌 유지
             <div className="min-w-[320px] flex flex-wrap items-center gap-3 justify-end">
-              {/* 방 필터만 유지 */}
               <div className="flex items-center gap-2">
                 <label className="text-xs text-gray-700">방</label>
                 <select
@@ -593,7 +662,6 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
                 </select>
               </div>
 
-              {/* 월간 모달 열기 */}
               <button
                 onClick={() => setOpenMonth(true)}
                 className="px-3 py-1.5 rounded bg-black text-white text-sm hover:bg-black/90"
@@ -606,7 +674,6 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
           {loading ? (
             <div className="text-sm text-gray-700">로딩 중…</div>
           ) : (
-            // ⬇️ 캘린더 좌우 패딩으로 본문 틀 유지, 가로는 가득 채움
             <div className="px-4 sm:px-6 w-full">
               <WeekCalendar
                 startHour={8}
@@ -631,16 +698,14 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
         </Panel>
       </PanelGrid>
 
-      {/* 월간 스케줄 모달 */}
       <MonthCenterModal
         open={openMonth}
         onClose={() => setOpenMonth(false)}
         teacherId={user.username}
         academyNumber={academyNumber}
-        onChanged={loadByRange}        // ✅ 모달 닫기 / 변경 시 주간만 조용히 새로고침
+        onChanged={loadByRange}
       />
 
-      {/* 주간 이벤트 클릭 → ClassDetail 패널 모달 */}
       <ClassDetailPanelModal
         open={classOpen}
         classId={classIdForPanel}

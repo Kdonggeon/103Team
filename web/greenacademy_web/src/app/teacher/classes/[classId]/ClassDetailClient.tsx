@@ -1,69 +1,159 @@
-// src/app/teacher/classes/[classid]/ClassDetailClient.tsx
+// src/app/teacher/classes/[classId]/ClassDetailClient.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { api, type CourseLite, type StudentHit } from "@/app/lib/api";
 import { getSession } from "@/app/lib/session";
+
 import {
   roomsVectorApi,
   type VectorLayout,
   type VectorSeat,
 } from "@/app/lib/rooms.vector";
+
 import VectorSeatEditor from "@/components/rooms/vector/VectorSeatEditor";
 import { generateAutoLayout } from "@/components/rooms/vector/generate";
 
 /* ───────────────────── 유틸 ───────────────────── */
+
+/** 다양한 백엔드 필드를 모두 커버해 roomNumber 추출 */
 const pickRoomNumber = (o: any): number | undefined => {
-  const rn = o?.roomNumber ?? o?.Room_Number ?? o?.number ?? o?.room_no ?? o?.RoomNo;
+  const rn =
+    o?.roomNumber ??
+    o?.Room_Number ??
+    o?.number ??
+    o?.room_no ??
+    o?.RoomNo ??
+    o?.RoomNumber ??
+    o?.ROOM_NUMBER;
+
   const n = typeof rn === "string" ? parseInt(rn, 10) : Number(rn);
   return Number.isFinite(n) ? n : undefined;
 };
-const uniqSorted = (arr: number[]) => Array.from(new Set(arr)).sort((a, b) => a - b);
 
-/** 좌석 1개 정규화 */
-const normalizeSeat = (s: any, i: number): VectorSeat & { studentId?: string | null } => {
-  const id = s?.id ?? s?._id ?? s?.seatId ?? String(i + 1);
-  const x = Number(s?.x ?? 0);
-  const y = Number(s?.y ?? 0);
-  const w = Number(s?.w ?? 40);
-  const h = Number(s?.h ?? 40);
-  const label = String(s?.label ?? s?.name ?? s?.seatNumber ?? s?.number ?? i + 1);
-  const disabled = Boolean(s?.disabled ?? s?.isDisabled ?? false);
-  // rooms에는 더이상 학생ID 안쓴다. (병합 시에만 채움)
-  const studentId = null;
-  return { id, x, y, w, h, label, disabled, studentId } as VectorSeat & { studentId?: string | null };
+/** 숫자 정렬 + 중복 제거 */
+const uniqSorted = (arr: number[]) =>
+  Array.from(new Set(arr)).sort((a, b) => a - b);
+
+/** 좌석 1개 정규화: 모든 가능한 필드를 허용 */
+const normalizeSeat = (
+  s: any,
+  i: number
+): VectorSeat & { studentId?: string | null } => {
+  const id =
+    s?.id ??
+    s?._id ??
+    s?.seatId ??
+    s?.seat_id ??
+    s?.label ??
+    s?.name ??
+    s?.number ??
+    s?.seatNumber ??
+    String(i + 1);
+
+  const x = Number(s?.x ?? s?.posX ?? 0);
+  const y = Number(s?.y ?? s?.posY ?? 0);
+  const w = Number(s?.w ?? s?.width ?? 40);
+  const h = Number(s?.h ?? s?.height ?? 40);
+
+  const label =
+    s?.label ??
+    s?.seatNumber ??
+    s?.number ??
+    s?.name ??
+    s?.id ??
+    s?._id ??
+    String(i + 1);
+
+  const disabled = Boolean(
+    s?.disabled ?? s?.isDisabled ?? s?.is_disabled ?? false
+  );
+
+  return {
+    id: String(id),
+    label: String(label),
+    x,
+    y,
+    w,
+    h,
+    disabled,
+    studentId: null,
+  };
 };
 
-/** ✅ vectorLayoutV2 우선 인식 */
-const normalizeLayout = (raw: any): VectorLayout & { seats: (VectorSeat & { studentId?: string | null })[] } => {
+/** 좌석 JSON 구조를 전부 수용하는 강력한 normalizeLayout */
+const normalizeLayout = (
+  raw: any
+): VectorLayout & { seats: (VectorSeat & { studentId?: string | null })[] } => {
+  if (!raw) return { version: 1, canvasW: 1000, canvasH: 700, seats: [] };
+
+  // 1) vectorLayoutV2 (새 버전)
   if (Array.isArray(raw?.vectorLayoutV2)) {
     const version = Number(raw?.vectorVersion ?? 1);
     const canvasW = Number(raw?.vectorCanvasW ?? raw?.canvasW ?? 1000);
     const canvasH = Number(raw?.vectorCanvasH ?? raw?.canvasH ?? 700);
-    const seats = raw.vectorLayoutV2.map((s: any, i: number) => normalizeSeat(s, i));
+    const seats = raw.vectorLayoutV2.map((s: any, i: number) =>
+      normalizeSeat(s, i)
+    );
     return { version, canvasW, canvasH, seats };
   }
 
+  // 2) seats / vectorSeats / layout.seats 등 모든 fallback
   const src =
-    raw?.seats ? raw
-    : raw?.layout?.seats ? raw.layout
-    : raw?.data?.seats ? raw.data
-    : raw ?? {};
+    raw?.seats
+      ? raw
+      : raw?.layout?.seats
+      ? raw.layout
+      : raw?.vectorSeats
+      ? { seats: raw.vectorSeats, ...raw }
+      : raw?.data?.seats
+      ? { seats: raw.data.seats, ...raw }
+      : raw ?? {};
 
-  const version = Number(src?.version ?? 1);
-  const canvasW = Number(src?.canvasW ?? 1000);
-  const canvasH = Number(src?.canvasH ?? 700);
-  const rawSeats = src?.seats ?? src?.vectorSeats ?? src?.layout?.seats ?? [];
-  const seats = Array.isArray(rawSeats) ? rawSeats.map((s: any, i: number) => normalizeSeat(s, i)) : [];
+  const version = Number(
+    raw?.version ?? raw?.vectorVersion ?? src?.version ?? 1
+  );
+  const canvasW = Number(
+    raw?.canvasW ??
+      raw?.vectorCanvasW ??
+      src?.canvasW ??
+      raw?.width ??
+      1000
+  );
+  const canvasH = Number(
+    raw?.canvasH ??
+      raw?.vectorCanvasH ??
+      src?.canvasH ??
+      raw?.height ??
+      700
+  );
+
+  const rawSeats =
+    src?.seats ??
+    src?.vectorSeats ??
+    src?.layout?.seats ??
+    src?.data?.seats ??
+    [];
+
+  const seats = Array.isArray(rawSeats)
+    ? rawSeats.map((s: any, i: number) => normalizeSeat(s, i))
+    : [];
 
   return { version, canvasW, canvasH, seats };
 };
 
+/* 타입 */
 type SeatWithAssign = VectorSeat & { studentId?: string | null };
-type LayoutWithAssign = Omit<VectorLayout, "seats"> & { seats: SeatWithAssign[] };
-type CourseDetail = CourseLite & { roomNumbers?: number[] };
+type LayoutWithAssign = Omit<VectorLayout, "seats"> & {
+  seats: SeatWithAssign[];
+};
 
+type CourseDetail = CourseLite & {
+  roomNumbers?: number[];
+};
+
+/** 세션 복구 */
 function getSessionClient() {
   if (typeof window === "undefined") return null;
   try {
@@ -72,12 +162,7 @@ function getSessionClient() {
     return null;
   }
 }
-
-/** ✅ 패널 모드 지원
- * - asPanel: 헤더를 패널용으로(닫기 버튼), Link 제거
- * - onClose: 상단 X 또는 외부에서 닫기 호출 시
- * - initialRoomNumber: 패널에서 특정 방을 바로 편집하도록 미리 선택
- */
+/** 패널 모드 지원 옵션 */
 export default function ClassDetailClient({
   classId,
   asPanel = false,
@@ -95,51 +180,51 @@ export default function ClassDetailClient({
   const me = getSessionClient();
   const academyNumber = me?.academyNumbers?.[0] ?? null;
 
-  /* ===== 반 기본 정보 ===== */
+  /* ========== 반 기본 정보 ========== */
   const [data, setData] = useState<CourseDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ===== 반 정보 수정 필드 ===== */
+  /* ========== 반 정보 수정 상태값 ========== */
   const [newName, setNewName] = useState("");
   const [selectedRoomNumbers, setSelectedRoomNumbers] = useState<number[]>([]);
   const [editingRoom, setEditingRoom] = useState<number | null>(initialRoomNumber);
 
-  /* ===== 학생 검색/추가 ===== */
+  /* ========== 학생 검색/추가 ========== */
   const [q, setQ] = useState("");
   const [grade, setGrade] = useState<string>("");
   const [hits, setHits] = useState<StudentHit[]>([]);
   const [searching, setSearching] = useState(false);
 
-  /* ===== 학원 방 목록 ===== */
+  /* ========== 학원 모든 방 목록 ========== */
   const [allRooms, setAllRooms] = useState<number[]>([]);
   const [roomsInfo, setRoomsInfo] = useState<string>("");
 
-  /* ===== 좌석 레이아웃 ===== */
+  /* ========== 좌석 레이아웃 ========== */
   const [layout, setLayout] = useState<LayoutWithAssign | null>(null);
   const [selectedSeatIndex, setSelectedSeatIndex] = useState<number | null>(null);
   const selectedSeat = useMemo(
-    () => (selectedSeatIndex != null && layout ? layout.seats[selectedSeatIndex] ?? null : null),
+    () =>
+      selectedSeatIndex != null && layout
+        ? layout.seats[selectedSeatIndex] ?? null
+        : null,
     [selectedSeatIndex, layout]
   );
 
-  /* ===== 배정 입력 ===== */
   const [seatNumInput, setSeatNumInput] = useState<string>("");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
-  /* ===== 이름 매핑(id -> name) ===== */
   const [nameMap, setNameMap] = useState<Map<string, string>>(new Map());
   const displayName = (sid: string) => nameMap.get(sid) ?? sid;
 
-  /* ===== 자동 저장(디바운스) ===== */
+  /* ========== 자동 저장 디바운스 ========== */
   const AUTO_SAVE_MS = 600;
   const saveRef = useRef<{ t: any; dirty: boolean }>({ t: null, dirty: false });
 
   const doSaveNow = async () => {
     if (!academyNumber || !editingRoom || !layout) return;
 
-    // ✅ rooms에는 좌석 좌표/상태만 저장 (학생ID 금지)
     const seatsV2 = layout.seats.map((s) => ({
       _id: String((s as any)._id ?? s.id ?? s.label ?? ""),
       label: String(s.label ?? ""),
@@ -155,26 +240,32 @@ export default function ClassDetailClient({
       vectorCanvasW: Number(layout.canvasW ?? 1000),
       vectorCanvasH: Number(layout.canvasH ?? 700),
       vectorLayoutV2: seatsV2,
-
-      // 구버전 호환 필드(학생ID 제외)
       version: Number(layout.version ?? 1),
       canvasW: Number(layout.canvasW ?? 1000),
       canvasH: Number(layout.canvasH ?? 700),
       seats: seatsV2.map((s) => ({
-        id: s._id, label: s.label, x: s.x, y: s.y, w: s.w, h: s.h, disabled: s.disabled
+        id: s._id,
+        label: s.label,
+        x: s.x,
+        y: s.y,
+        w: s.w,
+        h: s.h,
+        disabled: s.disabled,
       })),
     };
 
     try {
       await roomsVectorApi.put(editingRoom, academyNumber, body as any);
-      // rooms 새로 로드 (좌표만)
       const fresh = await roomsVectorApi.get(editingRoom, academyNumber);
       const norm = normalizeLayout(fresh) as LayoutWithAssign;
-      // 서버 seatMap 병합
+
       try {
         const seatMap = await api.getSeatMap(classId, editingRoom);
-        const assigned = new Map<string, string>(Object.entries(seatMap.map || {})); // label -> sid
-        const merged = norm.seats.map((s) => ({ ...s, studentId: assigned.get(String(s.label)) ?? null }));
+        const assigned = new Map<string, string>(Object.entries(seatMap.map || {}));
+        const merged = norm.seats.map((s) => ({
+          ...s,
+          studentId: assigned.get(String(s.label)) ?? null,
+        }));
         setLayout({ ...norm, seats: merged });
       } catch {
         setLayout(norm);
@@ -193,7 +284,7 @@ export default function ClassDetailClient({
     saveRef.current.t = setTimeout(() => void doSaveNow(), AUTO_SAVE_MS);
   };
 
-  /* === 학생→좌석 매핑 === */
+  /* ========== 학생 → 좌석 매핑 ========== */
   const studentToSeatLabel = useMemo(() => {
     const map = new Map<string, string>();
     if (layout?.seats) {
@@ -203,7 +294,8 @@ export default function ClassDetailClient({
     return map;
   }, [layout]);
 
-  /* ───────── 데이터 로드 ───────── */
+  /* ─────────── DATA LOAD ─────────── */
+
   const loadClass = async () => {
     setErr(null);
     setMsg(null);
@@ -222,8 +314,7 @@ export default function ClassDetailClient({
           : [];
       setSelectedRoomNumbers(rooms);
 
-      // 초기 방 우선순위: props.initialRoomNumber > API 첫 방
-      setEditingRoom((r) => (initialRoomNumber ?? rooms[0] ?? r ?? null));
+      setEditingRoom((r) => initialRoomNumber ?? rooms[0] ?? r ?? null);
     } catch (e: any) {
       setErr(e.message);
     } finally {
@@ -235,7 +326,9 @@ export default function ClassDetailClient({
     if (!academyNumber) return;
     try {
       const vlist: any[] = await roomsVectorApi.list(academyNumber);
-      const nums = (vlist || []).map(pickRoomNumber).filter((n): n is number => n !== undefined);
+      const nums = (vlist || [])
+        .map(pickRoomNumber)
+        .filter((n): n is number => n !== undefined);
       const opts = uniqSorted(nums);
       setAllRooms(opts);
       setRoomsInfo(`방 ${opts.length}개`);
@@ -251,15 +344,16 @@ export default function ClassDetailClient({
       return;
     }
     try {
-      // rooms에서 좌표/좌석만
       const raw = await roomsVectorApi.get(room, academyNumber);
       const norm = normalizeLayout(raw) as LayoutWithAssign;
 
-      // classes의 배정맵과 병합
       try {
         const seatMap = await api.getSeatMap(classId, room);
-        const assigned = new Map<string, string>(Object.entries(seatMap.map || {})); // label -> sid
-        const merged = norm.seats.map((s) => ({ ...s, studentId: assigned.get(String(s.label)) ?? null }));
+        const assigned = new Map<string, string>(Object.entries(seatMap.map || {}));
+        const merged = norm.seats.map((s) => ({
+          ...s,
+          studentId: assigned.get(String(s.label)) ?? null,
+        }));
         setLayout({ ...norm, seats: merged });
       } catch {
         setLayout(norm);
@@ -284,20 +378,18 @@ export default function ClassDetailClient({
       return;
     }
     loadClass();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId, mounted]);
 
   useEffect(() => {
     if (mounted) loadRooms();
-    // eslint-disable-next-line
   }, [academyNumber, mounted]);
 
   useEffect(() => {
     if (mounted) loadLayout(editingRoom);
-    // eslint-disable-next-line
   }, [academyNumber, editingRoom, mounted]);
 
-  /* ───────── 검색/추가/삭제 ───────── */
+  /* ───────── 학생 검색/추가/삭제 ───────── */
+
   const filterHits = (src: StudentHit[], q: string) => {
     const qq = q.trim();
     if (!qq) return src;
@@ -315,10 +407,14 @@ export default function ClassDetailClient({
     try {
       setSearching(true);
       setErr(null);
-      const res = await api.searchStudents(academyNumber, q, grade ? Number(grade) : undefined);
+      const res = await api.searchStudents(
+        academyNumber,
+        q,
+        grade ? Number(grade) : undefined
+      );
       const filtered = filterHits(res, q);
       setHits(filtered);
-      // 이름 캐시
+
       setNameMap((prev) => {
         const next = new Map(prev);
         for (const h of filtered)
@@ -353,14 +449,22 @@ export default function ClassDetailClient({
         await api.removeStudentFromClass(classId, sid);
         await loadClass();
       }
-      // 좌석 배정 해제(로컬 + 서버)
+
       if (layout?.seats && editingRoom) {
         const idx = layout.seats.findIndex((s) => s.studentId === sid);
         if (idx >= 0) {
-          const next = layout.seats.map((s, i) => (i === idx ? { ...s, studentId: null } : s));
+          const next = layout.seats.map((s, i) =>
+            i === idx ? { ...s, studentId: null } : s
+          );
           setLayout({ ...(layout as LayoutWithAssign), seats: next });
         }
-        await api.assignSeat(classId, { roomNumber: editingRoom, seatLabel: (layout?.seats[idx]?.label ?? String(idx + 1)) as string, studentId: null });
+        await api.assignSeat(classId, {
+          roomNumber: editingRoom,
+          seatLabel:
+            (layout?.seats[idx]?.label ??
+              String(idx + 1)) as string,
+          studentId: null,
+        });
       }
       setMsg("처리되었습니다.");
     } catch (e: any) {
@@ -368,12 +472,14 @@ export default function ClassDetailClient({
     }
   };
 
-  /* ───────── 좌석 편집 & 배정 ───────── */
-  const mergeSeats = (base: SeatWithAssign[], incoming: VectorSeat[]): SeatWithAssign[] => {
-    const byKey = (s: any) => String(s.id ?? s._id ?? s.label ?? "");
-    const baseMap = new Map(base.map((s) => [byKey(s), s]));
+  /* ───────── 좌석 편집/배정 ───────── */
+
+  const mergeSeats = (base: SeatWithAssign[], incoming: VectorSeat[]) => {
+    const key = (s: any) =>
+      String(s.id ?? s._id ?? s.label ?? s.seatNumber ?? "");
+    const baseMap = new Map(base.map((s) => [key(s), s]));
     return incoming.map((s) => {
-      const k = byKey(s);
+      const k = key(s);
       const prev = baseMap.get(k);
       return { ...(s as SeatWithAssign), studentId: prev?.studentId ?? null };
     });
@@ -381,7 +487,8 @@ export default function ClassDetailClient({
 
   useEffect(() => {
     const prevent = (e: MouseEvent) => {
-      if ((e.target as HTMLElement)?.closest?.("[data-seat-editor]")) e.preventDefault();
+      if ((e.target as HTMLElement)?.closest?.("[data-seat-editor]"))
+        e.preventDefault();
     };
     document.addEventListener("contextmenu", prevent);
     return () => document.removeEventListener("contextmenu", prevent);
@@ -396,12 +503,14 @@ export default function ClassDetailClient({
   const toggleSeatDisabled = () => {
     if (selectedSeatIndex == null || !layout) return;
     const next = [...layout.seats];
-    next[selectedSeatIndex] = { ...next[selectedSeatIndex], disabled: !next[selectedSeatIndex]?.disabled };
+    next[selectedSeatIndex] = {
+      ...next[selectedSeatIndex],
+      disabled: !next[selectedSeatIndex].disabled,
+    };
     setLayout({ ...layout, seats: next });
     scheduleAutoSave();
   };
 
-  /** 유일 배정: 기존 좌석에서 sid 제거 후 target에 sid 배정 + 서버 반영 */
   const assignSidToIndex = async (sid: string, targetIdx: number) => {
     if (!layout || editingRoom == null) return;
     const next = layout.seats.map((s, i) => {
@@ -410,17 +519,22 @@ export default function ClassDetailClient({
       return s;
     });
     setLayout({ ...layout, seats: next });
-    setMsg(`좌석 ${next[targetIdx].label}에 ${displayName(sid)} 배정 완료`);
+    setMsg(
+      `좌석 ${next[targetIdx].label}에 ${displayName(sid)} 배정 완료`
+    );
 
     try {
-      await api.assignSeat(classId, { roomNumber: editingRoom, seatLabel: String(next[targetIdx].label), studentId: sid });
+      await api.assignSeat(classId, {
+        roomNumber: editingRoom,
+        seatLabel: String(next[targetIdx].label),
+        studentId: sid,
+      });
     } catch (e: any) {
       setErr(e?.message ?? "배정 저장 실패");
     }
     scheduleAutoSave();
   };
 
-  // 좌석번호 입력 정규화: 숫자만 + [1..seatCount]
   const maxSeatCount = layout?.seats?.length ?? 0;
   const normalizeSeatNumberText = (text: string) => {
     const digits = text.replace(/\D+/g, "");
@@ -430,36 +544,54 @@ export default function ClassDetailClient({
     if (maxSeatCount > 0 && n > maxSeatCount) n = maxSeatCount;
     return String(n);
   };
-  const onChangeSeatNumInput = (v: string) => setSeatNumInput(normalizeSeatNumberText(v));
 
   const assignByInputs = () => {
-    if (!layout) { setErr("레이아웃이 없습니다."); return; }
-    let idx = selectedSeatIndex != null ? selectedSeatIndex : -1;
-    if (idx < 0 && seatNumInput.trim()) {
-      idx = layout.seats.findIndex((s) => String(s.label) === String(seatNumInput.trim()));
+    if (!layout) {
+      setErr("레이아웃이 없습니다.");
+      return;
     }
-    if (idx < 0) { setErr("좌석을 선택하거나 좌석번호를 입력하세요."); return; }
+    let idx =
+      selectedSeatIndex != null
+        ? selectedSeatIndex
+        : -1;
+    if (idx < 0 && seatNumInput.trim()) {
+      idx = layout.seats.findIndex(
+        (s) => String(s.label) === String(seatNumInput.trim())
+      );
+    }
+    if (idx < 0) {
+      setErr("좌석을 선택하거나 좌석번호를 입력하세요.");
+      return;
+    }
     const sid = (selectedStudentId ?? "").trim();
-    if (!sid) { setErr("학생을 선택하세요."); return; }
+    if (!sid) {
+      setErr("학생을 선택하세요.");
+      return;
+    }
     void assignSidToIndex(sid, idx);
   };
 
-  // 좌석 라벨 정렬 (숫자 우선)
   const seatSort = (a: SeatWithAssign, b: SeatWithAssign) => {
-    const an = Number(a.label), bn = Number(b.label);
-    const aNum = Number.isFinite(an), bNum = Number.isFinite(bn);
+    const an = Number(a.label),
+      bn = Number(b.label);
+    const aNum = Number.isFinite(an),
+      bNum = Number.isFinite(bn);
     if (aNum && bNum) return an - bn;
     return String(a.label).localeCompare(String(b.label), "ko");
   };
 
-  /* ===== 이름 해석: roster ∪ assigned ===== */
-  const currentRosterIds = useMemo(() => data?.students ?? [], [data]);
+  const currentRosterIds = useMemo(
+    () => data?.students ?? [],
+    [data]
+  );
   const assignedIds = useMemo(() => {
     if (!layout?.seats) return [];
-    const arr = layout.seats.map((s) => s.studentId).filter(Boolean) as string[];
-    return Array.from(new Set(arr));
+    return Array.from(
+      new Set(layout.seats.map((s) => s.studentId).filter(Boolean))
+    ) as string[];
   }, [layout]);
-  const currentStudents: string[] = useMemo(() => {
+
+  const currentStudents = useMemo(() => {
     const set = new Set<string>(currentRosterIds);
     for (const sid of assignedIds) set.add(sid);
     return Array.from(set);
@@ -473,27 +605,35 @@ export default function ClassDetailClient({
       await Promise.all(
         unique.map(async (sid) => {
           try {
-            const res: StudentHit[] = await api.searchStudents(academyNo, sid, undefined);
+            const res: StudentHit[] = await api.searchStudents(
+              academyNo,
+              sid,
+              undefined
+            );
             const hit = res.find((r) => r.studentId === sid) ?? res[0];
-            if (hit?.studentId) pairs.push([hit.studentId, hit.studentName ?? hit.studentId]);
-          } catch {/* per-id ignore */}
+            if (hit?.studentId)
+              pairs.push([
+                hit.studentId,
+                hit.studentName ?? hit.studentId,
+              ]);
+          } catch {}
         })
       );
+
       setNameMap((prev) => {
         const next = new Map(prev);
         for (const [id, name] of pairs) next.set(id, name);
         return next;
       });
-    } catch { /* batch ignore */ }
+    } catch {}
   };
 
   useEffect(() => {
     if (!academyNumber) return;
     const unknown = currentStudents.filter((id) => !nameMap.has(id));
-    if (unknown.length > 0) void resolveStudentNames(academyNumber, unknown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (unknown.length > 0)
+      void resolveStudentNames(academyNumber, unknown);
   }, [academyNumber, currentStudents.join("|")]);
-
   /* ───── 렌더 ───── */
   if (!mounted) return <div className="p-6 text-gray-900">불러오는 중…</div>;
   if (!me) return null;
@@ -503,24 +643,20 @@ export default function ClassDetailClient({
 
   const roomChecked = (n: number) => selectedRoomNumbers.includes(n);
   const toggleRoom = (n: number) =>
-    setSelectedRoomNumbers((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
+    setSelectedRoomNumbers((prev) =>
+      prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]
+    );
 
-  // 패널 모드 레이아웃 클래스(우측 시트 내부에서 스크롤 품)
-  const wrapperClass = asPanel
-    ? "h-full flex flex-col"
-    : "";
-
-  const scrollBodyClass = asPanel
-    ? "flex-1 overflow-y-auto"
-    : "";
+  const wrapperClass = asPanel ? "h-full flex flex-col" : "";
+  const scrollBodyClass = asPanel ? "flex-1 overflow-y-auto" : "";
 
   return (
     <div className={wrapperClass}>
       {/* ▶ 헤더 */}
       <div className="bg-white rounded-2xl ring-1 ring-black/5 shadow-sm px-5 py-4 flex items-center justify-between">
         <div className="flex items-end gap-3">
+          {/* 🔹 classId 표시는 제거 */}
           <h1 className="text-2xl font-bold text-gray-900">{data.className}</h1>
-          <span className="text-gray-600">({data.classId})</span>
         </div>
         {asPanel ? (
           <button
@@ -531,7 +667,10 @@ export default function ClassDetailClient({
             ✕ 닫기
           </button>
         ) : (
-          <Link href="/" className="inline-flex items-center gap-1 h-10 px-3 rounded-xl border border-gray-300 text-gray-900 hover:bg-gray-50">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 h-10 px-3 rounded-xl border border-gray-300 text-gray-900 hover:bg-gray-50"
+          >
             ← 대시보드로
           </Link>
         )}
@@ -545,24 +684,38 @@ export default function ClassDetailClient({
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm text-gray-900">반 이름</label>
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="border border-black rounded px-2 py-1 w-full text-gray-900 bg-white" />
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="border border-black rounded px-2 py-1 w-full text-gray-900 bg-white"
+              />
             </div>
             <div>
               <label className="block text-sm text-gray-900">강의실 선택(여러 개)</label>
               <div className="border border-black rounded px-2 py-2 bg-white">
                 {allRooms.length === 0 ? (
-                  <div className="text-sm text-gray-900">{roomsInfo || "방 없음"}</div>
+                  <div className="text-sm text-gray-900">
+                    {roomsInfo || "방 없음"}
+                  </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {allRooms.map((n) => {
                       const checked = roomChecked(n);
                       return (
-                        <label key={n}
+                        <label
+                          key={n}
                           className={`px-3 py-1 rounded-full border cursor-pointer transition ${
-                            checked ? "bg-black text-white border-black" : "bg-white text-gray-900 border-black/60 hover:border-black"
+                            checked
+                              ? "bg-black text-white border-black"
+                              : "bg-white text-gray-900 border-black/60 hover:border-black"
                           }`}
                         >
-                          <input type="checkbox" className="hidden" checked={checked} onChange={() => toggleRoom(n)} />
+                          <input
+                            type="checkbox"
+                            className="hidden"
+                            checked={checked}
+                            onChange={() => toggleRoom(n)}
+                          />
                           Room {n}
                         </label>
                       );
@@ -579,8 +732,12 @@ export default function ClassDetailClient({
               onClick={async () => {
                 await api.patchClass(classId, {
                   className: newName || undefined,
-                  roomNumber: selectedRoomNumbers.length ? selectedRoomNumbers[0] : undefined,
-                  roomNumbers: selectedRoomNumbers.length ? selectedRoomNumbers : undefined,
+                  roomNumber: selectedRoomNumbers.length
+                    ? selectedRoomNumbers[0]
+                    : undefined,
+                  roomNumbers: selectedRoomNumbers.length
+                    ? selectedRoomNumbers
+                    : undefined,
                 } as any);
                 await loadClass();
                 setMsg("반 정보가 저장되었습니다.");
@@ -597,37 +754,53 @@ export default function ClassDetailClient({
         {/* 좌석 편집 + 배정 */}
         <div className="bg-white border border-black rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-lg font-semibold text-gray-900">좌석 배치 / 배정</div>
+            <div className="text-lg font-semibold text-gray-900">
+              좌석 배치 / 배정
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-900">편집할 방</span>
               <select
                 value={editingRoom ?? ""}
-                onChange={(e) => setEditingRoom(e.target.value ? Number(e.target.value) : null)}
+                onChange={(e) =>
+                  setEditingRoom(e.target.value ? Number(e.target.value) : null)
+                }
                 className="border border-black rounded px-2 py-1 text-gray-900 bg-white"
               >
                 <option value="">선택…</option>
                 {selectedRoomNumbers.map((n) => (
-                  <option key={n} value={n}>Room {n}</option>
+                  <option key={n} value={n}>
+                    Room {n}
+                  </option>
                 ))}
               </select>
-              <button onClick={doSaveNow} disabled={!layout || !editingRoom} className="bg-black text-white px-3 py-2 rounded disabled:opacity-50">
+              <button
+                onClick={doSaveNow}
+                disabled={!layout || !editingRoom}
+                className="bg-black text-white px-3 py-2 rounded disabled:opacity-50"
+              >
                 좌석 저장
               </button>
             </div>
           </div>
 
           {!editingRoom ? (
-            <div className="text-sm text-gray-900">위에서 편집할 방을 선택하세요.</div>
+            <div className="text-sm text-gray-900">
+              위에서 편집할 방을 선택하세요.
+            </div>
           ) : !layout ? (
             <div className="text-sm text-gray-900">레이아웃 로딩 중…</div>
           ) : (
             <>
-              <div className="text-xs text-gray-700">좌석을 클릭하거나, 아래 표에서 행을 클릭해도 선택됩니다.</div>
+              <div className="text-xs text-gray-700">
+                좌석을 클릭하거나, 아래 표에서 행을 클릭해도 선택됩니다.
+              </div>
               <div
                 data-seat-editor
                 className="border border-black rounded-xl p-3 bg-white"
                 onClickCapture={(e) => {
-                  const el = (e.target as HTMLElement).closest("[data-seat-index]") as HTMLElement | null;
+                  const el = (e.target as HTMLElement).closest(
+                    "[data-seat-index]"
+                  ) as HTMLElement | null;
                   if (el) {
                     const idx = Number(el.dataset.seatIndex);
                     if (Number.isFinite(idx)) onSeatClick(idx);
@@ -637,7 +810,9 @@ export default function ClassDetailClient({
                 <VectorSeatEditor
                   value={layout.seats as VectorSeat[]}
                   onChange={(seats) => {
-                    setLayout((prev) => (prev ? { ...prev, seats: mergeSeats(prev.seats, seats) } : null));
+                    setLayout((prev) =>
+                      prev ? { ...prev, seats: mergeSeats(prev.seats, seats) } : null
+                    );
                     scheduleAutoSave();
                   }}
                 />
@@ -647,24 +822,54 @@ export default function ClassDetailClient({
                 {/* 선택 좌석 패널 */}
                 {selectedSeat && (
                   <div className="border border-black rounded p-3">
-                    <div className="font-semibold text-gray-900 mb-2">선택한 좌석</div>
+                    <div className="font-semibold text-gray-900 mb-2">
+                      선택한 좌석
+                    </div>
                     <div className="space-y-2 text-gray-900">
-                      <div>좌석번호: <span className="font-semibold">{selectedSeat.label}</span></div>
-                      <div>상태: {selectedSeat.disabled ? "비활성" : "활성"}</div>
-                      <div>배정 학생: <span className="font-semibold">{selectedSeat.studentId ? displayName(selectedSeat.studentId) : "없음"}</span></div>
+                      <div>
+                        좌석번호:{" "}
+                        <span className="font-semibold">
+                          {selectedSeat.label}
+                        </span>
+                      </div>
+                      <div>
+                        상태: {selectedSeat.disabled ? "비활성" : "활성"}
+                      </div>
+                      <div>
+                        배정 학생:{" "}
+                        <span className="font-semibold">
+                          {selectedSeat.studentId
+                            ? displayName(selectedSeat.studentId)
+                            : "없음"}
+                        </span>
+                      </div>
                       <div className="flex gap-2">
-                        <button onClick={toggleSeatDisabled} className="px-3 py-1.5 rounded bg-black text-white">
+                        <button
+                          onClick={toggleSeatDisabled}
+                          className="px-3 py-1.5 rounded bg-black text-white"
+                        >
                           {selectedSeat.disabled ? "활성화" : "비활성화"}
                         </button>
                         <button
                           onClick={async () => {
-                            if (selectedSeatIndex != null && layout && editingRoom != null) {
+                            if (
+                              selectedSeatIndex != null &&
+                              layout &&
+                              editingRoom != null
+                            ) {
                               const next = [...layout.seats];
                               const label = String(next[selectedSeatIndex].label);
-                              next[selectedSeatIndex] = { ...next[selectedSeatIndex], studentId: null };
+                              next[selectedSeatIndex] = {
+                                ...next[selectedSeatIndex],
+                                studentId: null,
+                              };
                               setLayout({ ...layout, seats: next });
                               try {
-                                await api.assignSeat(classId, { roomNumber: editingRoom, seatLabel: label, studentId: null });
+                                await api.assignSeat(classId, {
+                                  roomNumber: editingRoom,
+                                  seatLabel: label,
+                                  studentId: null,
+                                });
                                 setMsg(`좌석 ${label} 배정 해제`);
                               } catch (e: any) {
                                 setErr(e?.message ?? "배정 해제 실패");
@@ -683,25 +888,38 @@ export default function ClassDetailClient({
 
                 {/* 학생 배정 패널 */}
                 <div className="border border-black rounded p-3">
-                  <div className="font-semibold text-gray-900 mb-2">학생 배정</div>
+                  <div className="font-semibold text-gray-900 mb-2">
+                    학생 배정
+                  </div>
                   <div className="flex items-center gap-2">
                     <select
                       value={selectedStudentId ?? ""}
-                      onChange={(e) => setSelectedStudentId(e.target.value || null)}
+                      onChange={(e) =>
+                        setSelectedStudentId(e.target.value || null)
+                      }
                       className="border border-black rounded px-2 py-1 text-gray-900 bg-white"
                     >
                       <option value="">학생 선택…</option>
                       {currentStudents.map((sid) => (
-                        <option key={sid} value={sid}>{displayName(sid)}</option>
+                        <option key={sid} value={sid}>
+                          {displayName(sid)}
+                        </option>
                       ))}
                     </select>
                     <input
                       value={seatNumInput}
-                      onChange={(e) => setSeatNumInput(e.target.value.replace(/\D+/g, "").slice(0, 4))}
+                      onChange={(e) =>
+                        setSeatNumInput(normalizeSeatNumberText(e.target.value))
+                      }
                       placeholder={`좌석번호(1~${Math.max(maxSeatCount, 1)})`}
                       className="border border-black rounded px-2 py-1 text-gray-900 w-28 bg-white"
                     />
-                    <button onClick={assignByInputs} className="px-4 py-2 rounded bg-black text-white active:scale-[0.99]">배정</button>
+                    <button
+                      onClick={assignByInputs}
+                      className="px-4 py-2 rounded bg-black text-white active:scale-[0.99]"
+                    >
+                      배정
+                    </button>
                   </div>
 
                   {/* 학생 리스트 */}
@@ -714,11 +932,17 @@ export default function ClassDetailClient({
                           key={sid}
                           onClick={() => setSelectedStudentId(sid)}
                           className={`text-left border rounded px-3 py-2 transition ${
-                            isSelected ? "bg-black/5 border-black" : "bg-white hover:bg-black/5 border-black/60"
+                            isSelected
+                              ? "bg-black/5 border-black"
+                              : "bg-white hover:bg-black/5 border-black/60"
                           }`}
                         >
-                          <div className="font-medium text-gray-900">{displayName(sid)}</div>
-                          <div className="text-xs text-gray-600">{seatLabel ? `좌석 ${seatLabel}` : "미배정"}</div>
+                          <div className="font-medium text-gray-900">
+                            {displayName(sid)}
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {seatLabel ? `좌석 ${seatLabel}` : "미배정"}
+                          </div>
                         </button>
                       );
                     })}
@@ -728,7 +952,9 @@ export default function ClassDetailClient({
 
               {/* 현재 배정표 */}
               <div className="border border-black rounded p-3">
-                <div className="font-semibold text-gray-900 mb-2">현재 배정표</div>
+                <div className="font-semibold text-gray-900 mb-2">
+                  현재 배정표
+                </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-[420px] text-sm">
                     <thead>
@@ -739,39 +965,62 @@ export default function ClassDetailClient({
                       </tr>
                     </thead>
                     <tbody>
-                      {layout.seats.slice().sort(seatSort).map((s, i) => (
-                        <tr key={i} className="border-t hover:bg-black/5 cursor-pointer"
-                            onClick={() => { setSelectedSeatIndex(i); setSeatNumInput(String(s.label)); }}>
-                          <td className="py-2 pr-4 text-gray-900">{s.label}</td>
-                          <td className="py-2 pr-4 text-gray-900">{s.studentId ? displayName(s.studentId) : "-"}</td>
-                          <td className="py-2">
-                            {s.studentId && (
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  if (editingRoom == null) return;
-                                  const next = [...layout.seats];
-                                  next[i] = { ...next[i], studentId: null };
-                                  setLayout({ ...layout, seats: next });
-                                  try {
-                                    await api.assignSeat(classId, { roomNumber: editingRoom, seatLabel: String(s.label), studentId: null });
-                                  } catch (err: any) {
-                                    setErr(err?.message ?? "해제 실패");
-                                  }
-                                  scheduleAutoSave();
-                                }}
-                                className="text-sm text-black hover:underline"
-                              >
-                                해제
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {layout.seats
+                        .slice()
+                        .sort(seatSort)
+                        .map((s, i) => (
+                          <tr
+                            key={i}
+                            className="border-t hover:bg-black/5 cursor-pointer"
+                            onClick={() => {
+                              setSelectedSeatIndex(i);
+                              setSeatNumInput(String(s.label));
+                            }}
+                          >
+                            <td className="py-2 pr-4 text-gray-900">
+                              {s.label}
+                            </td>
+                            <td className="py-2 pr-4 text-gray-900">
+                              {s.studentId
+                                ? displayName(s.studentId)
+                                : "-"}
+                            </td>
+                            <td className="py-2">
+                              {s.studentId && (
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (editingRoom == null) return;
+                                    const next = [...layout.seats];
+                                    next[i] = { ...next[i], studentId: null };
+                                    setLayout({ ...layout, seats: next });
+                                    try {
+                                      await api.assignSeat(classId, {
+                                        roomNumber: editingRoom,
+                                        seatLabel: String(s.label),
+                                        studentId: null,
+                                      });
+                                    } catch (err: any) {
+                                      setErr(
+                                        err?.message ?? "해제 실패"
+                                      );
+                                    }
+                                    scheduleAutoSave();
+                                  }}
+                                  className="text-sm text-black hover:underline"
+                                >
+                                  해제
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
-                <div className="text-xs text-gray-600 mt-2">* 행을 클릭해도 좌석이 선택됩니다.</div>
+                <div className="text-xs text-gray-600 mt-2">
+                  * 행을 클릭해도 좌석이 선택됩니다.
+                </div>
               </div>
             </>
           )}
@@ -779,18 +1028,36 @@ export default function ClassDetailClient({
 
         {/* 현재 학생 목록 */}
         <div className="bg-white border border-black rounded-2xl p-5">
-          <div className="text-lg font-semibold mb-2 text-gray-900">등록 학생 ({currentStudents.length})</div>
+          <div className="text-lg font-semibold mb-2 text-gray-900">
+            등록 학생 ({currentStudents.length})
+          </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {currentStudents.map((sid) => (
-              <div key={sid} className="border border-black rounded px-3 py-2 flex items-center justify-between bg-white">
-                <span className="text-gray-900 font-medium">{displayName(sid)}</span>
+              <div
+                key={sid}
+                className="border border-black rounded px-3 py-2 flex items-center justify-between bg-white"
+              >
+                <span className="text-gray-900 font-medium">
+                  {displayName(sid)}
+                </span>
                 <div className="flex items-center gap-3">
-                  {studentToSeatLabel.get(sid) && <span className="text-xs text-gray-600">좌석 {studentToSeatLabel.get(sid)}</span>}
-                  <button onClick={() => removeStudent(sid)} className="text-black text-sm hover:underline">삭제</button>
+                  {studentToSeatLabel.get(sid) && (
+                    <span className="text-xs text-gray-600">
+                      좌석 {studentToSeatLabel.get(sid)}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => removeStudent(sid)}
+                    className="text-black text-sm hover:underline"
+                  >
+                    삭제
+                  </button>
                 </div>
               </div>
             ))}
-            {currentStudents.length === 0 && <div className="text-gray-900">아직 학생이 없습니다.</div>}
+            {currentStudents.length === 0 && (
+              <div className="text-gray-900">아직 학생이 없습니다.</div>
+            )}
           </div>
         </div>
 
@@ -798,23 +1065,50 @@ export default function ClassDetailClient({
         <div className="bg-white border border-black rounded-2xl p-5 space-y-3">
           <div className="text-lg font-semibold text-gray-900">학생 검색</div>
           <div className="flex flex-wrap gap-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 또는 ID 검색"
-                  className="border border-black rounded px-2 py-1 text-gray-900 bg-white" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="이름 또는 ID 검색"
+              className="border border-black rounded px-2 py-1 text-gray-900 bg-white"
+            />
           </div>
           <div className="flex flex-wrap gap-2 mt-2">
-            <input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="학년(선택)"
-                  className="border border-black rounded px-2 py-1 w-32 text-gray-900 bg-white" />
-            <button onClick={search} className="bg-black text-white px-3 py-1 rounded">검색</button>
-            {searching && <span className="text-gray-900 text-sm">검색중…</span>}
+            <input
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+              placeholder="학년(선택)"
+              className="border border-black rounded px-2 py-1 w-32 text-gray-900 bg-white"
+            />
+            <button
+              onClick={search}
+              className="bg-black text-white px-3 py-1 rounded"
+            >
+              검색
+            </button>
+            {searching && (
+              <span className="text-gray-900 text-sm">검색중…</span>
+            )}
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
             {hits.map((h) => (
-              <div key={h.studentId} className="border border-black rounded px-3 py-2 flex items-center justify-between bg-white">
-                <div className="font-medium text-gray-900">{h.studentName ?? h.studentId}</div>
-                <button onClick={() => addStudent(h.studentId)} className="text-black text-sm hover:underline">추가</button>
+              <div
+                key={h.studentId}
+                className="border border-black rounded px-3 py-2 flex items-center justify-between bg-white"
+              >
+                <div className="font-medium text-gray-900">
+                  {h.studentName ?? h.studentId}
+                </div>
+                <button
+                  onClick={() => addStudent(h.studentId)}
+                  className="text-black text-sm hover:underline"
+                >
+                  추가
+                </button>
               </div>
             ))}
-            {hits.length === 0 && <div className="text-gray-900">검색 결과 없음</div>}
+            {hits.length === 0 && (
+              <div className="text-gray-900">검색 결과 없음</div>
+            )}
           </div>
         </div>
       </div>
