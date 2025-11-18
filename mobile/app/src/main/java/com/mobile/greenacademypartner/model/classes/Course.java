@@ -17,20 +17,30 @@ public class Course {
     @SerializedName(value = "students",  alternate = {"Students"})
     private List<String> students;
 
-    // 요일/시간
     @SerializedName(value = "daysOfWeek", alternate = {"Days_Of_Week"})
     private List<Integer> daysOfWeek;  // 1=월 … 7=일
 
     @SerializedName(value = "startTime",  alternate = {"Start_Time"})
-    private String startTime;           // "HH:mm"
+    private String startTime;
 
     @SerializedName(value = "endTime",    alternate = {"End_Time"})
-    private String endTime;             // "HH:mm"
+    private String endTime;
 
     @SerializedName(value = "schedule",   alternate = {"Schedule"})
     private String schedule;
 
-    // ----- getters / setters -----
+    // 오늘 출석 상태 (UI용)
+    @SerializedName("todayStatus")
+    private String todayStatus;
+
+    public String getTodayStatus() {
+        return todayStatus;
+    }
+
+    public void setTodayStatus(String todayStatus) {
+        this.todayStatus = todayStatus;
+    }
+
     public String getClassId() { return classId; }
     public void setClassId(String classId) { this.classId = classId; }
 
