@@ -75,6 +75,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/parents").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/directors").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/teacher").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/account/delete").authenticated()
+
 
                 // 업로드된 정적 파일
                 .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
