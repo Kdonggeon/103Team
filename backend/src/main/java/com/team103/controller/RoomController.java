@@ -158,12 +158,12 @@ public class RoomController {
             // QR 자체에는 없고, 앱에서 붙여서 호출해야 함
             @RequestParam(name = "studentId",  required = false) String studentId) {
 
-        // ✅ studentId 필수 체크 (없으면 500 대신 400)
+        // 1) studentId 필수 체크
         if (studentId == null || studentId.isBlank()) {
             return ResponseEntity.badRequest().body("studentId가 없습니다. (로그인된 앱에서 호출해야 합니다)");
         }
 
-        // ✅ seatNumber/seat 둘 중 하나 사용
+        // 2) seatNumber / seat 둘 중 하나 선택
         int resolvedSeatNumber =
                 (seatNumber != null) ? seatNumber :
                 (seatParam   != null) ? seatParam   : -1;
@@ -171,14 +171,13 @@ public class RoomController {
             return ResponseEntity.badRequest().body("seatNumber 또는 seat 파라미터가 필요합니다.");
         }
 
-        // 0) 강의실 존재 확인
+        // 3) 강의실 조회, 좌석 번호 유효성 체크
         Optional<Room> opt = roomRepository.findByRoomNumberAndAcademyNumber(roomNumber, academyNumber);
         if (opt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("강의실 없음");
         }
         Room room = opt.get();
 
-        // 좌석 번호 기본 검증 (vectorLayout 크기 기반)
         if (room.getVectorLayout() == null
                 || resolvedSeatNumber < 1
                 || resolvedSeatNumber > room.getVectorLayout().size()) {
@@ -186,24 +185,23 @@ public class RoomController {
         }
         final int seatIndex = resolvedSeatNumber - 1;
 
-        // 1) waiting_room 사전 검증 (academyNumber + studentId 일치 문서가 있어야만 진행)
+        // 4) waiting_room 사전 검증
         Document wr = findWaitingRoomDoc(academyNumber, studentId);
         if (wr == null) {
             return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED).body("대기실에 동일 정보가 없습니다.");
         }
 
-        // 2) 좌석 배정 (원자적 업데이트: '비어있는 경우'에만 set → modifiedCount로 성공 판정)
+        // 5) rooms.vectorLayout[seatIndex].Student_ID = studentId (비어있을 때만)
         String seatStudentField    = "vectorLayout." + seatIndex + ".Student_ID";
         String seatOccupiedAtField = "vectorLayout." + seatIndex + ".occupiedAt";
 
         Query seatQuery = new Query(new Criteria().andOperator(
             Criteria.where("Academy_Number").is(academyNumber),
             Criteria.where("Room_Number").is(roomNumber),
-            // 비어 있을 때만 업데이트(null/미존재/빈문자열 허용)
             new Criteria().orOperator(
-                    Criteria.where(seatStudentField).exists(false),
-                    Criteria.where(seatStudentField).is(null),
-                    Criteria.where(seatStudentField).is("")
+                Criteria.where(seatStudentField).exists(false),
+                Criteria.where(seatStudentField).is(null),
+                Criteria.where(seatStudentField).is("")
             )
         ));
 
@@ -213,33 +211,23 @@ public class RoomController {
 
         UpdateResult ur = mongoTemplate.updateFirst(seatQuery, seatUpdate, "rooms");
         if (ur.getModifiedCount() == 0) {
-            // 좌석 점유 중이면 대기실 삭제도 하지 않음
             return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 점유된 좌석입니다");
         }
 
-        // 3) 이 강의실에 currentClass 가 설정된 경우:
-        //    → (1) 출석/seatAssignments 처리
-        //    → (2) classes.Seat_Map.<roomNumber>.<seatNumber> = studentId
+        // 6) 현재 반이 있으면 출석/Seat_Map 연동
         Room.CurrentClass cc = room.getCurrentClass();
         if (cc != null && cc.getClassId() != null && !cc.getClassId().isBlank()) {
             try {
                 String classId   = cc.getClassId();
-                String seatLabel = String.valueOf(resolvedSeatNumber); // SeatBoardService용 seatLabel
-
-                // 3-1) 출석/seatAssignments (기존 로직 유지)
-                // date=null → SeatBoardService 내부 todayYmd() 사용
+                String seatLabel = String.valueOf(resolvedSeatNumber);
                 seatBoardService.assignSeat(classId, null, seatLabel, studentId);
-
-                // 3-2) classes 컬렉션의 Seat_Map.<roomNumber>.<seatNumber> = studentId
                 updateCourseSeatMap(classId, roomNumber, resolvedSeatNumber, studentId);
-
             } catch (Exception e) {
-                // 출석/Seat_Map 연동 실패해도 좌석 배정/웨이팅룸 삭제는 유지
-                e.printStackTrace();
+                e.printStackTrace(); // 연동 실패해도 좌석/waiting_room은 유지
             }
         }
 
-        // 4) 방금 확인한 waiting_room 문서만 정확히 삭제(_id 기준)
+        // 7) 방금 사용한 waiting_room 문서만 삭제
         ObjectId wrId = wr.getObjectId("_id");
         mongoTemplate.remove(new Query(Criteria.where("_id").is(wrId)), "waiting_room");
 
