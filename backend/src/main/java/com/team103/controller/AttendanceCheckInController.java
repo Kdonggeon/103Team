@@ -74,10 +74,12 @@ public class AttendanceCheckInController {
 
         // ================================
         // 1️⃣ classId 없으면 입구 출석 처리
+        //    - attendances(entrance) 문서에 기록
+        //    - waiting_room 에 upsert (학원 + 학생 기준)
         // ================================
         if (classId == null || classId.isEmpty()) {
 
-            // 1) attendances 컬렉션: entrance 타입 upsert
+            // 1) 입구 출석용 attendances 문서 upsert
             Query q = new Query(Criteria.where("Date").is(ymd).and("Type").is("entrance"));
             Update up = new Update()
                     .setOnInsert("Type", "entrance")
@@ -96,36 +98,32 @@ public class AttendanceCheckInController {
                     FindAndModifyOptions.options().upsert(true).returnNew(true),
                     Attendance.class, ATTENDANCE_COLL);
 
-            // 2) waiting_room upsert (기존 insert → upsert 로 변경)
-            Integer academyNumber =
-                    academyNumberFromReq != null
-                            ? academyNumberFromReq
-                            : (stu.getAcademyNumbers() != null && !stu.getAcademyNumbers().isEmpty()
-                                ? stu.getAcademyNumbers().get(0)
-                                : null);
+            // 2) waiting_room upsert (Academy_Number + Student_ID 기준)
+            Integer academyNumber = academyNumberFromReq != null
+                    ? academyNumberFromReq
+                    : (stu.getAcademyNumbers() != null && !stu.getAcademyNumbers().isEmpty()
+                        ? stu.getAcademyNumbers().get(0)
+                        : null);
 
-            // academyNumber가 null이어도 일단 저장은 할 수 있지만,
-            // 구분 위해 studentId + date 기준으로 묶어줌
-            Query wq = new Query(
-                    Criteria.where("studentId").is(studentId)
-                            .and("date").is(ymd)
-            );
             if (academyNumber != null) {
-                wq.addCriteria(Criteria.where("academyNumber").is(academyNumber));
+                // 동일 학원 + 학생 기준으로 1건만 유지 (여러 번 찍어도 갱신만)
+                Query wq = new Query(
+                        Criteria.where("Academy_Number").is(academyNumber)
+                                .and("Student_ID").is(studentId)
+                );
+
+                Update wup = new Update()
+                        .set("Student_ID", studentId)
+                        .set("Academy_Number", academyNumber)
+                        .set("Checked_In_At", now.toLocalDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                        .set("Status", "LOBBY")
+                        // 선택: 이름/학교/학년도 같이 저장 (디버깅/뷰용)
+                        .set("Student_Name", stu.getStudentName())
+                        .set("School", stu.getSchool())
+                        .set("Grade", stu.getGrade());
+
+                mongoTemplate.upsert(wq, wup, WAITING_ROOM_COLL);
             }
-
-            Update wup = new Update()
-                    .set("studentId", studentId)
-                    .set("academyNumber", academyNumber)
-                    .set("studentName", stu.getStudentName())
-                    .set("school", stu.getSchool())
-                    .set("grade", stu.getGrade())
-                    .set("date", ymd) // 조회 편하게 날짜 필드도 명시
-                    .set("checkedInAt", now.toLocalDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
-                    .set("status", "LOBBY"); // 입구 대기 상태
-
-            // 🔥 upsert: 같은 학생/날짜(/학원) 레코드는 한 줄만 유지
-            mongoTemplate.upsert(wq, wup, WAITING_ROOM_COLL);
 
             CheckInResponse res = new CheckInResponse();
             res.setStatus("입구 출석");
@@ -138,7 +136,7 @@ public class AttendanceCheckInController {
         }
 
         // ================================
-        // 2️⃣ QR 출석 로직 (수업 기반)
+        // 2️⃣ QR 출석 로직 (특정 수업용)
         // ================================
         Course course = courseRepository.findByClassId(classId).orElse(null);
         if (course == null) return ResponseEntity.badRequest().body("수업을 찾을 수 없음");
@@ -169,14 +167,14 @@ public class AttendanceCheckInController {
         String status = nowLt.isAfter(LocalDateTime.of(today, presentUntil)) ? "LATE" : "PRESENT";
 
         // MongoDB Attendance 업데이트
-        Query q = new Query(Criteria.where("Class_ID").is(classId).and("Date").is(ymd));
+        Query q2 = new Query(Criteria.where("Class_ID").is(classId).and("Date").is(ymd));
         Update upsert = new Update()
                 .setOnInsert("Class_ID", classId)
                 .setOnInsert("Date", ymd)
                 .setOnInsert("Session_Start", sStr)
                 .setOnInsert("Session_End", eStr != null ? eStr : startTime.plusMinutes(50).format(HHMM))
                 .set("updatedAt", new Date());
-        mongoTemplate.upsert(q, upsert, ATTENDANCE_COLL);
+        mongoTemplate.upsert(q2, upsert, ATTENDANCE_COLL);
 
         // 학생 상태 업데이트
         Update setEntry = new Update()
@@ -184,17 +182,17 @@ public class AttendanceCheckInController {
                 .set("Attendance_List.$[s].CheckIn_Time", nowTime.toString())
                 .filterArray(Criteria.where("s.Student_ID").is(studentId));
         FindAndModifyOptions opts = FindAndModifyOptions.options().upsert(true).returnNew(true);
-        Attendance updated = mongoTemplate.findAndModify(q, setEntry, opts, Attendance.class, ATTENDANCE_COLL);
+        Attendance updated = mongoTemplate.findAndModify(q2, setEntry, opts, Attendance.class, ATTENDANCE_COLL);
 
         // 학생 엔트리가 없으면 push
         if (!hasStudentEntry(updated, studentId)) {
-            Update pushEntry = new Update().push("Attendance_List", Map.of(
+            Update pushEntry2 = new Update().push("Attendance_List", Map.of(
                     "Student_ID", studentId,
                     "Status", status,
                     "CheckIn_Time", nowTime.toString(),
                     "Source", "app"
             ));
-            mongoTemplate.findAndModify(q, pushEntry, opts, Attendance.class, ATTENDANCE_COLL);
+            mongoTemplate.findAndModify(q2, pushEntry2, opts, Attendance.class, ATTENDANCE_COLL);
         }
 
         CheckInResponse res = new CheckInResponse();
