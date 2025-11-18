@@ -287,6 +287,7 @@ public class ParentAttendanceActivity extends AppCompatActivity {
 
             // ---------- 🔥 오늘 날짜인 경우 ----------
             java.time.LocalTime classStart = java.time.LocalTime.parse(c.getStartTime());
+            java.time.LocalTime classEnd   = java.time.LocalTime.parse(c.getEndTime());
 
             if (matched != null) {
                 // 출석기록 있으면 그대로 반영
@@ -301,7 +302,7 @@ public class ParentAttendanceActivity extends AppCompatActivity {
                 else absent++;
 
             } else {
-                // 출석기록 없음 → 시간에 따라 예정 / 결석 구분
+
                 AttendanceResponse ab = new AttendanceResponse();
                 ab.setClassName(c.getClassName());
                 ab.setAcademyName(academyName);
@@ -310,15 +311,20 @@ public class ParentAttendanceActivity extends AppCompatActivity {
                 ab.setEndTime(c.getEndTime());
 
                 if (nowTime.isBefore(classStart)) {
-                    // 🔥 수업 시작 전 → 예정
                     ab.setStatus("예정");
-                } else {
-                    // 🔥 수업 시작 후인데도 기록이 없음 → 결석
+
+                } else if (nowTime.isAfter(classEnd)) {
                     ab.setStatus("결석");
                     absent++;
+
+                } else {
+                    // 🔥 수업 진행중
+                    ab.setStatus("진행중");
                 }
+
                 finalList.add(ab);
             }
+
         }
 
         finalList.sort(Comparator.comparing(AttendanceResponse::getStartTime));

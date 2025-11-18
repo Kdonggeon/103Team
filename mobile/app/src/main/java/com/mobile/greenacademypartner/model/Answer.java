@@ -12,7 +12,7 @@ public class Answer {
     private String createdAt;
 
     // 백엔드 응답 키: "교사이름"
-    @SerializedName("교사이름")
+    @SerializedName(value = "teacherName", alternate = {"교사이름"})
     private String teacherName;
 
     public Answer() {}

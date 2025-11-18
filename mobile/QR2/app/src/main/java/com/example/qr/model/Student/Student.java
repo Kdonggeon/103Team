@@ -26,14 +26,17 @@ public class Student {
     @SerializedName(value = "school", alternate = {"School", "schoolName"})
     private String school;
 
+    /** 🔥 int → String (서버에서 "" 들어옴) */
     @SerializedName(value = "grade", alternate = {"Grade"})
-    private int grade;
+    private String grade;
 
+    /** 🔥 int → String (여기서 오류 터졌음!) */
     @SerializedName(value = "parentsNumber", alternate = {"Parents_Number", "parentNumber"})
-    private int parentsNumber;
+    private String parentsNumber;
 
+    /** 🔥 int → String */
     @SerializedName(value = "seatNumber", alternate = {"Seat_Number"})
-    private int seatNumber;
+    private String seatNumber;
 
     @SerializedName(value = "checkedIn", alternate = {"Checked_In"})
     private boolean checkedIn;
@@ -66,14 +69,14 @@ public class Student {
     public String getSchool() { return school; }
     public void setSchool(String school) { this.school = school; }
 
-    public int getGrade() { return grade; }
-    public void setGrade(int grade) { this.grade = grade; }
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
 
-    public int getParentsNumber() { return parentsNumber; }
-    public void setParentsNumber(int parentsNumber) { this.parentsNumber = parentsNumber; }
+    public String getParentsNumber() { return parentsNumber; }
+    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
 
-    public int getSeatNumber() { return seatNumber; }
-    public void setSeatNumber(int seatNumber) { this.seatNumber = seatNumber; }
+    public String getSeatNumber() { return seatNumber; }
+    public void setSeatNumber(String seatNumber) { this.seatNumber = seatNumber; }
 
     public boolean isCheckedIn() { return checkedIn; }
     public void setCheckedIn(boolean checkedIn) { this.checkedIn = checkedIn; }

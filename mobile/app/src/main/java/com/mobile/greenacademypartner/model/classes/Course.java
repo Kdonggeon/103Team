@@ -33,6 +33,12 @@ public class Course {
     @SerializedName("todayStatus")
     private String todayStatus;
 
+    // 🔥 추가되는 필드: 수업 진행 상태(예정 / 진행중 / 종료)
+    private String status;
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
     public String getTodayStatus() {
         return todayStatus;
     }

@@ -57,7 +57,7 @@
                             android:textColor="@color/black" />
                     </LinearLayout>
 
-                    <!-- 🔹 우상단 아이콘 -->
+                    <!-- 🔹 우상단 아이콘 (알림 제거됨 → 설정만 남음) -->
                     <LinearLayout
                         android:id="@+id/topIcons"
                         android:layout_width="wrap_content"
@@ -66,44 +66,16 @@
                         android:layout_alignParentEnd="true"
                         android:gravity="center_vertical">
 
+                        <!-- 설정 아이콘만 유지 -->
                         <ImageView
                             android:id="@+id/btnSettings"
                             android:layout_width="32dp"
                             android:layout_height="32dp"
                             android:src="@drawable/ic_settings_light"
                             android:layout_marginEnd="12dp"
-                            android:contentDescription="설정" />
-
-                        <FrameLayout
-                            android:layout_width="32dp"
-                            android:layout_height="32dp">
-
-                            <ImageView
-                                android:id="@+id/btnNotifications"
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:src="@drawable/ic_notice"
-                                android:contentDescription="알림" />
-
-                            <!-- 🔹 알림 배지 -->
-                            <TextView
-                                android:id="@+id/tvBadge"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:minWidth="18dp"
-                                android:minHeight="18dp"
-                                android:padding="2dp"
-                                android:gravity="center"
-                                android:layout_gravity="end|top"
-                                android:background="@drawable/bg_badge"
-                                android:text="3"
-                                android:textSize="10sp"
-                                android:textStyle="bold"
-                                android:textColor="@android:color/white"
-                                android:translationX="2dp"
-                                android:translationY="-4dp"
-                                android:visibility="gone" />
-                        </FrameLayout>
+                            android:contentDescription="설정"
+                            android:clickable="true"
+                            android:focusable="true"/>
                     </LinearLayout>
                 </RelativeLayout>
 
@@ -193,7 +165,6 @@
                             android:textSize="18sp"
                             android:textStyle="bold" />
 
-                        <!-- 🔹 QnA 상세보기 (QuestionsActivity 이동) -->
                         <ImageView
                             android:id="@+id/btnMoreQna"
                             android:layout_width="24dp"
@@ -205,7 +176,6 @@
                             android:focusable="true"/>
                     </RelativeLayout>
 
-                    <!-- 🔹 QnA 최근 2개 블록 -->
                     <LinearLayout
                         android:id="@+id/blockQna1"
                         android:layout_width="match_parent"
@@ -238,7 +208,6 @@
                     </LinearLayout>
                 </LinearLayout>
 
-
                 <!-- 🔹 공지사항 최근 4개 -->
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -261,7 +230,6 @@
                             android:textSize="18sp"
                             android:textStyle="bold" />
 
-                        <!-- 🔹 공지사항 바로가기 -->
                         <ImageView
                             android:id="@+id/btnMoreNotice"
                             android:layout_width="24dp"
@@ -273,7 +241,6 @@
                             android:focusable="true"/>
                     </RelativeLayout>
 
-                    <!-- 🔹 공지 블록들 (둥근 카드 적용) -->
                     <LinearLayout
                         android:id="@+id/blockNotice1"
                         android:layout_width="match_parent"
@@ -365,7 +332,6 @@
             app:itemTextColor="@color/nav_item_color"
             app:labelVisibilityMode="selected"
             android:elevation="8dp"/>
-
     </RelativeLayout>
 
     <!-- 🔹 드로어 네비게이션 메뉴 -->
@@ -376,5 +342,4 @@
         android:layout_gravity="start"
         android:orientation="vertical"
         android:background="@color/gray"/>
-
 </androidx.drawerlayout.widget.DrawerLayout>

@@ -45,12 +45,12 @@
             android:exported="false"
             android:theme="@style/Theme.QR" />
 
-        <!-- ✅ 대기실 Activity (새로 추가) -->
+        <!-- ✅ 대기실 Activity (팝업 스타일 적용) -->
         <activity
             android:name=".ui.WaitingRoomActivity"
             android:exported="false"
-            android:screenOrientation="landscape"
-            android:theme="@style/Theme.QR" />
+            android:screenOrientation="sensor"
+            android:theme="@style/PopupActivity" />
 
         <!-- ✅ FCM 서비스 -->
         <service
@@ -63,4 +63,3 @@
 
     </application>
 </manifest>
-

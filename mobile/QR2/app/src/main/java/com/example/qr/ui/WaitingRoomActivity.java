@@ -2,6 +2,7 @@ package com.example.qr.ui;
 
 import android.os.Bundle;
 import android.os.Handler;
+import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -11,7 +12,7 @@ import com.example.qr.R;
 
 public class WaitingRoomActivity extends AppCompatActivity {
 
-    private static final int AUTO_CLOSE_MS = 3000; // 3초 뒤 자동 종료
+    private static final int AUTO_CLOSE_MS = 1000; // 1초 뒤 자동 종료
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -27,7 +28,10 @@ public class WaitingRoomActivity extends AppCompatActivity {
             tv.setText("대기실로 이동했습니다.");
         }
 
-        // 3초 뒤 자동으로 이전 화면으로 돌아가도록 (필요 없으면 삭제하세요)
+        // ✅ 화면 아무 곳이나 터치하면 닫기
+        findViewById(android.R.id.content).setOnClickListener(v -> finish());
+
+        // 1초 뒤 자동으로 이전 화면으로 돌아가도록
         new Handler().postDelayed(this::finish, AUTO_CLOSE_MS);
     }
 }

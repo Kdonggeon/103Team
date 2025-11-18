@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- 기본 앱 테마 (필요하면 수정) -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Customize your theme here -->
+    </style>
+
+    <!-- 🔥 팝업처럼 보이는 Activity 스타일 -->
+    <style name="PopupActivity" parent="Theme.AppCompat.Light.Dialog">
+        <!-- 팝업 크기 90% -->
+        <item name="android:windowMinWidthMajor">90%</item>
+        <item name="android:windowMinWidthMinor">90%</item>
+
+        <!-- 바깥은 반투명 -->
+        <item name="android:windowIsTranslucent">true</item>
+
+        <!-- 밖 클릭 시 닫힘 -->
+        <item name="android:windowCloseOnTouchOutside">true</item>
+
+        <!-- 팝업 배경 -->
+        <item name="android:colorBackground">@android:color/white</item>
+
+        <!-- 그림자 느낌 -->
+        <item name="android:windowElevation">16dp</item>
+    </style>
+
+</resources>

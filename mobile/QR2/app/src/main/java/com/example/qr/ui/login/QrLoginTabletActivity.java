@@ -28,6 +28,9 @@ import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.BarcodeEncoder;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -68,11 +71,11 @@ public class QrLoginTabletActivity extends AppCompatActivity {
         attendanceApi = RetrofitClient.getClient().create(AttendanceApi.class);
         academyApi = RetrofitClient.getClient().create(AcademyApi.class);
 
-        // ✅ 인텐트에서 학원번호 가져오기
-        String fromIntent = getIntent().getStringExtra("academyNumber");
-        if (fromIntent != null) academyNumberFromIntent = fromIntent;
+        // 🔥 LoginActivity에서 전달받은 학원번호 가져오기
+        String num = getIntent().getStringExtra("academyNumber");
+        if (num != null) academyNumberFromIntent = num;
 
-        // ✅ 원장 토큰이 있으면 바로 QR 표시
+        // 🔥 자동 로그인 상태면 즉시 QR 생성
         String directorToken = prefs.getString("director_token", null);
         if (directorToken != null) {
             loadStudentsAndMakeQr(academyNumberFromIntent, directorToken);
@@ -82,7 +85,7 @@ public class QrLoginTabletActivity extends AppCompatActivity {
         btnLogout.setOnClickListener(v -> logout());
     }
 
-    /** ✅ 로그인 시도 */
+    /** 🔥 원장/학생 로그인 처리 */
     private void attemptLogin() {
         String id = editId.getText().toString().trim();
         String pw = editPw.getText().toString().trim();
@@ -104,20 +107,20 @@ public class QrLoginTabletActivity extends AppCompatActivity {
 
                 LoginResponse data = res.body();
 
-                // ✅ 원장 로그인 → QR 표시
+                /** 🔥 원장 로그인 */
                 if ("director".equals(data.getRole())) {
+
                     prefs.edit().putString("director_token", data.getToken()).apply();
                     Toast.makeText(QrLoginTabletActivity.this, "원장 로그인 완료", Toast.LENGTH_SHORT).show();
 
-                    if (data.getAcademyNumbers() != null && !data.getAcademyNumbers().isEmpty()) {
-                        loadStudentsAndMakeQr(String.valueOf(data.getAcademyNumbers().get(0)), data.getToken());
-                    }
+                    // 🔥 QR 생성 시 무조건 LoginActivity에서 넘어온 학원 번호 사용
+                    loadStudentsAndMakeQr(academyNumberFromIntent, data.getToken());
                     return;
                 }
 
-                // ✅ 학생 로그인 → 출석 처리
+                /** 🔥 학생 로그인 */
                 if ("student".equals(data.getRole())) {
-                    // 🔥 추가: login_prefs에도 저장 (QR 스캐너에서 인식 가능하도록)
+
                     SharedPreferences loginPrefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
                     loginPrefs.edit()
                             .putString("student_id", data.getUsername())
@@ -125,9 +128,10 @@ public class QrLoginTabletActivity extends AppCompatActivity {
                             .apply();
 
                     checkIfStudentRegistered(data);
-                } else {
-                    Toast.makeText(QrLoginTabletActivity.this, "학생 계정으로 로그인하세요.", Toast.LENGTH_SHORT).show();
+                    return;
                 }
+
+                Toast.makeText(QrLoginTabletActivity.this, "학생 계정으로 로그인하세요.", Toast.LENGTH_SHORT).show();
             }
 
             @Override
@@ -139,7 +143,7 @@ public class QrLoginTabletActivity extends AppCompatActivity {
         hideKeyboard();
     }
 
-    /** ✅ 학원 등록 여부 확인 */
+    /** 🔥 학생이 해당 학원에 등록되어 있는지 확인 */
     private void checkIfStudentRegistered(LoginResponse data) {
         String token = data.getToken();
         String studentId = data.getUsername();
@@ -175,8 +179,9 @@ public class QrLoginTabletActivity extends AppCompatActivity {
                 });
     }
 
-    /** ✅ 출석 체크 (classId 없음) */
+    /** 🔥 출석 체크 */
     private void doCheckIn(String studentId, String token) {
+
         Map<String, String> req = new HashMap<>();
         req.put("studentId", studentId);
         req.put("academyNumber", academyNumberFromIntent);
@@ -186,7 +191,7 @@ public class QrLoginTabletActivity extends AppCompatActivity {
                     @Override
                     public void onResponse(Call<ResponseBody> call, Response<ResponseBody> res) {
                         if (res.isSuccessful()) {
-                            Toast.makeText(QrLoginTabletActivity.this, "✅ 출석 완료! 대기실로 이동합니다.", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(QrLoginTabletActivity.this, "출석 완료! 대기실로 이동합니다.", Toast.LENGTH_SHORT).show();
                             Intent intent = new Intent(QrLoginTabletActivity.this, WaitingRoomActivity.class);
                             intent.putExtra("studentId", studentId);
                             intent.putExtra("academyNumber", academyNumberFromIntent);
@@ -203,34 +208,59 @@ public class QrLoginTabletActivity extends AppCompatActivity {
                 });
     }
 
-    /** ✅ 학원 QR 생성 (원장용) */
+    /** 🔥 학원의 학생 리스트를 가져와 QR 생성 */
     private void loadStudentsAndMakeQr(String academyNumber, String token) {
         academyApi.getStudentsByAcademy("Bearer " + token, academyNumber)
                 .enqueue(new Callback<List<Student>>() {
                     @Override
                     public void onResponse(Call<List<Student>> call, Response<List<Student>> response) {
+
                         if (!response.isSuccessful() || response.body() == null) {
                             Toast.makeText(QrLoginTabletActivity.this, "학생 목록을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show();
                             makeQrOnlyAcademy(academyNumber);
                             return;
                         }
 
-                        List<String> ids = new ArrayList<>();
-                        for (Student s : response.body()) ids.add(s.getStudentId());
+                        try {
+                            List<String> ids = new ArrayList<>();
 
-                        String json = "{\"academyNumber\":\"" + academyNumber + "\",\"students\":" + ids.toString() + "}";
-                        makeQrFromString(json);
+                            for (Student s : response.body()) {
+                                if (s == null) continue;
+
+                                // 🔥 studentId가 null이면 건너뛰기
+                                String sid = (s.getStudentId() != null) ? s.getStudentId() : "";
+                                if (!sid.isEmpty()) {
+                                    ids.add(sid);
+                                }
+                            }
+
+                            JSONArray arr = new JSONArray();
+                            for (String id : ids) arr.put(id);
+
+                            JSONObject obj = new JSONObject();
+                            obj.put("academyNumber", academyNumber);
+                            obj.put("students", arr);
+
+                            makeQrFromString(obj.toString());
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            Toast.makeText(QrLoginTabletActivity.this, "QR JSON 생성 오류", Toast.LENGTH_SHORT).show();
+                        }
                     }
 
                     @Override
                     public void onFailure(Call<List<Student>> call, Throwable t) {
-                        Toast.makeText(QrLoginTabletActivity.this, "서버 오류", Toast.LENGTH_SHORT).show();
+                        t.printStackTrace();
+                        Toast.makeText(QrLoginTabletActivity.this, "서버 연결 오류(네트워크)", Toast.LENGTH_SHORT).show();
                         makeQrOnlyAcademy(academyNumber);
                     }
                 });
     }
 
-    /** ✅ QR 이미지 생성 */
+
+
+    /** 🔥 QR 생성 */
     private void makeQrFromString(String qrContent) {
         try {
             MultiFormatWriter writer = new MultiFormatWriter();
@@ -246,7 +276,7 @@ public class QrLoginTabletActivity extends AppCompatActivity {
         makeQrFromString("academyNumber=" + academyNumber);
     }
 
-    /** ✅ 로그아웃 시 LoginActivity로 이동 */
+    /** 로그아웃 */
     private void logout() {
         prefs.edit().clear().apply();
         qrImage.setImageDrawable(null);
@@ -258,7 +288,6 @@ public class QrLoginTabletActivity extends AppCompatActivity {
         finish();
     }
 
-    /** ✅ 복귀 시 입력창 초기화 */
     @Override
     protected void onResume() {
         super.onResume();

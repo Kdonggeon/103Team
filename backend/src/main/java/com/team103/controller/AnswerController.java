@@ -17,12 +17,12 @@ import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpSession;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.util.*;
 
@@ -39,10 +39,7 @@ public class AnswerController {
     @Autowired private FcmService fcmService;
     @Autowired private JwtUtil jwtUtil;
 
-    /**
-     * Authorization 헤더(Bearer 토큰)가 있으면 세션에 username/role을 채워줌.
-     * (필터와 병행 사용 시에도 문제 없음: 세션이 비어있을 때만 세팅)
-     */
+    /** JWT → 세션에 username/role 저장 */
     @ModelAttribute
     public void ensureSessionFromJwt(
             @RequestHeader(value = "Authorization", required = false) String auth,
@@ -50,39 +47,40 @@ public class AnswerController {
     ) {
         if (!StringUtils.hasText(auth) || !auth.startsWith(BEARER)) return;
 
-        Object u = session.getAttribute("username");
-        Object r = session.getAttribute("role");
-        if (u != null && r != null) return;
+        if (session.getAttribute("username") != null &&
+            session.getAttribute("role") != null) return;
 
         try {
             String token = auth.substring(BEARER.length());
             Claims claims = jwtUtil.validateToken(token);
+
             String userId = claims.getSubject();
             String role = claims.get("role", String.class);
 
-            if (u == null && StringUtils.hasText(userId)) {
+            if (StringUtils.hasText(userId)) {
                 session.setAttribute("username", userId);
             }
-            if (r == null && StringUtils.hasText(role)) {
+            if (StringUtils.hasText(role)) {
                 session.setAttribute("role", role);
             }
-        } catch (Exception ignore) {
-            // 유효하지 않은 토큰: 세션은 그대로 둠
-        }
+        } catch (Exception ignore) {}
     }
 
-    // 특정 질문의 답변 목록 조회
+    // ─────────────────────────────────────────────────────────────
+    // 🔹 특정 질문의 답변 목록 조회
+    // ─────────────────────────────────────────────────────────────
     @GetMapping("/api/questions/{qId}/answers")
     public List<Answer> listAnswers(@PathVariable("qId") String questionId) {
         List<Answer> list = answerRepository.findActiveByQuestionId(questionId);
-        // 표시용 교사명 세팅
         for (Answer a : list) {
             a.setTeacherName(resolveTeacherName(a.getAuthor()));
         }
         return list;
     }
 
-    // 답변 생성
+    // ─────────────────────────────────────────────────────────────
+    // 🔹 답변 생성
+    // ─────────────────────────────────────────────────────────────
     @PostMapping("/api/questions/{qId}/answers")
     public ResponseEntity<Answer> createAnswer(
             @PathVariable("qId") String questionId,
@@ -92,103 +90,41 @@ public class AnswerController {
         Question q = questionRepository.findById(questionId).orElse(null);
         if (q == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
-        // 작성자(세션)
-        String role = (String) session.getAttribute("role");        // "teacher" | "director" | "student" | "parent"
-        String userId = (String) session.getAttribute("username");  // 로그인 시 저장한 키와 통일
-        if (!StringUtils.hasText(userId)) return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
 
-        // 저장
+        if (!StringUtils.hasText(userId))
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+
         Answer a = new Answer();
         a.setQuestionId(questionId);
         a.setContent(payload.getContent() == null ? "" : payload.getContent());
         a.setCreatedAt(new Date());
         a.setAuthor(userId);
 
-        // (선택) authorRole 필드가 있는 엔티티라면 반영
-        try { a.getClass().getMethod("setAuthorRole", String.class).invoke(a, role); } catch (Exception ignore) {}
+        try {
+            a.getClass().getMethod("setAuthorRole", String.class).invoke(a, role);
+        } catch (Exception ignore) {}
 
         Answer saved = answerRepository.save(a);
 
-        // ---- FCM 알림 ----
+        // 알림 전송 (FCM)
         try {
-            Set<String> sentTokens = new HashSet<>();
+            sendFcmForAnswer(saved, q, role);
+        } catch (Exception ignore) {}
 
-            if ("teacher".equalsIgnoreCase(role) || "director".equalsIgnoreCase(role)) {
-                // 교사/원장 → 학부모(우선), 학생(있다면)
-
-                // 1) parent 전용 방이면 roomParentId 기준
-                String parentIdInRoom = q.getRoomParentId();
-                if (StringUtils.hasText(parentIdInRoom)) {
-                    Parent p = parentRepository.findByParentsId(parentIdInRoom);
-                    if (p != null && StringUtils.hasText(p.getFcmToken()) && sentTokens.add(p.getFcmToken())) {
-                        fcmService.sendMessageTo(
-                                p.getParentsId(),
-                                p.getFcmToken(),
-                                "새 답변 알림",
-                                "선생님의 답변이 도착했습니다."
-                        );
-                    }
-                }
-
-                // 2) student 전용 방이면 학생 + 그 학생의 학부모 전원
-                String studentIdInRoom = q.getRoomStudentId();
-                if (StringUtils.hasText(studentIdInRoom)) {
-                    // 학생
-                    Student s = studentRepository.findByStudentId(studentIdInRoom);
-                    if (s != null && StringUtils.hasText(s.getFcmToken()) && sentTokens.add(s.getFcmToken())) {
-                        fcmService.sendMessageTo(
-                                s.getStudentId(),
-                                s.getFcmToken(),
-                                "새 답변 알림",
-                                "선생님의 답변이 도착했습니다."
-                        );
-                    }
-                    // 학부모들 (⚠️ ParentRepository에 findByStudentId 필요)
-                    List<Parent> parents = parentRepository.findByStudentId(studentIdInRoom);
-                    if (parents != null) {
-                        for (Parent p : parents) {
-                            if (StringUtils.hasText(p.getFcmToken()) && sentTokens.add(p.getFcmToken())) {
-                                fcmService.sendMessageTo(
-                                        p.getParentsId(),
-                                        p.getFcmToken(),
-                                        "새 답변 알림",
-                                        "자녀 질문에 답변이 도착했습니다."
-                                );
-                            }
-                        }
-                    }
-                }
-
-            } else {
-                // 학생/학부모 → 같은 학원 교사들
-                int academyNumber = q.getAcademyNumber();
-                List<Teacher> teachers = teacherRepository.findByAcademyNumber(academyNumber);
-                if (teachers != null) {
-                    for (Teacher t : teachers) {
-                        if (StringUtils.hasText(t.getFcmToken()) && sentTokens.add(t.getFcmToken())) {
-                            fcmService.sendMessageTo(
-                                    t.getTeacherId(),
-                                    t.getFcmToken(),
-                                    "새 메시지 알림",
-                                    "새 메시지가 도착했습니다."
-                            );
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignore) {
-            // 알림 실패는 저장과 분리
-        }
-
-        // 응답 직전 표시용 이름 세팅(클라이언트 즉시 렌더링 대비)
         saved.setTeacherName(resolveTeacherName(saved.getAuthor()));
         return new ResponseEntity<>(saved, HttpStatus.CREATED);
     }
 
-    // 답변 수정
+    // ─────────────────────────────────────────────────────────────
+    // 🔹 답변 수정
+    // ─────────────────────────────────────────────────────────────
     @PutMapping("/api/answers/{id}")
-    public ResponseEntity<Answer> updateAnswer(@PathVariable String id,
-                                               @RequestBody Answer answer) {
+    public ResponseEntity<Answer> updateAnswer(
+            @PathVariable String id,
+            @RequestBody Answer answer) {
+
         Optional<Answer> opt = answerRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
 
@@ -200,27 +136,31 @@ public class AnswerController {
         return ResponseEntity.ok(updated);
     }
 
-    // 답변 삭제(소프트)
+    // ─────────────────────────────────────────────────────────────
+    // 🔹 답변 삭제 (Soft delete)
+    // ─────────────────────────────────────────────────────────────
     @DeleteMapping("/api/answers/{id}")
-    public ResponseEntity<Void> deleteAnswer(@PathVariable String id,
-                                             HttpSession session) {
+    public ResponseEntity<Void> deleteAnswer(
+            @PathVariable String id,
+            HttpSession session) {
+
         String role = (String) session.getAttribute("role");
-        String userId = (String) session.getAttribute("username");
-        if (userId == null || role == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        if (!"teacher".equalsIgnoreCase(role)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        if (!"teacher".equalsIgnoreCase(role))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 
         Optional<Answer> opt = answerRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.noContent().build();
 
         Answer answer = opt.get();
-        if (!answer.isDeleted()) {
-            answer.setDeleted(true);
-            answerRepository.save(answer);
-        }
+        answer.setDeleted(true);
+        answerRepository.save(answer);
+
         return ResponseEntity.noContent().build();
     }
 
-    // 단건 조회
+    // ─────────────────────────────────────────────────────────────
+    // 🔹 단일 답변 조회
+    // ─────────────────────────────────────────────────────────────
     @GetMapping("/api/answers/{id}")
     public ResponseEntity<Answer> getAnswer(@PathVariable String id) {
         Optional<Answer> opt = answerRepository.findById(id);
@@ -231,11 +171,143 @@ public class AnswerController {
         return ResponseEntity.ok(a);
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // 🔥 기존: 전체 최신 답변 n개 (사용 안함)
+    // ─────────────────────────────────────────────────────────────
+    @GetMapping("/api/answers/recent")
+    public List<Answer> getRecentAnswers(
+            @RequestParam(defaultValue = "2") int count
+    ) {
+        Pageable page = PageRequest.of(0, count);
+        List<Answer> list = answerRepository.findRecentActiveAnswers(page);
+
+        for (Answer a : list) {
+            a.setTeacherName(resolveTeacherName(a.getAuthor()));
+        }
+        return list;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 🔥🔥 NEW: 로그인한 학생/부모가 받은 ‘내 방’ 최신 답변
+    // ─────────────────────────────────────────────────────────────
+    @GetMapping("/api/my/recent-answers")
+    public List<Answer> getMyRecentAnswers(
+            @RequestParam(defaultValue = "2") int count,
+            HttpSession session
+    ) {
+        String role = (String) session.getAttribute("role");
+        String userId = (String) session.getAttribute("username");
+
+        if (role == null || userId == null) return List.of();
+
+        List<Question> myRooms = new ArrayList<>();
+
+        // 학생
+        if ("student".equalsIgnoreCase(role)) {
+            Student s = studentRepository.findByStudentId(userId);
+            if (s != null && s.getAcademyNumbers() != null) {
+                for (Integer ac : s.getAcademyNumbers()) {
+                    myRooms.addAll(
+                            questionRepository.findRoomByAcademyAndStudent(ac, userId)
+                    );
+                }
+            }
+        }
+
+        // 부모
+        else if ("parent".equalsIgnoreCase(role)) {
+            Parent p = parentRepository.findByParentsId(userId);
+            if (p != null) {
+                List<Student> children = studentRepository.findByParentsNumber(p.getParentsNumber());
+                if (children != null) {
+                    for (Student child : children) {
+                        if (child.getAcademyNumbers() == null) continue;
+                        for (Integer ac : child.getAcademyNumbers()) {
+                            myRooms.addAll(
+                                    questionRepository.findRoomByAcademyAndParent(ac, userId)
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        if (myRooms.isEmpty()) return List.of();
+
+        List<String> qIds = new ArrayList<>();
+        for (Question q : myRooms) {
+            if (q.getId() != null) qIds.add(q.getId());
+        }
+
+        if (qIds.isEmpty()) return List.of();
+
+        List<Answer> all =
+                answerRepository.findByQuestionIdInAndDeletedFalseOrderByCreatedAtDesc(qIds);
+
+        int limit = Math.min(count, all.size());
+        List<Answer> result = all.subList(0, limit);
+
+        for (Answer a : result) {
+            a.setTeacherName(resolveTeacherName(a.getAuthor()));
+        }
+
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 🔹 공통 유틸
+    // ─────────────────────────────────────────────────────────────
     private String resolveTeacherName(String teacherId) {
         if (!StringUtils.hasText(teacherId)) return "";
         Teacher t = teacherRepository.findByTeacherId(teacherId);
         return (t != null && StringUtils.hasText(t.getTeacherName()))
                 ? t.getTeacherName()
                 : teacherId;
+    }
+
+    private void sendFcmForAnswer(Answer saved, Question q, String role) {
+        Set<String> sent = new HashSet<>();
+
+        if ("teacher".equalsIgnoreCase(role) || "director".equalsIgnoreCase(role)) {
+            // parent 전용 방
+            if (StringUtils.hasText(q.getRoomParentId())) {
+                Parent p = parentRepository.findByParentsId(q.getRoomParentId());
+                if (p != null && StringUtils.hasText(p.getFcmToken()) && sent.add(p.getFcmToken())) {
+                    fcmService.sendMessageTo(p.getParentsId(), p.getFcmToken(),
+                            "새 답변 알림", "선생님의 답변이 도착했습니다.");
+                }
+            }
+
+            // student 전용 방
+            if (StringUtils.hasText(q.getRoomStudentId())) {
+                Student s = studentRepository.findByStudentId(q.getRoomStudentId());
+                if (s != null && StringUtils.hasText(s.getFcmToken()) && sent.add(s.getFcmToken())) {
+                    fcmService.sendMessageTo(s.getStudentId(), s.getFcmToken(),
+                            "새 답변 알림", "선생님의 답변이 도착했습니다.");
+                }
+
+                List<Parent> parents = parentRepository.findByStudentId(q.getRoomStudentId());
+                if (parents != null) {
+                    for (Parent p : parents) {
+                        if (StringUtils.hasText(p.getFcmToken()) && sent.add(p.getFcmToken())) {
+                            fcmService.sendMessageTo(p.getParentsId(), p.getFcmToken(),
+                                    "새 답변 알림", "자녀 질문에 답변이 도착했습니다.");
+                        }
+                    }
+                }
+            }
+
+        } else {
+            // 학생/학부모 → 같은 학원 선생님들
+            List<Teacher> teachers = teacherRepository.findByAcademyNumber(q.getAcademyNumber());
+            if (teachers != null) {
+                for (Teacher t : teachers) {
+                    if (StringUtils.hasText(t.getFcmToken()) && sent.add(t.getFcmToken())) {
+                        fcmService.sendMessageTo(t.getTeacherId(), t.getFcmToken(),
+                                "새 메시지 알림", "새 메시지가 도착했습니다.");
+                    }
+                }
+            }
+        }
     }
 }

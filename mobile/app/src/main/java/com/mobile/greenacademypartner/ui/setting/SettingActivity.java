@@ -253,12 +253,10 @@ public class SettingActivity extends AppCompatActivity {
         String cur = sp.getString("app_font", "System");
         if ("NotoSansKR".equals(cur)) rbNoto.setChecked(true); else rbSystem.setChecked(true);
         btnApply.setOnClickListener(v -> {
-            String sel = rbNoto.isChecked() ? "NotoSansKR" : "System";
-            sp.edit().putString("app_font", sel).apply();
+            sp.edit().putString("app_font", "System").apply();  // <- 무조건 시스템 폰트 저장
             recreate();
         });
     }
-
     private void insertFontSectionBelowNotifications() {
         if (boxNotifications == null) return;
         if (findViewById(R.id.card_font_settings) != null) return;

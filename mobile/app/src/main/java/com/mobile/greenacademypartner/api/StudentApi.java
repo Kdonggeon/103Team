@@ -90,4 +90,9 @@ public interface StudentApi {
     Call<Student> getStudentById(
             @Path("studentId") String studentId
     );
+    // 🔥 이번 달 출결 가져오기 (출석관리 화면과 동일)
+    @GET("/api/students/{studentId}/attendance/month")
+    Call<List<AttendanceResponse>> getMonthlyAttendance(
+            @Path("studentId") String studentId
+    );
 }

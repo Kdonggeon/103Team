@@ -4,7 +4,6 @@ import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -32,13 +31,11 @@ import com.mobile.greenacademypartner.ui.main.MainActivity;
 import com.mobile.greenacademypartner.ui.mypage.MyPageActivity;
 import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
-import java.util.TimeZone;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -46,31 +43,25 @@ import retrofit2.Response;
 
 public class StudentTimetableActivity extends AppCompatActivity {
 
-    public static final String EXTRA_OVERRIDE_STUDENT_ID = "overrideStudentId";
-
     private Toolbar toolbar;
     private RecyclerView recyclerView;
     private TimetableAdapter adapter;
 
-    // ▼ 하단 네비 + 토글
     private BottomNavigationView bottomNavigation;
     private ImageButton btnHideNav, btnShowNav;
 
-    // ▼ 자녀 스피너
     private Spinner spinnerChildren;
     private ArrayAdapter<String> childrenAdapter;
     private final List<Student> children = new ArrayList<>();
+
     private String currentStudentId = null;
 
-    private final TimeZone tz = TimeZone.getTimeZone("Asia/Seoul");
-    private final Locale loc = Locale.KOREA;
-    private final SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd", loc);
+    private LocalDate selectedDate = LocalDate.now();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_timetable);
-        iso.setTimeZone(tz);
 
         toolbar = findViewById(R.id.toolbar);
         toolbar.setTitle("시간표");
@@ -86,13 +77,11 @@ public class StudentTimetableActivity extends AppCompatActivity {
         btnShowNav = findViewById(R.id.btn_show_nav);
 
         bottomNavigation.setSelectedItemId(R.id.nav_timetable);
-
         btnHideNav.setOnClickListener(v -> {
             bottomNavigation.setVisibility(View.GONE);
             btnHideNav.setVisibility(View.GONE);
             btnShowNav.setVisibility(View.VISIBLE);
         });
-
         btnShowNav.setOnClickListener(v -> {
             bottomNavigation.setVisibility(View.VISIBLE);
             btnShowNav.setVisibility(View.GONE);
@@ -120,182 +109,138 @@ public class StudentTimetableActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.action_pick_date) {
-            Calendar now = Calendar.getInstance(tz, loc);
-            new DatePickerDialog(
+            LocalDate now = selectedDate;
+            DatePickerDialog dlg = new DatePickerDialog(
                     this,
-                    (view, year, month, dayOfMonth) -> {
-                        Calendar pick = Calendar.getInstance(tz, loc);
-                        pick.set(year, month, dayOfMonth);
-                        loadClassesForDate(pick);
+                    (v, year, month, day) -> {
+                        selectedDate = LocalDate.of(year, month + 1, day);
+                        loadClasses();
                     },
-                    now.get(Calendar.YEAR),
-                    now.get(Calendar.MONTH),
-                    now.get(Calendar.DAY_OF_MONTH)
-            ).show();
+                    now.getYear(),
+                    now.getMonthValue() - 1,
+                    now.getDayOfMonth()
+            );
+            dlg.show();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    /** 부모/학생에 따라 스피너 구성 */
     private void setupStudentOrChildrenFlow() {
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        String role = safe(prefs.getString("role", "")).toLowerCase();
-        Calendar today = Calendar.getInstance(tz, loc);
+        String role = prefs.getString("role", "");
 
-        if ("parent".equals(role)) {
-            if (spinnerChildren != null) spinnerChildren.setVisibility(View.VISIBLE);
+        if ("parent".equalsIgnoreCase(role)) {
+            spinnerChildren.setVisibility(View.VISIBLE);
 
-            String parentId = firstNonEmpty(
-                    prefs.getString("userId", null),
-                    prefs.getString("parentId", null),
-                    prefs.getString("username", null)
-            );
-
-            if (parentId == null || parentId.isEmpty()) {
-                Toast.makeText(this, "부모 ID가 없습니다. 다시 로그인해 주세요.", Toast.LENGTH_SHORT).show();
-                spinnerChildren.setVisibility(View.GONE);
-                return;
-            }
+            String parentId = prefs.getString("userId",
+                    prefs.getString("parentId",
+                            prefs.getString("username", "")));
 
             childrenAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, new ArrayList<>());
             childrenAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spinnerChildren.setAdapter(childrenAdapter);
 
-            loadChildrenAsync(parentId, () -> loadClassesForDate(today));
+            loadChildren(parentId);
 
-            spinnerChildren.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    if (position >= 0 && position < children.size()) {
-                        Student s = children.get(position);
-                        currentStudentId = safe(s.getStudentId());
-                        loadClassesForDate(Calendar.getInstance(tz, loc));
-                    }
-                }
-                @Override public void onNothingSelected(AdapterView<?> parent) {}
-            });
         } else {
-            // 학생 로그인일 때
             spinnerChildren.setVisibility(View.GONE);
-            currentStudentId = safe(prefs.getString("username", ""));
-            if (currentStudentId.isEmpty()) {
-                Toast.makeText(this, "학생 ID가 없습니다.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            loadClassesForDate(today);
+            currentStudentId = prefs.getString("username", "");
+            loadClasses();
         }
     }
 
-    /** 부모의 자녀 목록 로딩 — 등록된 자녀만 표시 */
-    private void loadChildrenAsync(String parentId, Runnable afterLoad) {
-        try {
-            ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
-            api.getChildrenByParentId(parentId).enqueue(new Callback<List<Student>>() {
-                @Override
-                public void onResponse(Call<List<Student>> call, Response<List<Student>> resp) {
-                    if (!resp.isSuccessful() || resp.body() == null) {
-                        Toast.makeText(StudentTimetableActivity.this, "자녀 목록을 불러올 수 없습니다.", Toast.LENGTH_SHORT).show();
-                        spinnerChildren.setVisibility(View.GONE);
-                        return;
-                    }
-
-                    children.clear();
-                    for (Student s : resp.body()) {
-                        if (s == null) continue;
-                        if (!safe(s.getStudentId()).isEmpty() && !safe(s.getStudentName()).isEmpty()) {
-                            children.add(s);
-                        }
-                    }
-
-                    if (children.isEmpty()) {
-                        spinnerChildren.setVisibility(View.GONE);
-                        Toast.makeText(StudentTimetableActivity.this, "등록된 자녀가 없습니다.", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    List<String> names = new ArrayList<>();
-                    for (Student s : children) names.add(safe(s.getStudentName()));
-                    childrenAdapter.clear();
-                    childrenAdapter.addAll(names);
-                    childrenAdapter.notifyDataSetChanged();
-
-                    currentStudentId = safe(children.get(0).getStudentId());
-                    spinnerChildren.setSelection(0);
-
-                    if (afterLoad != null) afterLoad.run();
-                }
-
-                @Override
-                public void onFailure(Call<List<Student>> call, Throwable t) {
-                    Log.e("Timetable", "loadChildrenAsync failed", t);
-                    spinnerChildren.setVisibility(View.GONE);
-                    Toast.makeText(StudentTimetableActivity.this, "자녀 목록 조회 실패", Toast.LENGTH_SHORT).show();
-                }
-            });
-        } catch (Exception e) {
-            Log.e("Timetable", "loadChildrenAsync exception", e);
-            spinnerChildren.setVisibility(View.GONE);
-        }
-    }
-
-    /** 선택된 날짜(또는 오늘)의 요일에 맞춰 수업 필터 */
-    private void loadClassesForDate(Calendar target) {
-        if (currentStudentId == null || currentStudentId.trim().isEmpty()) {
-            Toast.makeText(this, "자녀를 선택해주세요.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String studentId = currentStudentId.trim();
-        int dowJavaUtil = target.get(Calendar.DAY_OF_WEEK);
-        int dowMon1 = ((dowJavaUtil + 5) % 7) + 1;
-        String dateIso = iso.format(target.getTime());
-
-        StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-        api.getMyClasses(studentId).enqueue(new Callback<List<Course>>() {
+    private void loadChildren(String parentId) {
+        ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
+        api.getChildrenByParentId(parentId).enqueue(new Callback<List<Student>>() {
             @Override
-            public void onResponse(Call<List<Course>> call, Response<List<Course>> response) {
-                if (!response.isSuccessful() || response.body() == null) {
-                    Toast.makeText(StudentTimetableActivity.this, "수업 목록을 불러올 수 없습니다.", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+            public void onResponse(Call<List<Student>> call, Response<List<Student>> resp) {
+                if (!resp.isSuccessful() || resp.body() == null) return;
 
-                List<Course> filtered = new ArrayList<>();
-                for (Course c : response.body()) {
-                    if (c.getDaysOfWeek() != null && c.getDaysOfWeek().contains(dowMon1)) {
-                        filtered.add(c);
+                children.clear();
+                children.addAll(resp.body());
+
+                List<String> names = new ArrayList<>();
+                for (Student s : children) names.add(s.getStudentName());
+
+                childrenAdapter.clear();
+                childrenAdapter.addAll(names);
+                childrenAdapter.notifyDataSetChanged();
+
+                if (!children.isEmpty()) currentStudentId = children.get(0).getStudentId();
+
+                spinnerChildren.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                        currentStudentId = children.get(pos).getStudentId();
+                        loadClasses();
                     }
-                }
+                    @Override public void onNothingSelected(AdapterView<?> parent) {}
+                });
 
-                filtered.sort(Comparator.comparing(
-                        c -> c.getStartTime() != null ? c.getStartTime() : "",
-                        String::compareTo
-                ));
-
-                if (adapter == null) {
-                    adapter = new TimetableAdapter(StudentTimetableActivity.this, filtered);
-                    recyclerView.setAdapter(adapter);
-                } else {
-                    adapter.submit(filtered);
-                }
-                adapter.setDisplayDate(dateIso);
-
-                if (filtered.isEmpty()) {
-                    Toast.makeText(StudentTimetableActivity.this, "해당 날짜에 예정된 수업이 없습니다", Toast.LENGTH_SHORT).show();
-                }
+                loadClasses();
             }
 
             @Override
-            public void onFailure(Call<List<Course>> call, Throwable t) {
-                Log.e("StudentTimetable", "API 실패", t);
-                Toast.makeText(StudentTimetableActivity.this, "서버 오류", Toast.LENGTH_SHORT).show();
-            }
+            public void onFailure(Call<List<Student>> call, Throwable t) {}
         });
     }
 
-    private String firstNonEmpty(String... vals) {
-        if (vals == null) return null;
-        for (String v : vals) if (v != null && !v.trim().isEmpty()) return v.trim();
-        return null;
+    // ───────────────────────────────────────────────
+    // ★ 출석 페이지와 동일한 상태 계산 (정확히 작동)
+    // ───────────────────────────────────────────────
+    private void loadClasses() {
+        if (currentStudentId == null || currentStudentId.isEmpty()) return;
+
+        StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
+
+        api.getMyClasses(currentStudentId).enqueue(new Callback<List<Course>>() {
+            @Override
+            public void onResponse(Call<List<Course>> call, Response<List<Course>> response) {
+                if (!response.isSuccessful() || response.body() == null) return;
+
+                int dow = selectedDate.getDayOfWeek().getValue(); // 월=1~일=7
+
+                List<Course> todays = new ArrayList<>();
+                for (Course c : response.body()) {
+                    if (c.getDaysOfWeek() != null && c.getDaysOfWeek().contains(dow)) {
+                        todays.add(c);
+                    }
+                }
+
+                todays.sort(Comparator.comparing(Course::getStartTime));
+
+                LocalDate today = LocalDate.now();
+                LocalTime now = LocalTime.now();
+
+                for (Course c : todays) {
+                    LocalTime start = LocalTime.parse(c.getStartTime());
+                    LocalTime end = LocalTime.parse(c.getEndTime());
+                    String status;
+
+                    if (selectedDate.isAfter(today)) {
+                        status = "예정";
+                    } else if (selectedDate.isBefore(today)) {
+                        status = "종료";
+                    } else {
+                        if (now.isBefore(start)) status = "예정";
+                        else if (now.isAfter(end)) status = "종료";
+                        else status = "진행중";
+                    }
+
+                    c.setTodayStatus(status);
+                }
+
+                if (adapter == null) {
+                    adapter = new TimetableAdapter(StudentTimetableActivity.this, todays);
+                    recyclerView.setAdapter(adapter);
+                } else {
+                    adapter.submit(todays);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Course>> call, Throwable t) {}
+        });
     }
 
     private String safe(String v) { return v == null ? "" : v; }

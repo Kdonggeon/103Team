@@ -18,6 +18,8 @@ import com.example.qr.api.RetrofitClient;
 import com.example.qr.model.login.LoginRequest;
 import com.example.qr.model.login.LoginResponse;
 
+import java.util.List;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -76,7 +78,7 @@ public class LoginActivity extends AppCompatActivity {
         edtPw.setSelection(edtPw.getText().length());
     }
 
-    /** ✅ 원장 로그인 처리 (/api/login) */
+    /** ✅ 원장 로그인 처리 */
     private void loginDirector() {
         String id = edtId.getText().toString().trim();
         String pw = edtPw.getText().toString().trim();
@@ -99,17 +101,33 @@ public class LoginActivity extends AppCompatActivity {
                 }
 
                 LoginResponse res = response.body();
+
+                // 역할 검증
                 if (!"director".equals(res.getRole())) {
                     Toast.makeText(LoginActivity.this, "원장 계정으로 로그인하세요.", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                // ✅ JWT 토큰 저장 (QR 화면에서 사용)
+                // 🔥 원장 소속 학원번호 검증
+                try {
+                    int inputAcademyNum = Integer.parseInt(academyNumber);
+                    List<Integer> academyList = res.getAcademyNumbers();
+
+                    if (academyList == null || !academyList.contains(inputAcademyNum)) {
+                        Toast.makeText(LoginActivity.this, "등록된 학원 번호가 아닙니다.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                } catch (Exception e) {
+                    Toast.makeText(LoginActivity.this, "학원 번호 입력 오류", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // JWT 저장
                 prefs.edit()
                         .putString("director_token", res.getToken())
                         .apply();
 
-                // ✅ 자동 로그인 설정
+                // 자동 로그인 저장
                 if (chkAutoLogin.isChecked()) {
                     prefs.edit()
                             .putBoolean("autoLogin", true)
@@ -121,10 +139,10 @@ public class LoginActivity extends AppCompatActivity {
                             .remove("academyNumber")
                             .apply();
                 }
-                // ✅ 로그인 성공 알림 추가
+
                 Toast.makeText(LoginActivity.this, "로그인 성공!", Toast.LENGTH_SHORT).show();
 
-                // ✅ QR 화면으로 이동
+                // QR 화면 이동
                 Intent intent = new Intent(LoginActivity.this, QrLoginTabletActivity.class);
                 intent.putExtra("academyNumber", academyNumber);
                 startActivity(intent);
