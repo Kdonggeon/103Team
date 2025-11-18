@@ -136,6 +136,7 @@ public class RoomController {
      * QR 스캔 시 학생 출석 및 좌석 배치(웨이팅룸 → 좌석)
      * - "waiting_room(academyNumber+studentId)"가 존재할 때만 배치 (사전 검증)
      * - 좌석 배치 성공 후, 방금 조회한 waiting_room 문서(동일 _id)만 삭제
+     * - 현재 강의실에 currentClass가 있으면 SeatBoardService.assignSeat() 호출 → attendances에도 출석 반영
      * - 이미 점유된 좌석이면 409(CONFLICT)
      * - waiting_room 미존재면 412(PRECONDITION_FAILED)
      */
@@ -196,6 +197,7 @@ public class RoomController {
             try {
                 // seatLabel 은 "좌석 번호 문자열"로 사용 (Course.Seat_Map 키와 동일 규칙)
                 String seatLabel = String.valueOf(seatNumber);
+                // date=null → SeatBoardService 내부 todayYmd() 사용
                 seatBoardService.assignSeat(cc.getClassId(), null, seatLabel, studentId);
             } catch (Exception e) {
                 // 출석 연동에 실패해도 좌석 배정/웨이팅룸 삭제는 유지

@@ -141,6 +141,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/*/classes").hasAnyRole("DIRECTOR", "TEACHER")
                 .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/classes/*/attendance").hasAnyRole("DIRECTOR", "TEACHER")
 
+             // ===== 좌석 QR / 입구 QR =====
+                .requestMatchers(HttpMethod.POST, "/api/rooms/*/enter-lobby").permitAll()
+                .requestMatchers(HttpMethod.PUT,  "/api/rooms/*/check-in").permitAll()
+                
+
                 /* ====== 그 외 admin/overview ====== */
                 .requestMatchers("/api/admin/**").hasRole("DIRECTOR")
                 .requestMatchers("/api/director/overview/**").hasAnyRole("DIRECTOR", "TEACHER")
