@@ -350,23 +350,28 @@ public class TeacherScheduleController {
                                     @PathVariable String scheduleId,
                                     Authentication auth) {
         guardTeacherId(teacherId, auth);
+
+        // scheduleId 예: class1761820441001_2025-11-18
         int idx = scheduleId.lastIndexOf('_');
         if (idx <= 0) return ResponseEntity.badRequest().body("invalid scheduleId");
+
         String classId = scheduleId.substring(0, idx);
-        String ymd = scheduleId.substring(idx + 1);
+        String ymd = scheduleId.substring(idx + 1); // 2025-11-18
 
         LocalDate date = LocalDate.parse(ymd);
-        int dow = toMonFirstDow(date);
 
         Course c = findCourseByClassIdFlexible(classId);
-        if (c == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("class not found");
-        if (!(hasRole(auth, "DIRECTOR") || teacherId.equals(c.getTeacherId())))
+        if (c == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("class not found");
+        }
+        if (!(hasRole(auth, "DIRECTOR") || teacherId.equals(c.getTeacherId()))) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("not your class");
+        }
 
-        // 오버라이드 제거
+        // 1) 날짜별 오버라이드(시간/방) 제거
         c.clearOverride(ymd);
 
-        // extras에서 제거되면 끝, 아니면 weekly면 cancelledDates에 추가
+        // 2) extraDates 에 있으면 뺀다 → 그 날짜 “추가 스케줄” 제거
         List<String> extras = Optional.ofNullable(c.getExtraDates()).orElseGet(ArrayList::new);
         if (extras.removeIf(ymd::equals)) {
             c.setExtraDates(extras);
@@ -374,8 +379,10 @@ public class TeacherScheduleController {
             return ResponseEntity.noContent().build();
         }
 
-        boolean weekly = Optional.ofNullable(c.getDaysOfWeek()).orElse(List.of()).stream()
-                .map(Object::toString).map(Integer::parseInt).anyMatch(n -> n == dow);
+        // 3) 정규 요일이면 cancelledDates 에 추가해서 “그 날만 휴강” 처리
+        int dow = date.getDayOfWeek().getValue();      // 1~7 (월~일)
+        boolean weekly = c.getDaysOfWeekInt().contains(dow);  // ✅ 여기! 더 이상 parseInt 안 씀
+
         if (weekly) {
             Set<String> cancels = new LinkedHashSet<>(Optional.ofNullable(c.getCancelledDates()).orElseGet(ArrayList::new));
             cancels.add(ymd);
@@ -383,8 +390,11 @@ public class TeacherScheduleController {
             courseRepo.save(c);
             return ResponseEntity.noContent().build();
         }
+
+        // 4) 여기까지 안 걸리면 사실상 없는 스케줄
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("schedule not found");
     }
+
 
     /* ── 오늘 수업 목록 ── */
     @GetMapping("/{teacherId}/classes/today")
@@ -424,4 +434,6 @@ public class TeacherScheduleController {
         out.sort(Comparator.comparing(m -> (String)m.get("startTime")));
         return out;
     }
+    
+    
 }

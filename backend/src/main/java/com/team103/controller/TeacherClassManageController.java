@@ -557,55 +557,7 @@ public class TeacherClassManageController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * ✅ 스케줄 삭제 엔드포인트
-     *
-     * - 프론트에서 오는 scheduleId 형식:
-     *   예) /api/manage/teachers/test2/schedules/class1761820441001_2025-11-18
-     *   → "classId_YYYY-MM-DD" 꼴
-     */
-    @DeleteMapping("/{teacherId}/schedules/{scheduleId}")
-    public ResponseEntity<?> deleteSchedule(@PathVariable String teacherId,
-                                            @PathVariable String scheduleId,
-                                            Authentication auth) {
-        guardTeacherId(teacherId, auth);
-
-        if (scheduleId == null || scheduleId.length() < 11) {
-            return ResponseEntity.badRequest().body("invalid scheduleId");
-        }
-
-        // 뒤에서 10글자는 무조건 날짜 YYYY-MM-DD 라고 보고 자르기
-        String date = scheduleId.substring(scheduleId.length() - 10); // "2025-11-18"
-        String classIdPart = scheduleId.substring(0, scheduleId.length() - 11); // 앞부분 (구분자 1글자 버림)
-
-        if (date.charAt(4) != '-' || date.charAt(7) != '-') {
-            return ResponseEntity.badRequest().body("invalid date in scheduleId");
-        }
-
-        String classId = classIdPart;
-        if (classId == null || classId.isBlank()) {
-            return ResponseEntity.badRequest().body("invalid classId in scheduleId");
-        }
-
-        Course c = courseRepo.findByClassId(classId).orElse(null);
-        if (c == null) return ResponseEntity.notFound().build();
-
-        guardCourseOwner(c, auth);
-
-        int dow = LocalDate.parse(date).getDayOfWeek().getValue(); // 1~7
-        boolean regular = c.getDaysOfWeekInt().contains(dow);
-
-        // 정규 수업일이면 "취소"에 넣어서 안 뜨게, 정규가 아니면 "추가"에서 빼기
-        if (regular) {
-            c.toggleCancelledDate(date);
-        } else {
-            c.toggleExtraDate(date);
-        }
-
-        courseRepo.save(c);
-        return ResponseEntity.ok().build();
-    }
-
+  
     /* ===================== 좌석 배정 섹션 ===================== */
 
     public static class SeatAssignDTO {
