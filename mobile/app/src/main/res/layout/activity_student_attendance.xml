@@ -6,14 +6,16 @@
     android:orientation="vertical"
     android:background="#FAFAFA">
 
-    <!-- 툴바 -->
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
         android:title="자녀 출석 확인"
-        android:titleTextColor="@android:color/white" />
+        android:titleTextColor="@android:color/white"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        />
 
     <!-- 상단 요약 -->
     <LinearLayout
