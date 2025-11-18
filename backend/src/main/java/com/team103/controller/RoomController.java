@@ -1,3 +1,4 @@
+// src/main/java/com/team103/controller/RoomController.java
 package com.team103.controller;
 
 import java.time.OffsetDateTime;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.team103.model.Room;
 import com.team103.repository.RoomRepository;
+import com.team103.service.SeatBoardService;
 
 @RestController
 @RequestMapping("/api/rooms")
@@ -30,10 +32,14 @@ public class RoomController {
 
     private final RoomRepository roomRepository;
     private final MongoTemplate mongoTemplate; // waiting_room 조회/삭제 및 vectorLayout 갱신용
+    private final SeatBoardService seatBoardService; // 출석/좌석판 연동
 
-    public RoomController(RoomRepository roomRepository, MongoTemplate mongoTemplate) {
-        this.roomRepository = roomRepository;
-        this.mongoTemplate  = mongoTemplate;
+    public RoomController(RoomRepository roomRepository,
+                          MongoTemplate mongoTemplate,
+                          SeatBoardService seatBoardService) {
+        this.roomRepository   = roomRepository;
+        this.mongoTemplate    = mongoTemplate;
+        this.seatBoardService = seatBoardService;
     }
 
     /** 수업 시작 시 현재 수업 정보 등록 */
@@ -54,7 +60,18 @@ public class RoomController {
         return ResponseEntity.ok("수업이 등록되었습니다");
     }
 
-    /** (선택) 입구 QR: 웨이팅룸 입장 or 갱신 */
+    /**
+     * 입구 QR: 웨이팅룸 입장 or 갱신 + (좌석에 앉아 있던 학생이면) 좌석 해제 + 상태 '이동' 처리
+     *
+     * - 언제 호출됨?
+     *   → 입구/학원 QR 스캔 시 (학생이 다시 로비/복도 쪽으로 나갈 때)
+     *
+     * - 동작
+     *   1) waiting_room 에 (academyNumber + studentId) 기준으로 upsert (Status="LOBBY")
+     *   2) 해당 강의실에 currentClass 가 설정되어 있으면
+     *      - SeatBoardService.moveOrBreak(...) 호출 → 해당 수업의 출석 상태를 "이동"으로 변경
+     *      - rooms.vectorLayout 에서 이 학생이 앉아 있던 자리를 찾아 Student_ID 제거
+     */
     @PostMapping("/{roomNumber}/enter-lobby")
     public ResponseEntity<?> enterLobby(
             @PathVariable int roomNumber,
@@ -62,12 +79,13 @@ public class RoomController {
             @RequestParam String studentId
     ) {
         String now = OffsetDateTime.now().toString();
-        // upsert: academyNumber + studentId 기준으로 LOBBY 상태 기록/갱신
+
+        // 1) waiting_room upsert (학원+학생 기준)
         Update update = new Update()
                 .set("Student_ID", studentId)
                 .set("Academy_Number", academyNumber)
                 .set("Checked_In_At", now)
-                .set("Status", "LOBBY");
+                .set("Status", "LOBBY"); // Director 화면에서는 "대기/이동/휴식"으로 묶어 보여줌
         mongoTemplate.upsert(
                 new Query(new Criteria().andOperator(
                         anyStudentId(studentId),
@@ -76,17 +94,50 @@ public class RoomController {
                 update,
                 "waiting_room"
         );
-        return ResponseEntity.ok("로비 입장 기록됨");
+
+        // 2) 현재 강의실/수업 기준으로 좌석/출석 상태도 이동 처리
+        Optional<Room> opt = roomRepository.findByRoomNumberAndAcademyNumber(roomNumber, academyNumber);
+        if (opt.isPresent()) {
+            Room room = opt.get();
+
+            // 2-1) 이 강의실에 현재 등록된 반(currentClass)이 있으면 출석 상태를 "이동"으로
+            Room.CurrentClass cc = room.getCurrentClass();
+            if (cc != null && cc.getClassId() != null && !cc.getClassId().isBlank()) {
+                try {
+                    // date=null → SeatBoardService 내부에서 todayYmd() 사용
+                    seatBoardService.moveOrBreak(cc.getClassId(), null, studentId, "이동");
+                } catch (Exception e) {
+                    // 출석 쪽 오류가 나도 waiting_room 기록은 살아 있어야 하므로 silent 처리
+                    e.printStackTrace();
+                }
+            }
+
+            // 2-2) 이 강의실 vectorLayout 에서 이 학생이 앉아 있던 좌석을 찾아서 비워준다
+            if (room.getVectorLayout() != null && !room.getVectorLayout().isEmpty()) {
+                boolean changed = false;
+                for (Room.VectorSeat seat : room.getVectorLayout()) {
+                    if (seat == null) continue;
+                    String sid = seat.getStudentId();
+                    if (sid != null && sid.equals(studentId)) {
+                        seat.setStudentId(null);  // 자리 비우기
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    roomRepository.save(room);
+                }
+            }
+        }
+
+        return ResponseEntity.ok("로비 입장 및 이동 처리됨");
     }
 
     /**
-     * 좌석 QR 스캔 시:
-     *  - 1순위: waiting_room(academyNumber+studentId)이 있으면 → 대기실에서 꺼내 좌석 배정 후 삭제
-     *  - 2순위: 없으면 → 이미 다른 강의실/좌석에 앉아 있다고 보고, 해당 학원 내 모든 강의실에서 기존 좌석 비우고 새 좌석으로 이동
-     *
-     * 규칙:
-     *  - 좌석 번호는 1..N (vectorLayout 길이 기준)
-     *  - 이미 점유된 좌석이면 409(CONFLICT)
+     * QR 스캔 시 학생 출석 및 좌석 배치(웨이팅룸 → 좌석)
+     * - "waiting_room(academyNumber+studentId)"가 존재할 때만 배치 (사전 검증)
+     * - 좌석 배치 성공 후, 방금 조회한 waiting_room 문서(동일 _id)만 삭제
+     * - 이미 점유된 좌석이면 409(CONFLICT)
+     * - waiting_room 미존재면 412(PRECONDITION_FAILED)
      */
     @PutMapping("/{roomNumber}/check-in")
     public ResponseEntity<?> checkIn(
@@ -108,16 +159,13 @@ public class RoomController {
         }
         final int seatIndex = seatNumber - 1;
 
-        // 1) waiting_room 사전 조회 (academyNumber + studentId)
+        // 1) waiting_room 사전 검증 (academyNumber + studentId 일치 문서가 있어야만 진행)
         Document wr = findWaitingRoomDoc(academyNumber, studentId);
-        boolean fromLobby = (wr != null);
+        if (wr == null) {
+            return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED).body("대기실에 동일 정보가 없습니다.");
+        }
 
-        // 2) 대기실에서 온 게 아니더라도,
-        //    같은 학원(academyNumber) 내 다른 강의실/좌석에 앉아있을 수 있으므로
-        //    모든 강의실 vectorLayout에서 이 학생을 먼저 제거(좌석 이동 지원)
-        clearStudentSeatsInAcademy(academyNumber, studentId);
-
-        // 3) 새 좌석 배정 (원자적 업데이트: '비어있는 경우'에만 set → modifiedCount로 성공 판정)
+        // 2) 좌석 배정 (원자적 업데이트: '비어있는 경우'에만 set → modifiedCount로 성공 판정)
         String seatStudentField    = "vectorLayout." + seatIndex + ".Student_ID";
         String seatOccupiedAtField = "vectorLayout." + seatIndex + ".occupiedAt";
 
@@ -138,40 +186,28 @@ public class RoomController {
 
         UpdateResult ur = mongoTemplate.updateFirst(seatQuery, seatUpdate, "rooms");
         if (ur.getModifiedCount() == 0) {
-            // 좌석 점유 중이면 대기실 삭제도 하지 않음 (다른 사람이 앉아 있는 자리)
+            // 좌석 점유 중이면 대기실 삭제도 하지 않음
             return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 점유된 좌석입니다");
         }
 
-        // 4) 대기실에서 온 경우에만, 방금 확인한 waiting_room 문서 정확히 삭제(_id 기준)
-        if (fromLobby) {
-            ObjectId wrId = wr.getObjectId("_id");
-            mongoTemplate.remove(new Query(Criteria.where("_id").is(wrId)), "waiting_room");
+        // 3) (선택) 이 강의실에 currentClass 가 설정된 경우 → 해당 수업 출석을 "출석"으로 마킹 + seatAssignments 업데이트
+        Room.CurrentClass cc = room.getCurrentClass();
+        if (cc != null && cc.getClassId() != null && !cc.getClassId().isBlank()) {
+            try {
+                // seatLabel 은 "좌석 번호 문자열"로 사용 (Course.Seat_Map 키와 동일 규칙)
+                String seatLabel = String.valueOf(seatNumber);
+                seatBoardService.assignSeat(cc.getClassId(), null, seatLabel, studentId);
+            } catch (Exception e) {
+                // 출석 연동에 실패해도 좌석 배정/웨이팅룸 삭제는 유지
+                e.printStackTrace();
+            }
         }
 
+        // 4) 방금 확인한 waiting_room 문서만 정확히 삭제(_id 기준)
+        ObjectId wrId = wr.getObjectId("_id");
+        mongoTemplate.remove(new Query(Criteria.where("_id").is(wrId)), "waiting_room");
+
         return ResponseEntity.ok("출석 체크 및 좌석 배치 완료");
-    }
-
-    /**
-     * 같은 학원(academyNumber) 내 모든 강의실의 vectorLayout에서
-     * 해당 학생(studentId)이 앉아 있던 좌석을 찾아 비운다.
-     * - Student_ID == studentId 인 모든 좌석의 Student_ID를 "" 로, occupiedAt 제거
-     * - 좌석 '이동' 시 기존 자리 비우기용
-     */
-    private void clearStudentSeatsInAcademy(int academyNumber, String studentId) {
-        if (studentId == null || studentId.isBlank()) return;
-
-        // Student_ID 가 studentId 인 vectorLayout 원소가 있는 모든 Room 문서 대상
-        Query q = new Query(new Criteria().andOperator(
-                Criteria.where("Academy_Number").is(academyNumber),
-                Criteria.where("vectorLayout.Student_ID").is(studentId)
-        ));
-
-        Update u = new Update()
-                .set("vectorLayout.$[s].Student_ID", "")
-                .unset("vectorLayout.$[s].occupiedAt")
-                .filterArray(Criteria.where("s.Student_ID").is(studentId));
-
-        mongoTemplate.updateMulti(q, u, "rooms");
     }
 
     /** waiting_room에서 academyNumber+studentId 일치 문서 1건 조회(필드/타입 혼재 대응) */
