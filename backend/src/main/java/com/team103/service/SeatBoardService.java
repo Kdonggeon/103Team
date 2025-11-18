@@ -47,10 +47,12 @@ public class SeatBoardService {
 
     /* ─────────────── util ─────────────── */
     public static String todayYmd() { return LocalDate.now(KST).format(YMD); }
-    public static String nowHm() { return LocalTime.now(KST).format(HM); }
+    public static String nowHm()    { return LocalTime.now(KST).format(HM); }
+
     private static boolean isBlank(String s){ return s==null||s.trim().isEmpty(); }
     private static <T> T nvl(T v,T d){ return v!=null?v:d; }
     private static String firstNonBlank(String a,String b){ return !isBlank(a)?a:!isBlank(b)?b:null; }
+
     private static Integer parseIntOrNull(String s){
         try{ return s==null?null:Integer.valueOf(s.replaceAll("[^0-9]","")); }
         catch(Exception e){return null;}
@@ -66,7 +68,10 @@ public class SeatBoardService {
             return a==null?m.invoke(t):m.invoke(t,a);
         }catch(Exception e){return null;}
     }
-    private static String tryGetString(Object t,String n){Object v=tryInvoke(t,n,null,null);return v==null?null:String.valueOf(v);}
+    private static String tryGetString(Object t,String n){
+        Object v=tryInvoke(t,n,null,null);
+        return v==null?null:String.valueOf(v);
+    }
 
     /* ─────────────── 이름맵 / 웨이팅룸 ─────────────── */
     private Map<String,String> resolveStudentNames(Set<String> ids){
@@ -100,14 +105,14 @@ public class SeatBoardService {
 
     /* ─────────────── 좌석판 조회 ─────────────── */
     public SeatBoardResponse getSeatBoard(String classId,String date){
-        final String ymd=isBlank(date)?todayYmd():date.trim();
+        final String ymd = isBlank(date) ? todayYmd() : date.trim();
 
         // 1) 수업
-        Course course=courseRepo.findByClassId(classId)
-                .orElseThrow(()->new RuntimeException("class not found: "+classId));
+        Course course = courseRepo.findByClassId(classId)
+                .orElseThrow(() -> new RuntimeException("class not found: " + classId));
 
         // 해당 날짜의 우선 강의실 번호 결정 (코스 오버라이드 > 기본)
-        Integer roomNumber=null;
+        Integer roomNumber = null;
         try{
             Object v=tryInvoke(course,"getRoomFor",new Class[]{String.class},new Object[]{ymd});
             if(v!=null)roomNumber=Integer.valueOf(String.valueOf(v));
@@ -117,15 +122,19 @@ public class SeatBoardService {
             Object v=tryInvoke(course,"getPrimaryRoomNumber",null,null);
             if(v!=null) roomNumber = Integer.valueOf(String.valueOf(v));
         }
-        if(roomNumber==null) throw new RuntimeException("room not set: "+classId+" @ "+ymd);
+        if(roomNumber==null) {
+            throw new RuntimeException("room not set: "+classId+" @ "+ymd);
+        }
 
         // 학원번호 (복수 필드 호환)
         List<Integer> academies = new ArrayList<>();
-        try { @SuppressWarnings("unchecked")
-        List<Integer> tmp=(List<Integer>)tryInvoke(course,"getAcademyNumbersSafe",null,null);
+        try {
+            @SuppressWarnings("unchecked")
+            List<Integer> tmp=(List<Integer>)tryInvoke(course,"getAcademyNumbersSafe",null,null);
             if(tmp!=null) academies = tmp;
         } catch (Exception ignore) {}
-        Integer academyNumber = !academies.isEmpty()? academies.get(0)
+        Integer academyNumber = !academies.isEmpty()
+                ? academies.get(0)
                 : (Integer) tryInvoke(course,"getAcademyNumber",null,null);
 
         // 2) 강의실
@@ -146,11 +155,34 @@ public class SeatBoardService {
         }
 
         // 3) 출석(해당일) 보장
-        Attendance att=ensureAttendanceDoc(classId,ymd,course);
-        Map<String,String> statusByStudent=buildStatusMap(att);
+        Attendance att = ensureAttendanceDoc(classId, ymd, course);
+        Map<String,String> statusByStudent = buildStatusMap(att);
+
+        /* 🔽🔽🔽 입구 출석(entrance) → 상태에 반영 🔽🔽🔽 */
+        try {
+            List<Attendance> entrances = attRepo.findByTypeAndDate("entrance", ymd);
+            Set<String> entranceIds = new HashSet<>();
+            for (Attendance e : entrances) {
+                if (e == null || e.getAttendanceList() == null) continue;
+                for (Attendance.Item it : e.getAttendanceList()) {
+                    if (it == null || isBlank(it.getStudentId())) continue;
+                    entranceIds.add(it.getStudentId());
+                }
+            }
+            // 입구만 찍은 애들: 현재 "미기록"이면 "입구 출석"으로 올려줌
+            for (String sid : entranceIds) {
+                String cur = statusByStudent.get(sid);
+                if (cur == null || cur.isBlank() || "미기록".equals(cur)) {
+                    statusByStudent.put(sid, "입구 출석");
+                }
+            }
+        } catch (Exception ignore) {
+            // entrance 쪽에 문제가 있어도 좌석판 전체가 죽지 않도록 방어
+        }
+        /* 🔼🔼🔼 여기까지 추가 🔼🔼🔼 */
 
         // 4) 좌석 배정: Attendance.seatAssignments + Course.Seat_Map 병합
-        Map<String,String> studentBySeatLabel=new HashMap<>();
+        Map<String,String> studentBySeatLabel = new HashMap<>();
         if(att.getSeatAssignments()!=null){
             for(Attendance.SeatAssign a:att.getSeatAssignments()){
                 if(a==null)continue;
@@ -176,9 +208,12 @@ public class SeatBoardService {
 
         // 이름 맵 대상 수집
         Set<String> ids=new HashSet<>(studentBySeatLabel.values());
-        if(att.getAttendanceList()!=null)
-            att.getAttendanceList().forEach(it->{ if(it!=null&&!isBlank(it.getStudentId()))ids.add(it.getStudentId()); });
-        Map<String,String> nameById=resolveStudentNames(ids);
+        if(att.getAttendanceList()!=null) {
+            att.getAttendanceList().forEach(it -> {
+                if(it!=null && !isBlank(it.getStudentId())) ids.add(it.getStudentId());
+            });
+        }
+        Map<String,String> nameById = resolveStudentNames(ids);
 
         // 5) 좌석 상태 구성 (vector 우선 → legacyGrid 폴백)
         List<SeatBoardResponse.SeatStatus> seats=new ArrayList<>();
@@ -237,7 +272,7 @@ public class SeatBoardService {
         for(String st:statusByStudent.values()){
             if(st==null||st.isBlank()||"미기록".equals(st)){none++;continue;}
             switch(st){
-                case "출석","PRESENT" -> present++;
+                case "출석","PRESENT","입구 출석" -> present++;     // ← 입구 출석도 출석으로 카운트
                 case "지각","LATE" -> late++;
                 case "결석","ABSENT" -> absent++;
                 case "이동","휴식","MOVE","BREAK" -> move++;
