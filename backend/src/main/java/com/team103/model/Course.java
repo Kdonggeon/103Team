@@ -288,4 +288,25 @@ public class Course {
         public String getEnd() { return end; }
         public void setEnd(String end) { this.end = end; }
     }
+    
+    /* ===== 날짜 토글 복원 ===== */
+
+    public void toggleExtraDate(String date) {
+        if (extraDates == null) extraDates = new ArrayList<>();
+        if (extraDates.contains(date)) {
+            extraDates.remove(date);
+        } else {
+            extraDates.add(date);
+        }
+    }
+
+    public void toggleCancelledDate(String date) {
+        if (cancelledDates == null) cancelledDates = new ArrayList<>();
+        if (cancelledDates.contains(date)) {
+            cancelledDates.remove(date);
+        } else {
+            cancelledDates.add(date);
+        }
+    }
+
 }
