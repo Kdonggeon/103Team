@@ -78,6 +78,10 @@ public class RoomController {
             @RequestParam int academyNumber,
             @RequestParam String studentId
     ) {
+        if (studentId == null || studentId.isBlank()) {
+            return ResponseEntity.badRequest().body("studentId가 필요합니다.");
+        }
+
         String now = OffsetDateTime.now().toString();
 
         // 1) waiting_room upsert (학원+학생 기준)
@@ -148,8 +152,24 @@ public class RoomController {
     public ResponseEntity<?> checkIn(
             @PathVariable int roomNumber,
             @RequestParam int academyNumber,
-            @RequestParam int seatNumber,      // 1..N 가정
-            @RequestParam String studentId) {
+            // QR에서는 seat=2 로 들어오므로 seatNumber/seat 둘 다 받도록
+            @RequestParam(name = "seatNumber", required = false) Integer seatNumber,
+            @RequestParam(name = "seat",       required = false) Integer seatParam,
+            // QR 자체에는 없고, 앱에서 붙여서 호출해야 함
+            @RequestParam(name = "studentId",  required = false) String studentId) {
+
+        // ✅ studentId 필수 체크 (없으면 500 대신 400)
+        if (studentId == null || studentId.isBlank()) {
+            return ResponseEntity.badRequest().body("studentId가 없습니다. (로그인된 앱에서 호출해야 합니다)");
+        }
+
+        // ✅ seatNumber/seat 둘 중 하나 사용
+        int resolvedSeatNumber =
+                (seatNumber != null) ? seatNumber :
+                (seatParam   != null) ? seatParam   : -1;
+        if (resolvedSeatNumber <= 0) {
+            return ResponseEntity.badRequest().body("seatNumber 또는 seat 파라미터가 필요합니다.");
+        }
 
         // 0) 강의실 존재 확인
         Optional<Room> opt = roomRepository.findByRoomNumberAndAcademyNumber(roomNumber, academyNumber);
@@ -159,10 +179,12 @@ public class RoomController {
         Room room = opt.get();
 
         // 좌석 번호 기본 검증 (vectorLayout 크기 기반)
-        if (room.getVectorLayout() == null || seatNumber < 1 || seatNumber > room.getVectorLayout().size()) {
+        if (room.getVectorLayout() == null
+                || resolvedSeatNumber < 1
+                || resolvedSeatNumber > room.getVectorLayout().size()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("유효하지 않은 좌석번호");
         }
-        final int seatIndex = seatNumber - 1;
+        final int seatIndex = resolvedSeatNumber - 1;
 
         // 1) waiting_room 사전 검증 (academyNumber + studentId 일치 문서가 있어야만 진행)
         Document wr = findWaitingRoomDoc(academyNumber, studentId);
@@ -202,14 +224,14 @@ public class RoomController {
         if (cc != null && cc.getClassId() != null && !cc.getClassId().isBlank()) {
             try {
                 String classId   = cc.getClassId();
-                String seatLabel = String.valueOf(seatNumber); // SeatBoardService용 seatLabel
+                String seatLabel = String.valueOf(resolvedSeatNumber); // SeatBoardService용 seatLabel
 
                 // 3-1) 출석/seatAssignments (기존 로직 유지)
                 // date=null → SeatBoardService 내부 todayYmd() 사용
                 seatBoardService.assignSeat(classId, null, seatLabel, studentId);
 
                 // 3-2) classes 컬렉션의 Seat_Map.<roomNumber>.<seatNumber> = studentId
-                updateCourseSeatMap(classId, roomNumber, seatNumber, studentId);
+                updateCourseSeatMap(classId, roomNumber, resolvedSeatNumber, studentId);
 
             } catch (Exception e) {
                 // 출석/Seat_Map 연동 실패해도 좌석 배정/웨이팅룸 삭제는 유지
@@ -226,6 +248,9 @@ public class RoomController {
 
     /** waiting_room에서 academyNumber+studentId 일치 문서 1건 조회(필드/타입 혼재 대응) */
     private Document findWaitingRoomDoc(int academyNumber, String studentId) {
+        if (studentId == null || studentId.isBlank()) {
+            return null;
+        }
         Query q = new Query(new Criteria().andOperator(
                 anyAcademyNumber(academyNumber),
                 anyStudentId(studentId)
@@ -235,20 +260,6 @@ public class RoomController {
 
     /**
      * ✅ Seat_Map.<roomNumber>.<seatNumber> = studentId 구조로 classes 컬렉션 업데이트
-     *
-     * 예)
-     *   Class_ID = "class1763..."
-     *   roomNumber = 2063
-     *   seatNumber = 2
-     *
-     * 결과)
-     *   Seat_Map: {
-     *     "2063": {
-     *       "2": "dlgkrtod"
-     *     }
-     *   }
-     *
-     * classId 가 Class_ID 인지, Mongo _id 인지 모를 수 있으니까 둘 다 매칭 시도
      */
     private void updateCourseSeatMap(String classId, int roomNumber, int seatNumber, String studentId) {
         if (classId == null || classId.isBlank()) return;
@@ -280,6 +291,11 @@ public class RoomController {
     /* --------- criteria helpers --------- */
 
     private Criteria anyStudentId(String studentId) {
+        if (studentId == null) {
+            // null이면 절대 매칭되지 않게 만들어서 NPE 방지
+            return Criteria.where("Student_ID").is("__never_match__");
+        }
+
         List<Criteria> ors = new ArrayList<>();
         ors.add(Criteria.where("studentId").is(studentId));
         ors.add(Criteria.where("Student_ID").is(studentId));
@@ -291,7 +307,7 @@ public class RoomController {
             ors.add(Criteria.where("Student_ID").is(sidNum));
             ors.add(Criteria.where("Student_Id").is(sidNum));
             ors.add(Criteria.where("student_id").is(sidNum));
-        } catch (NumberFormatException ignore) { }
+        } catch (Exception ignore) { }
         return new Criteria().orOperator(ors.toArray(new Criteria[0]));
     }
 
