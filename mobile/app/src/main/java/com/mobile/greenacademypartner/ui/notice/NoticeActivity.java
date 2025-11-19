@@ -19,11 +19,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.api.AcademyApi;
 import com.mobile.greenacademypartner.api.NoticeApi;
 import com.mobile.greenacademypartner.api.ParentApi;
-import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
+import com.mobile.greenacademypartner.api.StudentApi;
 import com.mobile.greenacademypartner.menu.ToolbarColorUtil;
+import com.mobile.greenacademypartner.model.Academy;
 import com.mobile.greenacademypartner.model.Notice;
 import com.mobile.greenacademypartner.model.student.Student;
 import com.mobile.greenacademypartner.ui.attendance.AttendanceActivity;
@@ -37,8 +39,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import retrofit2.Call;
@@ -56,20 +60,22 @@ public class NoticeActivity extends AppCompatActivity {
     private NoticeApi noticeApi;
     private ParentApi parentApi;
     private StudentApi studentApi;
+    private AcademyApi academyApi;
 
     private final List<Integer> userAcademyNumbers = new ArrayList<>();
     private ArrayAdapter<String> spinnerAdapter;
 
-    // 하단 네비 + 토글
     private ImageButton btnHideNav, btnShowNav;
     private BottomNavigationView bottomNavigationView;
+
+    // 🔥 학원이름 → 학원번호 매핑
+    private final Map<String, Integer> academyMap = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notice);
 
-        // 1) 뷰 바인딩
         toolbar = findViewById(R.id.toolbar_notice);
         rvNotices = findViewById(R.id.rv_notices);
         progressBar = findViewById(R.id.pb_loading_notices);
@@ -80,63 +86,47 @@ public class NoticeActivity extends AppCompatActivity {
         btnHideNav = findViewById(R.id.btn_hide_nav);
         btnShowNav = findViewById(R.id.btn_show_nav);
 
-        // 2) 툴바/테마
         ToolbarColorUtil.applyToolbarColor(this, toolbar);
         setSupportActionBar(toolbar);
         ThemeColorUtil.applyThemeColor(this, toolbar);
 
-        // 3) RecyclerView & API
         rvNotices.setLayoutManager(new LinearLayoutManager(this));
+
         noticeApi = RetrofitClient.getClient().create(NoticeApi.class);
         parentApi = RetrofitClient.getClient().create(ParentApi.class);
         studentApi = RetrofitClient.getClient().create(StudentApi.class);
+        academyApi = RetrofitClient.getClient().create(AcademyApi.class);
 
-        // 4) 권한에 따른 버튼 표시 + 스피너 데이터 로드
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String role = prefs.getString("role", "");
+
         if (!"teacher".equalsIgnoreCase(role) && !"director".equalsIgnoreCase(role)) {
-            btnAdd.setVisibility(View.GONE); // 학생/학부모는 공지 등록 버튼 숨김
+            btnAdd.setVisibility(View.GONE);
         }
+
         loadAcademyNumbersForRole(role, prefs);
 
-        // 5) 공지 등록 버튼
         btnAdd.setOnClickListener(v ->
                 startActivity(new Intent(this, CreateNoticeActivity.class))
         );
 
-        // 6) 하단 네비게이션
         bottomNavigationView.setSelectedItemId(R.id.nav_notice);
         bottomNavigationView.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
-            if (id == R.id.nav_home) {
-                startActivity(new Intent(this, MainActivity.class));
-                overridePendingTransition(0, 0);
-                return true;
-            } else if (id == R.id.nav_attendance) {
-                startActivity(new Intent(this, AttendanceActivity.class));
-                overridePendingTransition(0, 0);
-                return true;
-            } else if (id == R.id.nav_qr) {
-                startActivity(new Intent(this, QRScannerActivity.class));
-                return true;
-            } else if (id == R.id.nav_timetable) {
-                startActivity(new Intent(this, StudentTimetableActivity.class));
-                overridePendingTransition(0, 0);
-                return true;
-            } else if (id == R.id.nav_my) {
-                startActivity(new Intent(this, MyPageActivity.class));
-                overridePendingTransition(0, 0);
-                return true;
-            }
-            return false;
+            if (id == R.id.nav_home) startActivity(new Intent(this, MainActivity.class));
+            else if (id == R.id.nav_attendance) startActivity(new Intent(this, AttendanceActivity.class));
+            else if (id == R.id.nav_qr) startActivity(new Intent(this, QRScannerActivity.class));
+            else if (id == R.id.nav_timetable) startActivity(new Intent(this, StudentTimetableActivity.class));
+            else if (id == R.id.nav_my) startActivity(new Intent(this, MyPageActivity.class));
+            return true;
         });
 
-        // 7) 네비 토글
         btnHideNav.setOnClickListener(v -> {
             bottomNavigationView.setVisibility(View.GONE);
             btnHideNav.setVisibility(View.GONE);
             btnShowNav.setVisibility(View.VISIBLE);
         });
+
         btnShowNav.setOnClickListener(v -> {
             bottomNavigationView.setVisibility(View.VISIBLE);
             btnShowNav.setVisibility(View.GONE);
@@ -144,52 +134,39 @@ public class NoticeActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * 역할별로 스피너에 표시할 학원 번호를 채운다.
-     * - teacher/director : prefs의 academyNumbers 사용
-     * - student : prefs의 academyNumbers 사용, 비어있으면 StudentApi로 학생 조회 후 보강
-     * - parent  : 자녀 목록을 불러와 자녀의 academyNumbers 사용 (중복 제거)
-     */
+    /** 학원 번호 로딩 */
     private void loadAcademyNumbersForRole(String role, SharedPreferences prefs) {
         userAcademyNumbers.clear();
 
-        // 🧩 교직원
         if ("teacher".equalsIgnoreCase(role) || "director".equalsIgnoreCase(role)) {
-            String academyArray = prefs.getString("academyNumbers", "[]");
+            String arr = prefs.getString("academyNumbers", "[]");
             try {
-                JSONArray arr = new JSONArray(academyArray);
-                for (int i = 0; i < arr.length(); i++) {
-                    userAcademyNumbers.add(arr.getInt(i));
-                }
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-            setupSpinnerAndFetch();
+                JSONArray json = new JSONArray(arr);
+                for (int i = 0; i < json.length(); i++)
+                    userAcademyNumbers.add(json.getInt(i));
+            } catch (JSONException ignored) {}
+            loadAcademyNames();
             return;
         }
 
-        // 🧩 학생
         if ("student".equalsIgnoreCase(role)) {
-            String academyArray = prefs.getString("academyNumbers", "[]");
+            String arr = prefs.getString("academyNumbers", "[]");
+
             try {
-                JSONArray arr = new JSONArray(academyArray);
-                for (int i = 0; i < arr.length(); i++) {
-                    userAcademyNumbers.add(arr.getInt(i));
-                }
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
+                JSONArray json = new JSONArray(arr);
+                for (int i = 0; i < json.length(); i++)
+                    userAcademyNumbers.add(json.getInt(i));
+            } catch (JSONException ignored) {}
 
             if (!userAcademyNumbers.isEmpty()) {
-                setupSpinnerAndFetch();
+                loadAcademyNames();
                 return;
             }
 
-            // 폴백: 서버 조회
+            // 폴백
             String studentId = prefs.getString("username", "");
-            if (studentId == null || studentId.trim().isEmpty()) {
-                Toast.makeText(this, "학생 계정 정보가 없습니다.", Toast.LENGTH_SHORT).show();
-                setupSpinnerAndFetch();
+            if (studentId.isEmpty()) {
+                loadAcademyNames();
                 return;
             }
 
@@ -198,41 +175,27 @@ public class NoticeActivity extends AppCompatActivity {
                 @Override
                 public void onResponse(Call<Student> call, Response<Student> response) {
                     progressBar.setVisibility(View.GONE);
-                    if (!response.isSuccessful() || response.body() == null) {
-                        Toast.makeText(NoticeActivity.this,
-                                "학생 정보 조회 실패: " + response.code(),
-                                Toast.LENGTH_SHORT).show();
-                        setupSpinnerAndFetch();
-                        return;
+                    if (response.isSuccessful() && response.body() != null) {
+                        userAcademyNumbers.addAll(
+                                new LinkedHashSet<>(response.body().getAcademyNumbers())
+                        );
                     }
-                    List<Integer> academies = response.body().getAcademyNumbers();
-                    if (academies != null) {
-                        // 중복 제거
-                        userAcademyNumbers.addAll(new LinkedHashSet<>(academies));
-                        // 로컬 prefs에도 저장(다음 진입 시 빠르게 표시)
-                        prefs.edit().putString("academyNumbers",
-                                new JSONArray(academies).toString()).apply();
-                    }
-                    setupSpinnerAndFetch();
+                    loadAcademyNames();
                 }
 
                 @Override
                 public void onFailure(Call<Student> call, Throwable t) {
                     progressBar.setVisibility(View.GONE);
-                    Toast.makeText(NoticeActivity.this,
-                            "학생 정보 네트워크 오류: " + t.getMessage(),
-                            Toast.LENGTH_SHORT).show();
-                    setupSpinnerAndFetch();
+                    loadAcademyNames();
                 }
             });
             return;
         }
 
-        // 🧩 학부모
+        // 학부모
         String parentId = prefs.getString("userId", "");
-        if (parentId == null || parentId.trim().isEmpty()) {
-            Toast.makeText(this, "학부모 계정 정보가 없습니다.", Toast.LENGTH_SHORT).show();
-            setupSpinnerAndFetch();
+        if (parentId.isEmpty()) {
+            loadAcademyNames();
             return;
         }
 
@@ -241,62 +204,100 @@ public class NoticeActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<Student>> call, Response<List<Student>> response) {
                 progressBar.setVisibility(View.GONE);
-                if (!response.isSuccessful() || response.body() == null) {
-                    Toast.makeText(NoticeActivity.this,
-                            "자녀 조회 실패: " + response.code(),
-                            Toast.LENGTH_SHORT).show();
-                    setupSpinnerAndFetch();
-                    return;
-                }
 
-                // 🔥 Null-safe 학원번호 수집
-                Set<Integer> academySet = new LinkedHashSet<>();
-
-                for (Student s : response.body()) {
-                    List<Integer> academies = s.getAcademyNumbers();
-                    if (academies != null) {
-                        for (Integer num : academies) {
-                            if (num != null && num > 0) {
-                                academySet.add(num);
-                            }
-                        }
+                if (response.isSuccessful() && response.body() != null) {
+                    Set<Integer> set = new LinkedHashSet<>();
+                    for (Student s : response.body()) {
+                        if (s.getAcademyNumbers() != null)
+                            set.addAll(s.getAcademyNumbers());
                     }
+                    userAcademyNumbers.addAll(set);
                 }
-
-                userAcademyNumbers.clear();
-                userAcademyNumbers.addAll(academySet);
-
-                if (userAcademyNumbers.isEmpty()) {
-                    Toast.makeText(NoticeActivity.this,
-                            "등록된 자녀의 학원이 없습니다.",
-                            Toast.LENGTH_SHORT).show();
-                }
-
-                setupSpinnerAndFetch();
+                loadAcademyNames();
             }
 
             @Override
             public void onFailure(Call<List<Student>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                Toast.makeText(NoticeActivity.this,
-                        "자녀 조회 네트워크 오류: " + t.getMessage(),
-                        Toast.LENGTH_SHORT).show();
-                setupSpinnerAndFetch();
+                loadAcademyNames();
             }
         });
     }
 
-    /** 스피너 구성 및 최초 fetch */
-    private void setupSpinnerAndFetch() {
-        List<String> labels = new ArrayList<>();
-        for (Integer num : userAcademyNumbers) {
-            labels.add("학원 " + num);
+    /** 학원이름 로딩 + 매핑 */
+    private void loadAcademyNames() {
+
+        if (userAcademyNumbers.isEmpty()) {
+            spinnerAcademy.setAdapter(null);
+            rvNotices.setAdapter(new NoticeListAdapter(new ArrayList<>(), n -> {}));
+            return;
         }
+
+        academyApi.getAcademyList().enqueue(new Callback<List<Academy>>() {
+            @Override
+            public void onResponse(Call<List<Academy>> call, Response<List<Academy>> response) {
+
+                List<String> academyNames = new ArrayList<>();
+                academyMap.clear();
+
+                if (!response.isSuccessful() || response.body() == null) {
+                    for (Integer num : userAcademyNumbers) {
+                        String name = "학원 " + num;
+                        academyNames.add(name);
+                        academyMap.put(name, num);
+                    }
+                    setupSpinner(academyNames);
+                    return;
+                }
+
+                List<Academy> all = response.body();
+
+                for (Integer num : userAcademyNumbers) {
+                    Academy match = null;
+
+                    for (Academy a : all) {
+                        if (a.getAcademyNumber() == num) {
+                            match = a;
+                            break;
+                        }
+                    }
+
+                    if (match != null) {
+                        academyNames.add(match.getAcademyName());
+                        academyMap.put(match.getAcademyName(), match.getAcademyNumber());
+                    } else {
+                        String fallback = "학원 " + num;
+                        academyNames.add(fallback);
+                        academyMap.put(fallback, num);
+                    }
+                }
+
+                setupSpinner(academyNames);
+            }
+
+            @Override
+            public void onFailure(Call<List<Academy>> call, Throwable t) {
+                List<String> fallback = new ArrayList<>();
+                academyMap.clear();
+
+                for (Integer num : userAcademyNumbers) {
+                    String name = "학원 " + num;
+                    fallback.add(name);
+                    academyMap.put(name, num);
+                }
+
+                setupSpinner(fallback);
+            }
+        });
+    }
+
+    /** 스피너 구성 */
+    private void setupSpinner(List<String> academyNames) {
 
         spinnerAdapter = new ArrayAdapter<>(
                 this,
                 android.R.layout.simple_spinner_item,
-                labels
+                academyNames
         );
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerAcademy.setAdapter(spinnerAdapter);
@@ -304,68 +305,76 @@ public class NoticeActivity extends AppCompatActivity {
         spinnerAcademy.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position >= 0 && position < userAcademyNumbers.size()) {
-                    fetchNotices(userAcademyNumbers.get(position));
-                }
+
+                String selectedName = spinnerAdapter.getItem(position);
+                int academyNumber = academyMap.get(selectedName);
+
+                fetchNotices(academyNumber);
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // 최초 로드
-        if (!userAcademyNumbers.isEmpty()) {
-            fetchNotices(userAcademyNumbers.get(0));
-        } else {
-            rvNotices.setAdapter(new NoticeListAdapter(new ArrayList<>(), n -> {}));
+        // default load
+        if (!academyNames.isEmpty()) {
+            String firstName = academyNames.get(0);
+            int academyNumber = academyMap.get(firstName);
+            fetchNotices(academyNumber);
         }
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // 테마 재적용
-        ToolbarColorUtil.applyToolbarColor(this, toolbar);
-        ThemeColorUtil.applyThemeColor(this, toolbar);
-
-        // 현재 선택된 학원 재조회
-        if (!userAcademyNumbers.isEmpty() && spinnerAcademy.getSelectedItemPosition() >= 0) {
-            int idx = spinnerAcademy.getSelectedItemPosition();
-            if (idx >= 0 && idx < userAcademyNumbers.size()) {
-                fetchNotices(userAcademyNumbers.get(idx));
-            }
-        }
-    }
-
+    /** 공지 조회 - academyNumbers 배열까지 포함한 완성본 */
     private void fetchNotices(int academyNumber) {
         progressBar.setVisibility(View.VISIBLE);
+
+        // 1) 단일 academyNumber 공지
         noticeApi.getNoticesByAcademy(academyNumber).enqueue(new Callback<List<Notice>>() {
             @Override
-            public void onResponse(Call<List<Notice>> call, Response<List<Notice>> response) {
-                progressBar.setVisibility(View.GONE);
-                if (response.isSuccessful() && response.body() != null) {
-                    NoticeListAdapter adapter = new NoticeListAdapter(
-                            response.body(),
-                            notice -> {
-                                Intent it = new Intent(NoticeActivity.this, NoticeDetailActivity.class);
-                                it.putExtra("notice_id", notice.getId());
-                                startActivity(it);
-                            }
-                    );
-                    rvNotices.setAdapter(adapter);
-                } else {
-                    Toast.makeText(NoticeActivity.this,
-                            "목록 조회 실패: " + response.code(),
-                            Toast.LENGTH_SHORT).show();
+            public void onResponse(Call<List<Notice>> call1, Response<List<Notice>> res1) {
+
+                List<Notice> result = new ArrayList<>();
+                if (res1.isSuccessful() && res1.body() != null) {
+                    result.addAll(res1.body());
                 }
+
+                // 2) 전체 공지 → academyNumbers 배열 필터링
+                noticeApi.listNotices().enqueue(new Callback<List<Notice>>() {
+                    @Override
+                    public void onResponse(Call<List<Notice>> call2, Response<List<Notice>> res2) {
+                        progressBar.setVisibility(View.GONE);
+
+                        if (res2.isSuccessful() && res2.body() != null) {
+                            for (Notice n : res2.body()) {
+
+                                List<Integer> arr = n.getAcademyNumbers();
+                                if (arr != null && arr.contains(academyNumber)) {
+                                    result.add(n);
+                                }
+                            }
+                        }
+
+                        // 🔥 최종 결과 표시
+                        rvNotices.setAdapter(new NoticeListAdapter(
+                                result,
+                                notice -> {
+                                    Intent it = new Intent(NoticeActivity.this, NoticeDetailActivity.class);
+                                    it.putExtra("notice_id", notice.getId());
+                                    startActivity(it);
+                                }
+                        ));
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<Notice>> call2, Throwable t) {
+                        progressBar.setVisibility(View.GONE);
+                    }
+                });
             }
 
             @Override
-            public void onFailure(Call<List<Notice>> call, Throwable t) {
+            public void onFailure(Call<List<Notice>> call1, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                Toast.makeText(NoticeActivity.this,
-                        "네트워크 오류: " + t.getMessage(),
-                        Toast.LENGTH_SHORT).show();
             }
         });
     }

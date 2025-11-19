@@ -1,8 +1,10 @@
 package com.mobile.greenacademypartner.model;
 
 import com.google.gson.annotations.SerializedName;
+import java.util.List;
 
 public class Notice {
+
     @SerializedName("id")
     private String id;
 
@@ -22,13 +24,16 @@ public class Notice {
     private String teacherName;
 
     @SerializedName("academyNumber")
-    private int academyNumber;
+    private Integer academyNumber;   // 👉 null 가능해야 함
 
-    // ✅ 추가: 학원 이름
+    @SerializedName("academyNumbers")
+    private List<Integer> academyNumbers;  // 👉 여러 학원 번호 지원
+
     @SerializedName(value="academyName", alternate={"academy_name"})
     private String academyName;
 
-    // --- getters & setters ---
+    // ---------------- getters & setters ----------------
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -38,19 +43,21 @@ public class Notice {
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
 
-    public String getAuthor() { return author; }
-    public void setAuthor(String author) { this.author = author; }
-
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+
+    public String getAuthor() { return author; }
+    public void setAuthor(String author) { this.author = author; }
 
     public String getTeacherName() { return teacherName; }
     public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
 
-    public int getAcademyNumber() { return academyNumber; }
-    public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
+    public Integer getAcademyNumber() { return academyNumber; }
+    public void setAcademyNumber(Integer academyNumber) { this.academyNumber = academyNumber; }
 
-    // ✅ 추가: 학원 이름 getter/setter
+    public List<Integer> getAcademyNumbers() { return academyNumbers; }
+    public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
+
     public String getAcademyName() { return academyName; }
     public void setAcademyName(String academyName) { this.academyName = academyName; }
 }
