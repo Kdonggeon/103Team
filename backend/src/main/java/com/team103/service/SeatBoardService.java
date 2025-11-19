@@ -122,7 +122,7 @@ public class SeatBoardService {
         for (WaitingRoom w : raws) {
             String sid = w.getStudentId();
 
-            // 입구 출석 승격 로직은 그대로 유지
+            // 입구 출석 승격 로직
             if (sid != null) {
                 String cur = statusByStudent.get(sid);
                 if (cur == null || cur.isBlank() || "미기록".equals(cur)) {
@@ -278,7 +278,7 @@ public class SeatBoardService {
             academyNumber = room.getAcademyNumber();
         }
 
-        // 3) 출석(해당일) 보장
+        // 3) 출석(해당일) 문서 보장 + 상태 맵
         Attendance att = ensureAttendanceDoc(classId, ymd, course);
         Map<String,String> statusByStudent = buildStatusMap(att);
 
@@ -318,7 +318,19 @@ public class SeatBoardService {
         }
         Map<String,String> nameById = resolveStudentNames(ids);
 
-        // 5) 좌석 상태 구성 (vector 우선 → legacyGrid 폴백)
+        // 5) roster & 웨이팅 (여기서 "입구 출석" 반영)
+        List<String> roster = att.getAttendanceList()!=null
+                ? att.getAttendanceList().stream()
+                    .map(Attendance.Item::getStudentId)
+                    .filter(Objects::nonNull)
+                    .toList()
+                : List.of();
+
+        List<SeatBoardResponse.WaitingItem> waiting = (academyNumber!=null)
+                ? loadWaiting(academyNumber, roster, nameById, statusByStudent, ymd)
+                : List.of();
+
+        // 6) 좌석 상태 구성 (vector 우선 → legacyGrid 폴백)
         List<SeatBoardResponse.SeatStatus> seats=new ArrayList<>();
         String layoutType="grid";
 
@@ -370,7 +382,7 @@ public class SeatBoardService {
                 });
         }
 
-        // 6) 출결 카운트(Attendance 기준)
+        // 7) 출결 카운트(입구 출석 승격까지 반영된 statusByStudent 기준)
         int present=0,late=0,absent=0,move=0,none=0;
         for(String st:statusByStudent.values()){
             if(st==null||st.isBlank()||"미기록".equals(st)){none++;continue;}
@@ -382,14 +394,6 @@ public class SeatBoardService {
                 default -> none++;
             }
         }
-
-        // 7) 웨이팅(해당 클래스 roster만) + 여기에서 "입구 출석" 반영
-        List<String> roster = att.getAttendanceList()!=null
-                ? att.getAttendanceList().stream().map(Attendance.Item::getStudentId).filter(Objects::nonNull).toList()
-                : List.of();
-        List<SeatBoardResponse.WaitingItem> waiting = (academyNumber!=null)
-                ? loadWaiting(academyNumber, roster, nameById, statusByStudent, ymd)
-                : List.of();
 
         // 8) 응답
         SeatBoardResponse r=new SeatBoardResponse();

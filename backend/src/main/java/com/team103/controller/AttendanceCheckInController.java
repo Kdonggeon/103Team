@@ -8,6 +8,7 @@ import com.team103.model.Student;
 import com.team103.repository.AttendanceRepository;
 import com.team103.repository.CourseRepository;
 import com.team103.repository.StudentRepository;
+import com.team103.service.SeatBoardService;   // ⭐ 추가
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -29,6 +30,8 @@ public class AttendanceCheckInController {
     private final StudentRepository studentRepo;
     private final MongoTemplate mongo;
 
+    private final SeatBoardService seatBoardService;   // ⭐ 추가
+
     @Value("${attendance.lateAfterMin:15}")
     private int lateAfterMin;
 
@@ -42,12 +45,14 @@ public class AttendanceCheckInController {
             CourseRepository courseRepo,
             AttendanceRepository attRepo,
             StudentRepository studentRepo,
-            MongoTemplate mongo
+            MongoTemplate mongo,
+            SeatBoardService seatBoardService        // ⭐ 추가
     ) {
         this.courseRepo = courseRepo;
         this.attRepo = attRepo;
         this.studentRepo = studentRepo;
         this.mongo = mongo;
+        this.seatBoardService = seatBoardService;   // ⭐ 추가
     }
 
     /** =========================================================
@@ -86,10 +91,9 @@ public class AttendanceCheckInController {
                     .setOnInsert("Type", "entrance")
                     .setOnInsert("Date", ymd)
                     .set("updatedAt", new Date());
-
             mongo.upsert(q, up, COLL_ATT);
 
-            // 리스트에 추가 (중복 push 방지: 그냥 push 허용 → seatBoard에서 처리)
+            // 리스트 추가
             Update push = new Update().push("Attendance_List", Map.of(
                     "Student_ID", studentId,
                     "Status", "입구 출석",
@@ -118,8 +122,28 @@ public class AttendanceCheckInController {
                         .set("Student_Name", stu.getStudentName())
                         .set("School", stu.getSchool())
                         .set("Grade", stu.getGrade());
-
                 mongo.upsert(wq, wup, COLL_WAIT);
+            }
+
+            /* =========================================================
+             *  🚀 2) 오늘 날짜의 모든 수업 출석 문서에서 “이동” 처리 + 좌석 제거
+             * ========================================================= */
+            try {
+                Query findAtt = new Query(
+                        Criteria.where("Date").is(ymd)
+                                .and("Attendance_List.Student_ID").is(studentId)
+                );
+                List<Attendance> docs = mongo.find(findAtt, Attendance.class, COLL_ATT);
+
+                for (Attendance doc : docs) {
+                    if (doc.getClassId() == null || doc.getClassId().isBlank()) continue;
+
+                    // ⭐ SeatBoardService 호출 → 좌석 해제 + 상태 이동 처리
+                    seatBoardService.moveOrBreak(doc.getClassId(), ymd, studentId, "이동");
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
 
             CheckInResponse r = new CheckInResponse();
@@ -134,24 +158,20 @@ public class AttendanceCheckInController {
         Course course = courseRepo.findByClassId(classId).orElse(null);
         if (course == null) return ResponseEntity.badRequest().body("수업 없음");
 
-        // 오늘 수업 시간 결정
         DateTimeFormatter HHMM = DateTimeFormatter.ofPattern("HH:mm");
 
         Course.DailyTime dt = course.getTimeFor(ymd);
         String sStr = dt != null && dt.getStart() != null ? dt.getStart() : course.getStartTime();
         String eStr = dt != null && dt.getEnd() != null ? dt.getEnd() : course.getEndTime();
-
         if (sStr == null) return ResponseEntity.status(409).body("수업 시작 시간 없음");
 
         LocalTime start = LocalTime.parse(sStr, HHMM);
-        LocalTime presentUntil = start.plusMinutes(lateAfterMin);  // 출석
-        LocalTime lateUntil = start.plusMinutes(absentAfterMin);   // 지각 → 이후는 결석
+        LocalTime presentUntil = start.plusMinutes(lateAfterMin);
+        LocalTime lateUntil = start.plusMinutes(absentAfterMin);
 
-        LocalDateTime sDateTime = LocalDateTime.of(now.toLocalDate(), start);
         LocalDateTime nowLt = now.toLocalDateTime();
 
-        // 오픈 시간 제한
-        if (nowLt.isBefore(sDateTime.minusMinutes(5)))
+        if (nowLt.isBefore(LocalDateTime.of(now.toLocalDate(), start).minusMinutes(5)))
             return ResponseEntity.status(409).body("아직 출석 오픈 전");
 
         if (nowLt.isAfter(LocalDateTime.of(now.toLocalDate(), lateUntil)))
@@ -161,9 +181,6 @@ public class AttendanceCheckInController {
                 ? "지각"
                 : "출석";
 
-        /* =========================================================
-         *  Attendance 문서 upsert
-         * ========================================================= */
         Attendance att = attRepo.findFirstByClassIdAndDate(classId, ymd);
         if (att == null) {
             att = new Attendance();
@@ -173,28 +190,26 @@ public class AttendanceCheckInController {
             att.setSeatAssignments(new ArrayList<>());
         }
 
-        // 학생 상태 업데이트 (+ 중복 방지)
         boolean found = false;
         for (Attendance.Item it : att.getAttendanceList()) {
             if (it.getStudentId().equals(studentId)) {
                 it.setStatus(status);
-                it.setCheckInTime(hm);
+                it.setCheckInTime(now.toLocalTime().toString());
                 found = true;
                 break;
             }
         }
-
         if (!found) {
             Attendance.Item it = new Attendance.Item();
             it.setStudentId(studentId);
             it.setStatus(status);
-            it.setCheckInTime(hm);
+            it.setCheckInTime(now.toLocalTime().toString());
             att.getAttendanceList().add(it);
         }
 
         attRepo.save(att);
 
-        // Entrance waiting_room 제거 (해당 수업에만)
+        // waiting_room 제거
         Integer academyNumber = course.getAcademyNumber();
         if (academyNumber != null) {
             Query del = new Query(
@@ -204,7 +219,6 @@ public class AttendanceCheckInController {
             mongo.remove(del, COLL_WAIT);
         }
 
-        // 응답 구성
         CheckInResponse r = new CheckInResponse();
         r.setStatus(status);
         r.setClassId(classId);
