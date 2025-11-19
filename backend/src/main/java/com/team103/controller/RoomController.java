@@ -138,8 +138,9 @@ public class RoomController {
                         Criteria.where("Academy_Number").is(academyNumber)   // 🔥 필터 추가
                 )),
                 entUpdate,
-                "attendance"
+                "attendance"   // ← 이거
         );
+
 
         /* -------------------------------
            현재 반이 있으면 출석 상태 "이동"
