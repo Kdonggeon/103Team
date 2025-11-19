@@ -138,7 +138,7 @@ public class RoomController {
                         Criteria.where("Academy_Number").is(academyNumber)   // 🔥 필터 추가
                 )),
                 entUpdate,
-                "attendance"   // ← 이거
+                "attendances"   // ← 이거
         );
 
 
