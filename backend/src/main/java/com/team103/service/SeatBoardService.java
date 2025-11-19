@@ -13,6 +13,10 @@ import com.team103.repository.StudentRepository;
 import com.team103.repository.WaitingRoomRepository;
 import org.springframework.stereotype.Service;
 
+// 🔥 로깅
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -22,6 +26,8 @@ import java.util.*;
 
 @Service
 public class SeatBoardService {
+
+    private static final Logger log = LoggerFactory.getLogger(SeatBoardService.class);
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -99,13 +105,17 @@ public class SeatBoardService {
         // 1) 기본적으로는 학원번호 기준으로 가져오고
         List<WaitingRoom> raws;
         if (academyNumber > 0) {
+            log.debug("[SeatBoardService] loadWaiting academy={} rosterSize={}", academyNumber, roster.size());
             raws = waitingRepo.findByAcademyNumber(academyNumber);
+            log.debug("[SeatBoardService] waitingRepo.findByAcademyNumber -> {}건", raws == null ? 0 : raws.size());
             // 🔥 혹시 한 건도 없으면, 학원번호 무시하고 전체에서 찾기 (테스트/데이터 꼬임 대비)
             if (raws == null || raws.isEmpty()) {
+                log.debug("[SeatBoardService] academy={} 기준 대기가 0건 → 전체 waiting_room 조회", academyNumber);
                 raws = waitingRepo.findAll();
             }
         } else {
             // academyNumber를 못 구한 경우엔 그냥 전체에서
+            log.debug("[SeatBoardService] loadWaiting academyNumber 없음 → waitingRepo.findAll()");
             raws = waitingRepo.findAll();
         }
 
@@ -117,6 +127,8 @@ public class SeatBoardService {
                     return ts == null || ts.startsWith(ymd);
                 })
                 .toList();
+
+        log.debug("[SeatBoardService] loadWaiting filtered by roster+date({}) → {}건", ymd, raws.size());
 
         List<SeatBoardResponse.WaitingItem> out = new ArrayList<>();
         for (WaitingRoom w : raws) {
@@ -142,6 +154,7 @@ public class SeatBoardService {
                 SeatBoardResponse.WaitingItem::getCheckedInAt,
                 Comparator.nullsLast(String::compareTo)
         ));
+        log.debug("[SeatBoardService] loadWaiting 최종 waiting 아이템 수 = {}", out.size());
         return out;
     }
 
@@ -149,6 +162,7 @@ public class SeatBoardService {
     /* ─────────────── 좌석판 조회 ─────────────── */
     public SeatBoardResponse getSeatBoard(String classId,String date){
         final String ymd = isBlank(date) ? todayYmd() : date.trim();
+        log.debug("[SeatBoardService] getSeatBoard classId={} date={}", classId, ymd);
 
         // 1) 수업
         Course course = courseRepo.findByClassId(classId)
@@ -180,6 +194,8 @@ public class SeatBoardService {
                 ? academies.get(0)
                 : (Integer) tryInvoke(course,"getAcademyNumber",null,null);
 
+        log.debug("[SeatBoardService] resolved roomNumber={} academyNumber={}", roomNumber, academyNumber);
+
         // 2) 강의실
         Room room = null;
         if (academyNumber != null) {
@@ -196,6 +212,9 @@ public class SeatBoardService {
             room = lst.get(0);
             academyNumber = room.getAcademyNumber();
         }
+
+        log.debug("[SeatBoardService] using Room id={} roomNumber={} academyNumber={}",
+                room.getId(), room.getRoomNumber(), room.getAcademyNumber());
 
         // 3) 출석(해당일) 보장
         Attendance att = ensureAttendanceDoc(classId, ymd, course);
@@ -310,6 +329,8 @@ public class SeatBoardService {
                 ? loadWaiting(academyNumber, roster, nameById, statusByStudent, ymd)
                 : List.of();
 
+        log.debug("[SeatBoardService] getSeatBoard 결과 seats={} waiting={}", seats.size(), waiting.size());
+
         // 8) 응답
         SeatBoardResponse r=new SeatBoardResponse();
         SeatBoardResponse.CurrentClass cc=new SeatBoardResponse.CurrentClass();
@@ -423,6 +444,8 @@ public class SeatBoardService {
                 }
             }
         }
+        log.debug("[SeatBoardService] ensureAttendanceDoc 새 문서 생성 classId={} date={} rosterSize={}",
+                classId, ymd, att.getAttendanceList().size());
         return attRepo.save(att);
     }
 
