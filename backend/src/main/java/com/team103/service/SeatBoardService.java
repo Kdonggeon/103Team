@@ -149,13 +149,6 @@ public class SeatBoardService {
     /**
      * 학원번호 + 방번호 + 학생ID + 날짜 기준으로
      * "이 학생이 이 방에서 듣는 수업"의 classId를 찾아준다.
-     *
-     * - Course.academyNumber / academyNumbersSafe
-     * - Course.getRoomFor(date) / getPrimaryRoomNumber()
-     * - Course.getStudents() 리스트에 studentId 포함
-     *
-     * 여러 개가 걸릴 경우 첫 번째 것을 사용.
-     * 못 찾으면 null.
      */
     public String findClassIdForRoomAndStudent(int academyNumber,
                                                int roomNumber,
@@ -281,8 +274,6 @@ public class SeatBoardService {
         // 3) 출석(해당일) 문서 보장 + 상태 맵
         Attendance att = ensureAttendanceDoc(classId, ymd, course);
         Map<String,String> statusByStudent = buildStatusMap(att);
-
-        // 🔥 여기서부터는 더 이상 entrance(타 학원) 문서를 안 섞음
 
         // 4) 좌석 배정: Attendance.seatAssignments + Course.Seat_Map 병합
         Map<String,String> studentBySeatLabel = new HashMap<>();
@@ -476,9 +467,10 @@ public class SeatBoardService {
     public void moveOrBreak(String classId,String date,String studentId,String status){
         String ymd=isBlank(date)?todayYmd():date.trim();
         Attendance att=ensureAttendanceDoc(classId,ymd,null);
-        if(att.getSeatAssignments()!=null)
-            att.getSeatAssignments().removeIf(x->studentId.equals(x.getStudentId()));
+
+        // ✅ 좌석 배정은 그대로 두고, 상태만 이동/휴식/대기로 변경
         ensureAttendanceStatus(att,studentId,isBlank(status)?"이동":status);
+
         attRepo.save(att);
     }
 
