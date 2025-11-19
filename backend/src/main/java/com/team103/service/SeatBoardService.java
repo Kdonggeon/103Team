@@ -73,6 +73,56 @@ public class SeatBoardService {
         return v==null?null:String.valueOf(v);
     }
 
+    /* ─────────────── 시간 계산 유틸 (지각/결석 판정용) ─────────────── */
+
+    /** "HH:mm" → 분 단위로 변환 */
+    private Integer toMinutes(String hhmm) {
+        if (hhmm == null || !hhmm.contains(":")) return null;
+        String[] p = hhmm.split(":");
+        try {
+            return Integer.parseInt(p[0]) * 60 + Integer.parseInt(p[1]);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Course + 날짜 기준으로 시작 시간 가져오기 (오버라이드 우선) */
+    private String getStartTimeForCourse(Course course, String ymd) {
+        if (course == null) return null;
+        // 날짜별 오버라이드 우선
+        Course.DailyTime dt = course.getTimeFor(ymd);
+        if (dt != null && dt.getStart() != null && !dt.getStart().isBlank()) {
+            return dt.getStart();
+        }
+        // 기본 시작시간
+        return course.getStartTime();
+    }
+
+    /**
+     * QR로 좌석 배정할 때 적용할 상태 결정
+     *
+     * 규칙:
+     *   - 시작시간 기준
+     *     0~14분: 출석
+     *     15~29분: 지각
+     *     30분 이상: 결석
+     */
+    private String decideStatusForCheckIn(Course course, String ymd) {
+        String start = getStartTimeForCourse(course, ymd);
+        if (start == null) return "출석";
+
+        Integer startMin = toMinutes(start);
+        Integer nowMin   = toMinutes(nowHm());
+        if (startMin == null || nowMin == null) return "출석";
+
+        int diff = nowMin - startMin; // 양수면 늦게 찍은 것
+
+        if (diff <= 0) return "출석";   // 정각 이전
+        if (diff < 15) return "출석";   // 1~14분
+        if (diff < 30) return "지각";   // 15~29분
+        return "결석";                 // 30분 이상
+    }
+
     /* ─────────────── 이름맵 / 웨이팅룸 ─────────────── */
     private Map<String,String> resolveStudentNames(Set<String> ids){
         Map<String,String> map=new HashMap<>();
@@ -312,9 +362,9 @@ public class SeatBoardService {
         // 5) roster & 웨이팅 (여기서 "입구 출석" 반영)
         List<String> roster = att.getAttendanceList()!=null
                 ? att.getAttendanceList().stream()
-                    .map(Attendance.Item::getStudentId)
-                    .filter(Objects::nonNull)
-                    .toList()
+                .map(Attendance.Item::getStudentId)
+                .filter(Objects::nonNull)
+                .toList()
                 : List.of();
 
         List<SeatBoardResponse.WaitingItem> waiting = (academyNumber!=null)
@@ -445,12 +495,16 @@ public class SeatBoardService {
         a.setStudentId(studentId);
         list.add(a);
         att.setSeatAssignments(list);
-        ensureAttendanceStatus(att,studentId,"출석");
+
+        // 🔥 수업 시작 시간 기준으로 출석/지각/결석 판정
+        Course c = courseRepo.findByClassId(classId).orElse(null);
+        String newStatus = decideStatusForCheckIn(c, ymd);
+
+        ensureAttendanceStatus(att,studentId,newStatus);
         attRepo.save(att);
 
         // 웨이팅 삭제
         try{
-            Course c=courseRepo.findByClassId(classId).orElse(null);
             Integer an=(Integer)tryInvoke(c,"getAcademyNumber",null,null);
             if(an!=null)waitingRepo.deleteByAcademyNumberAndStudentId(an,studentId);
         }catch(Exception ignore){}
@@ -468,7 +522,7 @@ public class SeatBoardService {
         String ymd=isBlank(date)?todayYmd():date.trim();
         Attendance att=ensureAttendanceDoc(classId,ymd,null);
 
-        // ✅ 좌석 배정은 그대로 두고, 상태만 이동/휴식/대기로 변경
+        // ✅ 좌석은 그대로 두고, 상태만 이동/휴식/대기로 변경
         ensureAttendanceStatus(att,studentId,isBlank(status)?"이동":status);
 
         attRepo.save(att);
@@ -531,7 +585,7 @@ public class SeatBoardService {
                 return;
             }
 
-            // 🔥 새 상태가 "이동" / "휴식" / "결석" 등일 때는 그대로 덮어쓰기
+            // 🔥 새 상태가 "이동" / "휴식" / "결석" / "지각" 등일 때는 그대로 덮어쓰기
             it.setStatus(newStatus);
             return;
         }
