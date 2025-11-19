@@ -70,12 +70,16 @@ public class QRScannerActivity extends AppCompatActivity {
     /** QR 자동 분기 */
     private void handleQRResult(String qrData) {
         try {
-            // JSON으로 시작하면 학원 QR
-            if (qrData.trim().startsWith("{")) {
+            // QR 인코딩 깨짐 &amp; 방지
+            qrData = qrData.replace("&amp;", "&").replace("amp;", "").trim();
+
+            // JSON 시작이면 학원 QR
+            if (qrData.startsWith("{")) {
                 handleAcademyQR(qrData);
                 return;
             }
-            // 그 외는 좌석 QR (v=1&type=seat&...)
+
+            // 나머지는 좌석 QR
             handleSeatQR(qrData);
 
         } catch (Exception e) {
@@ -88,14 +92,17 @@ public class QRScannerActivity extends AppCompatActivity {
     /** 좌석 출석 */
     private void handleSeatQR(String qrData) {
         try {
-            // "?v=1&type=seat&academyNumber=103&room=401&seat=2&..." 이런 식이라 가정
+            // QR 인코딩 깨짐 방지 (2회)
+            qrData = qrData.replace("&amp;", "&").replace("amp;", "").trim();
+
             Uri uri = Uri.parse("?" + qrData);
 
             String roomStr     = uri.getQueryParameter("room");
-            String seatStr     = uri.getQueryParameter("seat");            // QR에 들어있는 원래 키
+            String seatStr     = uri.getQueryParameter("seat");
             String academyStr  = uri.getQueryParameter("academyNumber");
 
             if (roomStr == null || seatStr == null || academyStr == null) {
+                Log.e("QR", "roomStr=" + roomStr + ", seatStr=" + seatStr + ", academyStr=" + academyStr);
                 Toast.makeText(this, "좌석 QR 형식이 올바르지 않습니다.", Toast.LENGTH_SHORT).show();
                 finish();
                 return;
@@ -105,8 +112,9 @@ public class QRScannerActivity extends AppCompatActivity {
             int seatNumber     = Integer.parseInt(seatStr);
             int academyNumber  = Integer.parseInt(academyStr);
 
+            // 로그인 ID = studentId
             String studentId = getSharedPreferences("login_prefs", MODE_PRIVATE)
-                    .getString("username", null);   // 로그인 ID (백엔드 studentId)
+                    .getString("username", null);
 
             if (studentId == null || studentId.trim().isEmpty()) {
                 Toast.makeText(this, "로그인 정보가 없습니다.", Toast.LENGTH_SHORT).show();
@@ -114,20 +122,17 @@ public class QRScannerActivity extends AppCompatActivity {
                 return;
             }
 
-            Log.d("QR", "seatQR → room=" + roomNumber +
+            Log.d("QR", "[SCAN] seatQR → room=" + roomNumber +
                     ", seat=" + seatNumber +
                     ", academy=" + academyNumber +
                     ", studentId=" + studentId);
 
-            /* ─────────────────────────────────────────────
-               1단계: 입구 처리(LOBBY) → waiting_room upsert
-            ───────────────────────────────────────────── */
+            // 1) 입구 처리
             roomApi.enterLobby(roomNumber, academyNumber, studentId)
                     .enqueue(new Callback<ResponseBody>() {
                         @Override
                         public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
                             if (!response.isSuccessful()) {
-                                // 500 / 기타 에러도 여기서 잡고 끝냄
                                 Toast.makeText(QRScannerActivity.this,
                                         "입구 처리 실패: " + response.code(),
                                         Toast.LENGTH_SHORT).show();
@@ -138,9 +143,7 @@ public class QRScannerActivity extends AppCompatActivity {
 
                             Log.d("QR", "enterLobby 성공 → check-in 진행");
 
-                            /* ─────────────────────────────────────────
-                               2단계: 좌석 배치(check-in)
-                            ───────────────────────────────────────── */
+                            // 2) 좌석 배치
                             roomApi.checkIn(roomNumber, academyNumber, seatNumber, studentId)
                                     .enqueue(new Callback<ResponseBody>() {
                                         @Override
@@ -150,17 +153,13 @@ public class QRScannerActivity extends AppCompatActivity {
                                                         "💺 좌석 출석 완료!",
                                                         Toast.LENGTH_SHORT).show();
                                             } else {
-                                                String msg;
                                                 int code = response.code();
-                                                if (code == 409) {
-                                                    msg = "이미 다른 학생이 앉아 있는 좌석입니다.";
-                                                } else if (code == 412) {
-                                                    msg = "대기실 정보가 없어 출석에 실패했습니다.";
-                                                } else if (code == 404) {
-                                                    msg = "강의실 정보를 찾을 수 없습니다.";
-                                                } else {
-                                                    msg = "좌석 출석 실패: " + code;
-                                                }
+                                                String msg;
+                                                if (code == 409) msg = "이미 다른 학생이 앉아 있는 좌석입니다.";
+                                                else if (code == 412) msg = "대기실 정보가 없어 출석에 실패했습니다.";
+                                                else if (code == 404) msg = "강의실 정보를 찾을 수 없습니다.";
+                                                else msg = "좌석 출석 실패: " + code;
+
                                                 Toast.makeText(QRScannerActivity.this, msg, Toast.LENGTH_SHORT).show();
                                                 Log.e("QR", "checkIn 실패: code=" + code);
                                             }
@@ -216,8 +215,7 @@ public class QRScannerActivity extends AppCompatActivity {
             boolean valid = false;
             for (int i = 0; i < students.length(); i++) {
                 if (studentId.equals(students.getString(i))) {
-                    valid = true;
-                    break;
+                    valid = true; break;
                 }
             }
 
@@ -227,7 +225,6 @@ public class QRScannerActivity extends AppCompatActivity {
                 return;
             }
 
-            // 학원 출석
             AttendanceApi attendanceApi = RetrofitClient.getClient().create(AttendanceApi.class);
             Map<String, String> req = new HashMap<>();
             req.put("academyNumber", academyNumber);

@@ -21,6 +21,9 @@ public interface CourseRepository extends MongoRepository<Course, String> {
 
     /** ✅ Room + Academy 동시 매칭 */
     List<Course> findByRoomNumberAndAcademyNumber(Integer roomNumber, Integer academyNumber);
+    
+    Course findByClassIdAndAcademyNumber(String classId, int academyNumber);
+
 
     /** ✅ Class_ID 기반 조회 (Mongo 필드명 명시) */
     @Query("{ 'Class_ID': ?0 }")

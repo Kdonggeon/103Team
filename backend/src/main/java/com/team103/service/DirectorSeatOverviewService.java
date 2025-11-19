@@ -41,32 +41,27 @@ public class DirectorSeatOverviewService {
     public DirectorOverviewResponse getAcademyOverview(int academyNumber, String date) {
         final String ymd = (date == null || date.isBlank()) ? SeatBoardService.todayYmd() : date.trim();
 
-        // 1) 학원 강의실 목록
+        /* 1) 해당 학원의 강의실만 */
         final List<Room> rooms = roomRepo.findByAcademyNumber(academyNumber);
 
-        // 2) 오늘(ymd) 사용 중인 반과 매칭된 좌석판을 구한다
-        final List<DirectorOverviewResponse.RoomStatus> roomViews = new ArrayList<>();
-
-        // Course 조회 (findByAcademyNumber 없으면 findAll로 대체)
+        /* 2) 해당 학원의 Course 목록만 */
         List<Course> courses;
         try {
-            // 메서드가 있는 경우 (정상 시나리오)
             Method m = courseRepo.getClass().getMethod("findByAcademyNumber", int.class);
             @SuppressWarnings("unchecked")
             List<Course> tmp = (List<Course>) m.invoke(courseRepo, academyNumber);
             courses = tmp != null ? tmp : Collections.emptyList();
         } catch (Exception ignore) {
-            // 없으면 전체 조회 후 필터
             courses = courseRepo.findAll().stream()
-                    .filter(c -> {
-                        Integer an = parseIntOrNull(getString(c, "getAcademyNumber"));
-                        return an != null && an == academyNumber;
-                    })
+                    .filter(c -> parseIntOrNull(getString(c, "getAcademyNumber")) != null
+                            && parseIntOrNull(getString(c, "getAcademyNumber")) == academyNumber)
                     .collect(Collectors.toList());
         }
 
+        final List<DirectorOverviewResponse.RoomStatus> roomViews = new ArrayList<>();
+
+        /* 3) 각 방별로 오늘 날짜에 사용 중인 반 찾기 */
         for (Room room : rooms) {
-            // 이 날짜에 이 강의실을 쓰는 반 찾기
             Optional<Course> usingCourse = courses.stream().filter(c -> {
                 Object rf = call(c, "getRoomFor", new Class[]{String.class}, new Object[]{ymd});
                 if (rf == null) return false;
@@ -79,12 +74,19 @@ public class DirectorSeatOverviewService {
 
             if (usingCourse.isPresent()) {
                 Course c = usingCourse.get();
+
                 className = coalesce(getString(c, "getClassName"), getString(c, "getName"));
                 String classId = coalesce(getString(c, "getClassId"), getString(c, "getId"));
-                // 반이 있으면 반 기준 좌석판
-                seatBoard = seatSvc.getSeatBoard(classId, ymd);
+
+                /* ★ 매우 중요 — 같은 학원(classId)인지 검증 */
+                Integer courseAcademy = parseIntOrNull(getString(c, "getAcademyNumber"));
+                if (courseAcademy == null || courseAcademy != academyNumber) {
+                    // 다른 학원 반이면 무조건 무시
+                    seatBoard = buildEmptyBoardFromRoom(room, ymd);
+                } else {
+                    seatBoard = seatSvc.getSeatBoard(classId, ymd);
+                }
             } else {
-                // 반이 없으면 강의실 레이아웃으로 빈 좌석판
                 seatBoard = buildEmptyBoardFromRoom(room, ymd);
             }
 
@@ -98,11 +100,10 @@ public class DirectorSeatOverviewService {
             rs.setMoveOrBreakCount(seatBoard.getMoveOrBreakCount());
             rs.setNotRecordedCount(seatBoard.getNotRecordedCount());
 
-            // (선택) 레이아웃 힌트
             roomViews.add(rs);
         }
 
-        // 3) 웨이팅룸 -> 이름 매핑
+        /* 4) 웨이팅룸 학생도 동일 학원만 */
         final List<WaitingRoom> waits = waitingRepo.findByAcademyNumber(academyNumber);
         final List<String> waitIds = waits.stream()
                 .map(WaitingRoom::getStudentId)
@@ -127,7 +128,7 @@ public class DirectorSeatOverviewService {
             return wi;
         }).collect(Collectors.toList());
 
-        // 4) 응답
+        /* 5) 결과 합치기 */
         DirectorOverviewResponse r = new DirectorOverviewResponse();
         r.setDate(ymd);
         r.setRooms(roomViews);
@@ -140,7 +141,6 @@ public class DirectorSeatOverviewService {
         SeatBoardResponse r = new SeatBoardResponse();
         r.setDate(ymd);
 
-        // vector(V2 -> V1) 우선
         List<Room.VectorSeat> vec = null;
         try { vec = castVectorSeatList(Room.class.getMethod("getVectorLayoutV2").invoke(room)); } catch (Exception ignore) {}
         if (vec == null || vec.isEmpty()) {
@@ -151,46 +151,41 @@ public class DirectorSeatOverviewService {
             r.setLayoutType("vector");
             r.setCanvasW(room.getVectorCanvasW() != null ? room.getVectorCanvasW() : 1.0);
             r.setCanvasH(room.getVectorCanvasH() != null ? room.getVectorCanvasH() : 1.0);
-            r.setRows(null);
-            r.setCols(null);
 
             List<SeatBoardResponse.SeatStatus> seats = new ArrayList<>();
             vec.stream()
-               .sorted(Comparator.comparingInt(DirectorSeatOverviewService::seatOrderOfLocal))
-               .forEach(v -> {
-                   SeatBoardResponse.SeatStatus s = new SeatBoardResponse.SeatStatus();
-                   Integer num = parseIntOrNull(v.getLabel());
-                   s.setSeatNumber(num);
-                   s.setRow(null);
-                   s.setCol(null);
-                   s.setX(v.getX()); s.setY(v.getY()); s.setW(v.getW()); s.setH(v.getH()); s.setR(v.getR());
-                   s.setDisabled(Boolean.TRUE.equals(v.getDisabled()));
-                   s.setAttendanceStatus("미기록");
-                   seats.add(s);
-               });
+                    .sorted(Comparator.comparingInt(DirectorSeatOverviewService::seatOrderOfLocal))
+                    .forEach(v -> {
+                        SeatBoardResponse.SeatStatus s = new SeatBoardResponse.SeatStatus();
+                        s.setSeatNumber(parseIntOrNull(v.getLabel()));
+                        s.setX(v.getX());
+                        s.setY(v.getY());
+                        s.setW(v.getW());
+                        s.setH(v.getH());
+                        s.setR(v.getR());
+                        s.setDisabled(Boolean.TRUE.equals(v.getDisabled()));
+                        s.setAttendanceStatus("미기록");
+                        seats.add(s);
+                    });
             r.setSeats(seats);
         } else {
-            // grid
             r.setLayoutType("grid");
             r.setRows(room.getRows());
             r.setCols(room.getCols());
-            r.setCanvasW(null);
-            r.setCanvasH(null);
 
             List<SeatBoardResponse.SeatStatus> seats = new ArrayList<>();
             if (room.getLayout() != null) {
                 room.getLayout().stream()
-                    .sorted(Comparator.comparingInt(c -> c.getSeatNumber() == null ? 9999 : c.getSeatNumber()))
-                    .forEach(c -> {
-                        SeatBoardResponse.SeatStatus s = new SeatBoardResponse.SeatStatus();
-                        s.setSeatNumber(c.getSeatNumber());
-                        s.setRow(c.getRow());
-                        s.setCol(c.getCol());
-                        s.setX(null); s.setY(null); s.setW(null); s.setH(null); s.setR(null);
-                        s.setDisabled(Boolean.TRUE.equals(c.getDisabled()));
-                        s.setAttendanceStatus("미기록");
-                        seats.add(s);
-                    });
+                        .sorted(Comparator.comparingInt(c -> c.getSeatNumber() == null ? 9999 : c.getSeatNumber()))
+                        .forEach(c -> {
+                            SeatBoardResponse.SeatStatus s = new SeatBoardResponse.SeatStatus();
+                            s.setSeatNumber(c.getSeatNumber());
+                            s.setRow(c.getRow());
+                            s.setCol(c.getCol());
+                            s.setDisabled(Boolean.TRUE.equals(c.getDisabled()));
+                            s.setAttendanceStatus("미기록");
+                            seats.add(s);
+                        });
             }
             r.setSeats(seats);
         }
@@ -200,6 +195,7 @@ public class DirectorSeatOverviewService {
         r.setAbsentCount(0);
         r.setMoveOrBreakCount(0);
         r.setNotRecordedCount(r.getSeats() != null ? r.getSeats().size() : 0);
+
         return r;
     }
 
@@ -207,7 +203,8 @@ public class DirectorSeatOverviewService {
     private static Object call(Object target, String name, Class<?>[] types, Object[] args) {
         if (target == null) return null;
         try {
-            Method m = (types == null) ? target.getClass().getMethod(name)
+            Method m = (types == null)
+                    ? target.getClass().getMethod(name)
                     : target.getClass().getMethod(name, types);
             m.setAccessible(true);
             return (args == null) ? m.invoke(target) : m.invoke(target, args);
