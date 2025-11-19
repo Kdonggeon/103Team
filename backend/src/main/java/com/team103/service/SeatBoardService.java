@@ -86,20 +86,52 @@ public class SeatBoardService {
         return map;
     }
 
-    private List<SeatBoardResponse.WaitingItem> loadWaiting(int academyNumber,List<String> roster,Map<String,String> nameById){
-        if(academyNumber<=0)return List.of();
-        List<WaitingRoom> raws=waitingRepo.findByAcademyNumber(academyNumber)
-                .stream().filter(w->roster.contains(w.getStudentId())).toList();
+    /**
+     * waiting_room 기준 대기열 조회 + 이 반 학생들의 상태를 "입구 출석"으로 올려줌
+     */
+    private List<SeatBoardResponse.WaitingItem> loadWaiting(
+            int academyNumber,
+            List<String> roster,
+            Map<String,String> nameById,
+            Map<String,String> statusByStudent,
+            String ymd
+    ){
+        if(academyNumber<=0) return List.of();
+
+        List<WaitingRoom> raws = waitingRepo.findByAcademyNumber(academyNumber)
+                .stream()
+                // 이 반 수강생만
+                .filter(w -> roster.contains(w.getStudentId()))
+                // 날짜 필터: Checked_In_At 가 "yyyy-MM-dd"로 시작하는 경우만 (null 이면 그냥 허용)
+                .filter(w -> {
+                    String ts = w.getCheckedInAt();
+                    return ts == null || ts.startsWith(ymd);
+                })
+                .toList();
+
         List<SeatBoardResponse.WaitingItem> out=new ArrayList<>();
         for(WaitingRoom w:raws){
+            String sid = w.getStudentId();
+
+            // ✅ 이 학원 + 오늘 + 이 반 수강생이면 "입구 출석"으로 승격
+            if(sid != null){
+                String cur = statusByStudent.get(sid);
+                if(cur == null || cur.isBlank() || "미기록".equals(cur)){
+                    statusByStudent.put(sid, "입구 출석");
+                }
+            }
+
             SeatBoardResponse.WaitingItem it=new SeatBoardResponse.WaitingItem();
-            it.setStudentId(w.getStudentId());
-            it.setStudentName(nameById.get(w.getStudentId()));
+            it.setStudentId(sid);
+            it.setStudentName(nameById.get(sid));
             it.setStatus(w.getStatus());
             it.setCheckedInAt(w.getCheckedInAt());
             out.add(it);
         }
-        out.sort(Comparator.comparing(SeatBoardResponse.WaitingItem::getCheckedInAt,Comparator.nullsLast(String::compareTo)));
+        out.sort(Comparator.comparing(
+                SeatBoardResponse.WaitingItem::getCheckedInAt,
+                Comparator.nullsLast(String::compareTo)
+        ));
         return out;
     }
 
@@ -158,28 +190,7 @@ public class SeatBoardService {
         Attendance att = ensureAttendanceDoc(classId, ymd, course);
         Map<String,String> statusByStudent = buildStatusMap(att);
 
-        /* 🔽🔽🔽 입구 출석(entrance) → 상태에 반영 🔽🔽🔽 */
-        try {
-            List<Attendance> entrances = attRepo.findByTypeAndDate("entrance", ymd);
-            Set<String> entranceIds = new HashSet<>();
-            for (Attendance e : entrances) {
-                if (e == null || e.getAttendanceList() == null) continue;
-                for (Attendance.Item it : e.getAttendanceList()) {
-                    if (it == null || isBlank(it.getStudentId())) continue;
-                    entranceIds.add(it.getStudentId());
-                }
-            }
-            // 입구만 찍은 애들: 현재 "미기록"이면 "입구 출석"으로 올려줌
-            for (String sid : entranceIds) {
-                String cur = statusByStudent.get(sid);
-                if (cur == null || cur.isBlank() || "미기록".equals(cur)) {
-                    statusByStudent.put(sid, "입구 출석");
-                }
-            }
-        } catch (Exception ignore) {
-            // entrance 쪽에 문제가 있어도 좌석판 전체가 죽지 않도록 방어
-        }
-        /* 🔼🔼🔼 여기까지 추가 🔼🔼🔼 */
+        // 🔥 여기서부터는 더 이상 entrance(타 학원) 문서를 안 섞음
 
         // 4) 좌석 배정: Attendance.seatAssignments + Course.Seat_Map 병합
         Map<String,String> studentBySeatLabel = new HashMap<>();
@@ -272,7 +283,7 @@ public class SeatBoardService {
         for(String st:statusByStudent.values()){
             if(st==null||st.isBlank()||"미기록".equals(st)){none++;continue;}
             switch(st){
-                case "출석","PRESENT","입구 출석" -> present++;     // ← 입구 출석도 출석으로 카운트
+                case "출석","PRESENT","입구 출석" -> present++;
                 case "지각","LATE" -> late++;
                 case "결석","ABSENT" -> absent++;
                 case "이동","휴식","MOVE","BREAK" -> move++;
@@ -280,12 +291,13 @@ public class SeatBoardService {
             }
         }
 
-        // 7) 웨이팅(해당 클래스 roster만)
+        // 7) 웨이팅(해당 클래스 roster만) + 여기에서 "입구 출석" 반영
         List<String> roster = att.getAttendanceList()!=null
                 ? att.getAttendanceList().stream().map(Attendance.Item::getStudentId).filter(Objects::nonNull).toList()
                 : List.of();
         List<SeatBoardResponse.WaitingItem> waiting = (academyNumber!=null)
-                ? loadWaiting(academyNumber, roster, nameById) : List.of();
+                ? loadWaiting(academyNumber, roster, nameById, statusByStudent, ymd)
+                : List.of();
 
         // 8) 응답
         SeatBoardResponse r=new SeatBoardResponse();
