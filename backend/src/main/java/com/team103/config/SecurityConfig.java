@@ -25,6 +25,18 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
+    /** 권한 이름 호환용
+     *  - JwtAuthFilter에서 "TEACHER"/"DIRECTOR" 로 줄 수도 있고
+     *  - "ROLE_TEACHER"/"ROLE_DIRECTOR" 로 줄 수도 있어서 둘 다 허용
+     */
+    private static final String[] AUTH_TEACHER_OR_DIRECTOR = {
+            "TEACHER", "ROLE_TEACHER",
+            "DIRECTOR", "ROLE_DIRECTOR"
+    };
+    private static final String[] AUTH_DIRECTOR_ONLY = {
+            "DIRECTOR", "ROLE_DIRECTOR"
+    };
+
     /* ====== 비밀번호 인코더 ====== */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -81,11 +93,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
 
                 /* ✅ 출석 QR (입구/수업) */
-                // 토큰 있는 학생만 허용하고 싶으면 hasRole("STUDENT") 로 바꿔도 됨
+                // 토큰 있는 학생만 허용 (원하면 hasAuthority("STUDENT") 등으로 좁힐 수 있음)
                 .requestMatchers(HttpMethod.POST, "/api/attendance/check-in").authenticated()
 
                 /* ----- 교사용 메인 패널 ----- */
-                .requestMatchers("/api/teachermain/**").hasAnyRole("TEACHER", "DIRECTOR")
+                .requestMatchers("/api/teachermain/**")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
 
                 /* ====== 공지: 읽기(로그인), 쓰기/수정/삭제(교사·원장) ====== */
                 .requestMatchers(HttpMethod.GET,
@@ -93,16 +106,16 @@ public class SecurityConfig {
                 ).authenticated()
                 .requestMatchers(HttpMethod.POST,
                     "/api/notices", "/api/notices/**"
-                ).hasAnyRole("TEACHER", "DIRECTOR")
+                ).hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
                 .requestMatchers(HttpMethod.PUT,
                     "/api/notices/**"
-                ).hasAnyRole("TEACHER", "DIRECTOR")
+                ).hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
                 .requestMatchers(HttpMethod.PATCH,
                     "/api/notices/**"
-                ).hasAnyRole("TEACHER", "DIRECTOR")
+                ).hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
                 .requestMatchers(HttpMethod.DELETE,
                     "/api/notices/**"
-                ).hasAnyRole("TEACHER", "DIRECTOR")
+                ).hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
 
                 /* ----- 수업 조회 ----- */
                 .requestMatchers(HttpMethod.GET, "/api/lookup/classes/**").authenticated()
@@ -110,46 +123,65 @@ public class SecurityConfig {
                 /* ====== 교사/원장 공통 보호 엔드포인트 ====== */
                 // 🔹 교사 소속 해제: 선생/원장 둘 다 허용
                 .requestMatchers(HttpMethod.PATCH, "/api/teachers/*/academies/detach")
-                    .hasAnyRole("TEACHER", "DIRECTOR")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
 
                 // 나머지 /api/teachers/** 도 선생/원장만 접근
-                .requestMatchers("/api/teachers/**").hasAnyRole("TEACHER", "DIRECTOR")
-                .requestMatchers("/api/calendar/**").hasAnyRole("TEACHER", "DIRECTOR")
+                .requestMatchers("/api/teachers/**")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
+                .requestMatchers("/api/calendar/**")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
 
                 /* 강의실 조회(교사/원장 허용) */
-                .requestMatchers(HttpMethod.GET, "/api/admin/rooms").hasAnyRole("TEACHER", "DIRECTOR")
-                .requestMatchers(HttpMethod.GET, "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER", "DIRECTOR")
-                .requestMatchers(HttpMethod.GET, "/api/admin/rooms.vector-lite").hasAnyRole("TEACHER", "DIRECTOR")
-                .requestMatchers(HttpMethod.GET, "/api/admin/rooms/vector-lite").hasAnyRole("TEACHER", "DIRECTOR")
+                .requestMatchers(HttpMethod.GET, "/api/admin/rooms")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
+                .requestMatchers(HttpMethod.GET, "/api/admin/rooms/*/vector-layout")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
+                .requestMatchers(HttpMethod.GET, "/api/admin/rooms.vector-lite")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
+                .requestMatchers(HttpMethod.GET, "/api/admin/rooms/vector-lite")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
 
                 /* 좌석 벡터 저장/수정(교사/원장 허용) */
-                .requestMatchers(HttpMethod.PUT,   "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER", "DIRECTOR")
-                .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/*/vector-layout").hasAnyRole("TEACHER", "DIRECTOR")
+                .requestMatchers(HttpMethod.PUT,   "/api/admin/rooms/*/vector-layout")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
+                .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/*/vector-layout")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
 
                 /* 그 외 /api/admin/** 는 원장 전용 */
-                .requestMatchers(HttpMethod.PUT,   "/api/admin/rooms/**").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/**").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.DELETE,"/api/admin/rooms/**").hasRole("DIRECTOR")
+                .requestMatchers(HttpMethod.PUT,   "/api/admin/rooms/**")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers(HttpMethod.PATCH, "/api/admin/rooms/**")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers(HttpMethod.DELETE,"/api/admin/rooms/**")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
 
                 /* ====== 원장 전용 관리 패널(API 분리: /api/manage/**) ====== */
-                .requestMatchers(HttpMethod.GET,    "/api/manage/students").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.DELETE, "/api/manage/students/*").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.GET,    "/api/manage/teachers").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.DELETE, "/api/manage/teachers/*").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.GET,    "/api/manage/students/*/classes").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.GET,    "/api/manage/students/*/attendance").hasRole("DIRECTOR")
-                .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/*/classes").hasAnyRole("DIRECTOR", "TEACHER")
-                .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/classes/*/attendance").hasAnyRole("DIRECTOR", "TEACHER")
+                .requestMatchers(HttpMethod.GET,    "/api/manage/students")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers(HttpMethod.DELETE, "/api/manage/students/*")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers(HttpMethod.GET,    "/api/manage/teachers")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers(HttpMethod.DELETE, "/api/manage/teachers/*")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers(HttpMethod.GET,    "/api/manage/students/*/classes")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers(HttpMethod.GET,    "/api/manage/students/*/attendance")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/*/classes")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
+                .requestMatchers(HttpMethod.GET,    "/api/manage/teachers/classes/*/attendance")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
 
-             // ===== 좌석 QR / 입구 QR =====
+                // ===== 좌석 QR / 입구 QR =====
                 .requestMatchers(HttpMethod.POST, "/api/rooms/*/enter-lobby").authenticated()
                 .requestMatchers(HttpMethod.PUT,  "/api/rooms/*/check-in").authenticated()
 
-                
-
                 /* ====== 그 외 admin/overview ====== */
-                .requestMatchers("/api/admin/**").hasRole("DIRECTOR")
-                .requestMatchers("/api/director/overview/**").hasAnyRole("DIRECTOR", "TEACHER")
+                .requestMatchers("/api/admin/**")
+                    .hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers("/api/director/overview/**")
+                    .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
 
                 /* ----- 나머지는 토큰 필요 ----- */
                 .anyRequest().authenticated()
