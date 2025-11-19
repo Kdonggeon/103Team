@@ -507,13 +507,44 @@ public class SeatBoardService {
         return attRepo.save(att);
     }
 
-    private void ensureAttendanceStatus(Attendance att,String sid,String st){
-        if(att.getAttendanceList()==null)att.setAttendanceList(new ArrayList<>());
-        for(Attendance.Item it:att.getAttendanceList()){
-            if(sid.equals(it.getStudentId())){it.setStatus(st);return;}
+    private void ensureAttendanceStatus(Attendance att, String sid, String newStatus){
+        if(att.getAttendanceList()==null)
+            att.setAttendanceList(new ArrayList<>());
+
+        for(Attendance.Item it : att.getAttendanceList()){
+            if(!sid.equals(it.getStudentId())) continue;
+
+            String cur = it.getStatus();
+
+            // 🔥 새 상태가 "출석"인 경우: 일부 상태만 덮어쓰기
+            if("출석".equals(newStatus)) {
+                // 이미 지각/결석이면 그대로 유지
+                if("지각".equals(cur) || "LATE".equalsIgnoreCase(cur) ||
+                   "결석".equals(cur) || "ABSENT".equalsIgnoreCase(cur)) {
+                    return; // 그대로 두고 종료
+                }
+
+                // 미기록/입구 출석/이동/휴식/공백 등은 "출석"으로 승격
+                if(cur == null || cur.isBlank() ||
+                   "미기록".equals(cur) ||
+                   "입구 출석".equals(cur) ||
+                   "이동".equals(cur) || "MOVE".equalsIgnoreCase(cur) ||
+                   "휴식".equals(cur) || "BREAK".equalsIgnoreCase(cur)) {
+                    it.setStatus("출석");
+                }
+                return;
+            }
+
+            // 🔥 새 상태가 "이동" / "휴식" / "결석" 등일 때는 그대로 덮어쓰기
+            it.setStatus(newStatus);
+            return;
         }
-        Attendance.Item it=new Attendance.Item();
-        it.setStudentId(sid);it.setStatus(st);
+
+        // 기존 엔트리가 없으면 새로 추가
+        Attendance.Item it = new Attendance.Item();
+        it.setStudentId(sid);
+        it.setStatus(newStatus);
         att.getAttendanceList().add(it);
     }
+
 }
