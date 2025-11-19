@@ -53,8 +53,10 @@ public class DirectorSeatOverviewService {
             courses = tmp != null ? tmp : Collections.emptyList();
         } catch (Exception ignore) {
             courses = courseRepo.findAll().stream()
-                    .filter(c -> parseIntOrNull(getString(c, "getAcademyNumber")) != null
-                            && parseIntOrNull(getString(c, "getAcademyNumber")) == academyNumber)
+                    .filter(c -> {
+                        Integer an = parseIntOrNull(getString(c, "getAcademyNumber"));
+                        return an != null && an == academyNumber;
+                    })
                     .collect(Collectors.toList());
         }
 
@@ -80,13 +82,17 @@ public class DirectorSeatOverviewService {
 
                 Integer courseAcademy = parseIntOrNull(getString(c, "getAcademyNumber"));
                 if (courseAcademy != null && courseAcademy != academyNumber) {
-                    // 진짜로 숫자가 다를 때만 다른 학원으로 간주
+                    // 진짜로 숫자가 다를 때만 다른 학원으로 간주 → 빈 보드
                     seatBoard = buildEmptyBoardFromRoom(room, ymd);
                 } else {
                     // null 이면 같은 학원으로 보고 seatBoard 호출 (구 데이터 호환)
                     seatBoard = seatSvc.getSeatBoard(classId, ymd);
                 }
 
+            } else {
+                // 오늘 이 방을 쓰는 반이 없는 경우 → 빈 보드
+                seatBoard = buildEmptyBoardFromRoom(room, ymd);
+            }
 
             DirectorOverviewResponse.RoomStatus rs = new DirectorOverviewResponse.RoomStatus();
             rs.setRoomNumber(room.getRoomNumber());
@@ -172,8 +178,8 @@ public class DirectorSeatOverviewService {
             r.setCols(room.getCols());
 
             List<SeatBoardResponse.SeatStatus> seats = new ArrayList<>();
-            if (room.getLayout() != null) {
-                room.getLayout().stream()
+            if (room.getLegacyGridLayout() != null) {   // 🔥 여기 getLayout() → getLegacyGridLayout()
+                room.getLegacyGridLayout().stream()
                         .sorted(Comparator.comparingInt(c -> c.getSeatNumber() == null ? 9999 : c.getSeatNumber()))
                         .forEach(c -> {
                             SeatBoardResponse.SeatStatus s = new SeatBoardResponse.SeatStatus();
