@@ -96,44 +96,55 @@ public class SeatBoardService {
             Map<String,String> statusByStudent,
             String ymd
     ){
-        if(academyNumber<=0) return List.of();
+        // 1) 기본적으로는 학원번호 기준으로 가져오고
+        List<WaitingRoom> raws;
+        if (academyNumber > 0) {
+            raws = waitingRepo.findByAcademyNumber(academyNumber);
+            // 🔥 혹시 한 건도 없으면, 학원번호 무시하고 전체에서 찾기 (테스트/데이터 꼬임 대비)
+            if (raws == null || raws.isEmpty()) {
+                raws = waitingRepo.findAll();
+            }
+        } else {
+            // academyNumber를 못 구한 경우엔 그냥 전체에서
+            raws = waitingRepo.findAll();
+        }
 
-        List<WaitingRoom> raws = waitingRepo.findByAcademyNumber(academyNumber)
-                .stream()
-                // 이 반 수강생만
+        // 2) 이 반 학생(roster) + 오늘(ymd)만 필터링
+        raws = raws.stream()
                 .filter(w -> roster.contains(w.getStudentId()))
-                // 날짜 필터: Checked_In_At 가 "yyyy-MM-dd"로 시작하는 경우만 (null 이면 그냥 허용)
                 .filter(w -> {
                     String ts = w.getCheckedInAt();
                     return ts == null || ts.startsWith(ymd);
                 })
                 .toList();
 
-        List<SeatBoardResponse.WaitingItem> out=new ArrayList<>();
-        for(WaitingRoom w:raws){
+        List<SeatBoardResponse.WaitingItem> out = new ArrayList<>();
+        for (WaitingRoom w : raws) {
             String sid = w.getStudentId();
 
-            // ✅ 이 학원 + 오늘 + 이 반 수강생이면 "입구 출석"으로 승격
-            if(sid != null){
+            // 입구 출석 승격 로직은 그대로 유지
+            if (sid != null) {
                 String cur = statusByStudent.get(sid);
-                if(cur == null || cur.isBlank() || "미기록".equals(cur)){
+                if (cur == null || cur.isBlank() || "미기록".equals(cur)) {
                     statusByStudent.put(sid, "입구 출석");
                 }
             }
 
-            SeatBoardResponse.WaitingItem it=new SeatBoardResponse.WaitingItem();
+            SeatBoardResponse.WaitingItem it = new SeatBoardResponse.WaitingItem();
             it.setStudentId(sid);
             it.setStudentName(nameById.get(sid));
             it.setStatus(w.getStatus());
             it.setCheckedInAt(w.getCheckedInAt());
             out.add(it);
         }
+
         out.sort(Comparator.comparing(
                 SeatBoardResponse.WaitingItem::getCheckedInAt,
                 Comparator.nullsLast(String::compareTo)
         ));
         return out;
     }
+
 
     /* ─────────────── 좌석판 조회 ─────────────── */
     public SeatBoardResponse getSeatBoard(String classId,String date){
