@@ -78,17 +78,15 @@ public class DirectorSeatOverviewService {
                 className = coalesce(getString(c, "getClassName"), getString(c, "getName"));
                 String classId = coalesce(getString(c, "getClassId"), getString(c, "getId"));
 
-                /* ★ 매우 중요 — 같은 학원(classId)인지 검증 */
                 Integer courseAcademy = parseIntOrNull(getString(c, "getAcademyNumber"));
-                if (courseAcademy == null || courseAcademy != academyNumber) {
-                    // 다른 학원 반이면 무조건 무시
+                if (courseAcademy != null && courseAcademy != academyNumber) {
+                    // 진짜로 숫자가 다를 때만 다른 학원으로 간주
                     seatBoard = buildEmptyBoardFromRoom(room, ymd);
                 } else {
+                    // null 이면 같은 학원으로 보고 seatBoard 호출 (구 데이터 호환)
                     seatBoard = seatSvc.getSeatBoard(classId, ymd);
                 }
-            } else {
-                seatBoard = buildEmptyBoardFromRoom(room, ymd);
-            }
+
 
             DirectorOverviewResponse.RoomStatus rs = new DirectorOverviewResponse.RoomStatus();
             rs.setRoomNumber(room.getRoomNumber());
