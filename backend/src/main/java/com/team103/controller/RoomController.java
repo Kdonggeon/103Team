@@ -138,7 +138,7 @@ public class RoomController {
                         Criteria.where("Academy_Number").is(academyNumber)   // 🔥 필터 추가
                 )),
                 entUpdate,
-                "attendances"   // ← 이거
+                "attendances"   // ← 컬렉션 이름
         );
 
 
@@ -250,17 +250,47 @@ public class RoomController {
 
             /* -------------------------------
                현재 반이 있으면 좌석 + 출석 연동
+               (B안: currentClass 없으면 자동 탐색)
             --------------------------------*/
-            Room.CurrentClass cc = room.getCurrentClass();
-            if (cc != null && cc.getClassId() != null) {
-                try {
-                    seatBoardService.assignSeat(cc.getClassId(), today(),
-                            String.valueOf(resolvedSeat), studentId);
+            String ymd = today();
+            String classId = null;
 
-                    updateCourseSeatMap(cc.getClassId(),
-                                        roomNumber,
-                                        resolvedSeat,
-                                        studentId);
+            Room.CurrentClass cc = room.getCurrentClass();
+            if (cc != null && cc.getClassId() != null && !cc.getClassId().isBlank()) {
+                classId = cc.getClassId();
+            } else {
+                // 🧠 B안: 자동으로 수업 찾기
+                try {
+                    classId = seatBoardService.findClassIdForRoomAndStudent(
+                            academyNumber, roomNumber, studentId, ymd
+                    );
+                    if (classId == null) {
+                        log.warn("[CHECK-IN] 수업 자동 탐색 실패 room={}, academy={}, student={}",
+                                roomNumber, academyNumber, studentId);
+                    } else {
+                        log.info("[CHECK-IN] 자동 매칭된 클래스 classId={} (room={}, academy={}, student={})",
+                                classId, roomNumber, academyNumber, studentId);
+                    }
+                } catch (Exception e) {
+                    log.error("[CHECK-IN] 수업 자동 탐색 중 예외", e);
+                }
+            }
+
+            if (classId != null && !classId.isBlank()) {
+                try {
+                    seatBoardService.assignSeat(
+                            classId,
+                            ymd,
+                            String.valueOf(resolvedSeat),
+                            studentId
+                    );
+
+                    updateCourseSeatMap(
+                            classId,
+                            roomNumber,
+                            resolvedSeat,
+                            studentId
+                    );
 
                 } catch (Exception e) {
                     log.error("assignSeat 실패", e);
