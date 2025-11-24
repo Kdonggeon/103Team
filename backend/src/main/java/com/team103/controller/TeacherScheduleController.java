@@ -128,6 +128,35 @@ public class TeacherScheduleController {
         return a1 < b2 && b1 < a2; // [s,e)
     }
 
+    // ⏰ 08:00 ~ 22:00 제한 (주간 캘린더와 맞춤)
+    private static final int MIN_ALLOWED_MINUTES = 8 * 60;   // 08:00
+    private static final int MAX_ALLOWED_MINUTES = 22 * 60;  // 22:00
+
+    /**
+     * 시작/종료 시간이
+     * - HH:mm 형식인지
+     * - end > start 인지
+     * - 08:00 ~ 22:00 범위 안인지
+     * 체크하고, 문제 없으면 null / 문제 있으면 한글 에러 메시지 반환
+     */
+    private static String validateTimeWindow(String start, String end) {
+        if (!isHHmm(start) || !isHHmm(end)) {
+            return "시간 형식이 올바르지 않습니다. HH:mm 형식이어야 합니다.";
+        }
+        int s = toMin(start);
+        int e = toMin(end);
+        if (e <= s) {
+            return "종료 시간은 시작 시간보다 늦어야 합니다.";
+        }
+        if (s < MIN_ALLOWED_MINUTES) {
+            return "너무 이른 시간입니다. 수업 시작 시간은 08:00 이후로만 등록할 수 있습니다.";
+        }
+        if (e > MAX_ALLOWED_MINUTES) {
+            return "너무 늦은 시간입니다. 수업 종료 시간은 22:00 이전이어야 합니다.";
+        }
+        return null;
+    }
+
     private static ScheduleItem toItem(Course c, String ymd) {
         Course.DailyTime dt = c.getTimeFor(ymd);
         Integer rn = c.getRoomFor(ymd);
@@ -208,15 +237,15 @@ public class TeacherScheduleController {
         guardTeacherId(teacherId, auth);
 
         if (body == null || body.date() == null || body.date().isBlank())
-            return ResponseEntity.badRequest().body("date required (YYYY-MM-DD)");
+            return ResponseEntity.badRequest().body("date 필드는 필수입니다. (YYYY-MM-DD)");
         if (body.classId() == null || body.classId().isBlank())
-            return ResponseEntity.badRequest().body("classId required");
+            return ResponseEntity.badRequest().body("classId 필드는 필수입니다.");
 
         Course c = findCourseByClassIdFlexible(body.classId());
-        if (c == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("class not found");
+        if (c == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("해당 반을 찾을 수 없습니다.");
 
         if (!(hasRole(auth, "DIRECTOR") || teacherId.equals(c.getTeacherId())))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("not your class");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("해당 반에 대한 권한이 없습니다.");
 
         LocalDate date = LocalDate.parse(body.date().strip());
         String ymd = date.toString();
@@ -226,8 +255,10 @@ public class TeacherScheduleController {
         String end   = isHHmm(body.endTime())   ? body.endTime()   : c.getTimeFor(ymd).getEnd();
         Integer room = (body.roomNumber() != null) ? body.roomNumber() : c.getRoomFor(ymd);
 
-        if (!isHHmm(start) || !isHHmm(end)) return ResponseEntity.badRequest().body("invalid time (HH:mm required)");
-        if (room == null) return ResponseEntity.badRequest().body("room required");
+        // ⏰ 시간 형식 + 08:00~22:00 범위 체크 (한글 메시지)
+        String timeErr = validateTimeWindow(start, end);
+        if (timeErr != null) return ResponseEntity.badRequest().body(timeErr);
+        if (room == null) return ResponseEntity.badRequest().body("roomNumber(강의실 번호)는 필수입니다.");
 
         // 같은 방(Room) 충돌 검사 — 모든 코스
         for (Course other : courseRepo.findAll()) {
@@ -245,7 +276,7 @@ public class TeacherScheduleController {
             Course.DailyTime odt = other.getTimeFor(ymd);
             String os = odt.getStart(), oe = odt.getEnd();
             if (overlaps(start, end, os, oe)) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("room conflict");
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("같은 강의실에서 시간이 겹치는 다른 수업이 있습니다.");
             }
         }
 
@@ -254,7 +285,7 @@ public class TeacherScheduleController {
         boolean timeClash = myDay.stream()
                 .filter(ev -> !Objects.equals(ev.classId(), c.getClassId()))
                 .anyMatch(ev -> overlaps(start, end, ev.startTime(), ev.endTime()));
-        if (timeClash) return ResponseEntity.status(HttpStatus.CONFLICT).body("time conflict");
+        if (timeClash) return ResponseEntity.status(HttpStatus.CONFLICT).body("선생님 본인 스케줄과 시간이 겹칩니다.");
 
         boolean matchesWeekly = Optional.ofNullable(c.getDaysOfWeek()).orElse(List.of()).stream()
                 .map(Object::toString).map(Integer::parseInt).anyMatch(n -> n == dow);
@@ -282,14 +313,14 @@ public class TeacherScheduleController {
         guardTeacherId(teacherId, auth);
 
         if (body == null || body.classId() == null || body.classId().isBlank())
-            return ResponseEntity.badRequest().body("classId required");
+            return ResponseEntity.badRequest().body("classId 필드는 필수입니다.");
         if (body.dates() == null || body.dates().isEmpty())
-            return ResponseEntity.badRequest().body("dates required");
+            return ResponseEntity.badRequest().body("dates 목록은 비어 있을 수 없습니다.");
 
         Course c = findCourseByClassIdFlexible(body.classId());
-        if (c == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("class not found");
+        if (c == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("해당 반을 찾을 수 없습니다.");
         if (!(hasRole(auth, "DIRECTOR") || teacherId.equals(c.getTeacherId())))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("not your class");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("해당 반에 대한 권한이 없습니다.");
 
         List<ScheduleItem> created = new ArrayList<>();
         for (String raw : body.dates()) {
@@ -301,8 +332,13 @@ public class TeacherScheduleController {
             String end   = isHHmm(body.endTime())   ? body.endTime()   : c.getTimeFor(ymd).getEnd();
             Integer room = (body.roomNumber() != null) ? body.roomNumber() : c.getRoomFor(ymd);
 
-            if (!isHHmm(start) || !isHHmm(end)) return ResponseEntity.badRequest().body("invalid time (HH:mm required)");
-            if (room == null) return ResponseEntity.badRequest().body("room required");
+            // ⏰ 벌크도 동일한 시간 제한 적용
+            String timeErr = validateTimeWindow(start, end);
+            if (timeErr != null) {
+                return ResponseEntity.badRequest()
+                        .body(ymd + " 날짜: " + timeErr);
+            }
+            if (room == null) return ResponseEntity.badRequest().body("roomNumber(강의실 번호)는 필수입니다.");
 
             // 간단 충돌 체크(동일 로직 재사용)
             for (Course other : courseRepo.findAll()) {
@@ -320,7 +356,8 @@ public class TeacherScheduleController {
                 Course.DailyTime odt = other.getTimeFor(ymd);
                 String os = odt.getStart(), oe = odt.getEnd();
                 if (overlaps(start, end, os, oe)) {
-                    return ResponseEntity.status(HttpStatus.CONFLICT).body("room conflict at " + ymd);
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(ymd + " 날짜에 같은 강의실에서 시간이 겹치는 다른 수업이 있습니다.");
                 }
             }
 
@@ -384,6 +421,6 @@ public class TeacherScheduleController {
         out.sort(Comparator.comparing(m -> (String)m.get("startTime")));
         return out;
     }
-    
-    
+
+
 }
