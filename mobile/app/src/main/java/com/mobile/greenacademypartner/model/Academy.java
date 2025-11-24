@@ -5,13 +5,13 @@ import com.google.gson.annotations.SerializedName;
 public class Academy {
 
     @SerializedName("id")
-    private String id;   // 🚨 String으로 변경
+    private String id;
 
     @SerializedName("academyNumber")
     private int academyNumber;
 
     @SerializedName(value = "academyName", alternate = {"name"})
-    private String academyName;   // 🚨 서버의 "name" 키와 매핑
+    private String academyName;
 
     @SerializedName("phone")
     private String phone;
@@ -40,7 +40,9 @@ public class Academy {
     public int getAcademyNumber() { return academyNumber; }
     public void setAcademyNumber(int academyNumber) { this.academyNumber = academyNumber; }
 
-    public String getAcademyName() { return academyName; }
+    public String getAcademyName() {
+        return academyName != null ? academyName : "";
+    }
     public void setAcademyName(String academyName) { this.academyName = academyName; }
 
     public String getPhone() { return phone; }

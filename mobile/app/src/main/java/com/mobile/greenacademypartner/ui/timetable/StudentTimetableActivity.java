@@ -11,7 +11,6 @@ import android.widget.ImageButton;
 import android.widget.Spinner;
 import android.widget.ArrayAdapter;
 import android.widget.AdapterView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -77,11 +76,13 @@ public class StudentTimetableActivity extends AppCompatActivity {
         btnShowNav = findViewById(R.id.btn_show_nav);
 
         bottomNavigation.setSelectedItemId(R.id.nav_timetable);
+
         btnHideNav.setOnClickListener(v -> {
             bottomNavigation.setVisibility(View.GONE);
             btnHideNav.setVisibility(View.GONE);
             btnShowNav.setVisibility(View.VISIBLE);
         });
+
         btnShowNav.setOnClickListener(v -> {
             bottomNavigation.setVisibility(View.VISIBLE);
             btnShowNav.setVisibility(View.GONE);
@@ -90,10 +91,14 @@ public class StudentTimetableActivity extends AppCompatActivity {
 
         bottomNavigation.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
-            if (id == R.id.nav_home) startActivity(new Intent(this, MainActivity.class));
-            else if (id == R.id.nav_attendance) startActivity(new Intent(this, AttendanceActivity.class));
-            else if (id == R.id.nav_qr) startActivity(new Intent(this, QRScannerActivity.class));
-            else if (id == R.id.nav_my) startActivity(new Intent(this, MyPageActivity.class));
+            if (id == R.id.nav_home)
+                startActivity(new Intent(this, MainActivity.class));
+            else if (id == R.id.nav_attendance)
+                startActivity(new Intent(this, AttendanceActivity.class));
+            else if (id == R.id.nav_qr)
+                startActivity(new Intent(this, QRScannerActivity.class));
+            else if (id == R.id.nav_my)
+                startActivity(new Intent(this, MyPageActivity.class));
             return true;
         });
 
@@ -137,7 +142,8 @@ public class StudentTimetableActivity extends AppCompatActivity {
                     prefs.getString("parentId",
                             prefs.getString("username", "")));
 
-            childrenAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, new ArrayList<>());
+            childrenAdapter = new ArrayAdapter<>(this,
+                    android.R.layout.simple_spinner_item, new ArrayList<>());
             childrenAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spinnerChildren.setAdapter(childrenAdapter);
 
@@ -167,7 +173,8 @@ public class StudentTimetableActivity extends AppCompatActivity {
                 childrenAdapter.addAll(names);
                 childrenAdapter.notifyDataSetChanged();
 
-                if (!children.isEmpty()) currentStudentId = children.get(0).getStudentId();
+                if (!children.isEmpty())
+                    currentStudentId = children.get(0).getStudentId();
 
                 spinnerChildren.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                     @Override public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
@@ -185,9 +192,9 @@ public class StudentTimetableActivity extends AppCompatActivity {
         });
     }
 
-    // ───────────────────────────────────────────────
-    // ★ 출석 페이지와 동일한 상태 계산 (정확히 작동)
-    // ───────────────────────────────────────────────
+    // =============================================================
+    // ★ 시간표 로딩 (학원 이름은 Adapter가 prefs에서 자동 표시)
+    // =============================================================
     private void loadClasses() {
         if (currentStudentId == null || currentStudentId.isEmpty()) return;
 
@@ -198,10 +205,13 @@ public class StudentTimetableActivity extends AppCompatActivity {
             public void onResponse(Call<List<Course>> call, Response<List<Course>> response) {
                 if (!response.isSuccessful() || response.body() == null) return;
 
-                int dow = selectedDate.getDayOfWeek().getValue(); // 월=1~일=7
+                List<Course> all = response.body();
+                if (all.isEmpty()) return;
+
+                int dow = selectedDate.getDayOfWeek().getValue();
 
                 List<Course> todays = new ArrayList<>();
-                for (Course c : response.body()) {
+                for (Course c : all) {
                     if (c.getDaysOfWeek() != null && c.getDaysOfWeek().contains(dow)) {
                         todays.add(c);
                     }
@@ -217,11 +227,9 @@ public class StudentTimetableActivity extends AppCompatActivity {
                     LocalTime end = LocalTime.parse(c.getEndTime());
                     String status;
 
-                    if (selectedDate.isAfter(today)) {
-                        status = "예정";
-                    } else if (selectedDate.isBefore(today)) {
-                        status = "종료";
-                    } else {
+                    if (selectedDate.isAfter(today)) status = "예정";
+                    else if (selectedDate.isBefore(today)) status = "종료";
+                    else {
                         if (now.isBefore(start)) status = "예정";
                         else if (now.isAfter(end)) status = "종료";
                         else status = "진행중";

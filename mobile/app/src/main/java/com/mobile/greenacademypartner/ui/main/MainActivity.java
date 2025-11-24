@@ -353,57 +353,98 @@ public class MainActivity extends AppCompatActivity {
 
     private void showFilteredNotices(List<Notice> all, List<Integer> allowedNos) {
 
-        Set<Integer> allowed = new HashSet<>(allowedNos == null ? new ArrayList<>() : allowedNos);
+        if (allowedNos == null || allowedNos.isEmpty()) {
+            clearNotices();
+            return;
+        }
+
+        // 허용된 학원번호 set
+        Set<Integer> allowed = new HashSet<>();
+        for (Integer x : allowedNos) {
+            if (x != null) allowed.add(x);
+        }
+
         List<Notice> filtered = new ArrayList<>();
 
         for (Notice n : all) {
-            int aNo = n.getAcademyNumber();
 
-            if (allowed.contains(aNo)) filtered.add(n);
+            boolean belongs = false;
+
+            // 1) academyNumbers 배열 기반 필터링(백엔드 JSON 구조)
+            try {
+                java.lang.reflect.Field f = n.getClass().getDeclaredField("academyNumbers");
+                f.setAccessible(true);
+                Object raw = f.get(n);
+
+                if (raw instanceof List<?>) {
+                    List<?> arr = (List<?>) raw;
+                    for (Object obj : arr) {
+                        if (obj instanceof Integer) {
+                            Integer x = (Integer) obj;
+                            if (x != null && allowed.contains(x)) {
+                                belongs = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignore) {}
+
+            // 2) academyNumber 단일 숫자 기반 필터링
+            if (!belongs) {
+                Integer single = null;
+                try {
+                    // Notice.getAcademyNumber()가 기본형 int면 null이 나올 수 있음 → 반영 실패
+                    single = n.getAcademyNumber();  // 단일 숫자
+                } catch (Exception ignore) {}
+
+                if (single != null && allowed.contains(single)) {
+                    belongs = true;
+                }
+            }
+
+            // 3) 해당 notice 포함
+            if (belongs) filtered.add(n);
         }
 
+        // 공지 없음
         if (filtered.isEmpty()) {
             clearNotices();
             return;
         }
 
-        filtered.sort((n1, n2) ->
-                Long.compare(parseCreatedAtToEpoch(n2.getCreatedAt()),
-                        parseCreatedAtToEpoch(n1.getCreatedAt())));
+        // 최신순 정렬
+        filtered.sort((a, b) ->
+                Long.compare(parseCreatedAtToEpoch(b.getCreatedAt()), parseCreatedAtToEpoch(a.getCreatedAt()))
+        );
 
         recentNotices.clear();
+        int count = Math.min(filtered.size(), 4);
 
-        int count = Math.min(4, filtered.size());
         for (int i = 0; i < count; i++) {
+
             Notice n = filtered.get(i);
             recentNotices.add(n);
 
+            // 시간
             String rel = getRelativeTime(n.getCreatedAt());
-            String academy =
-                    (n.getAcademyName() != null && !n.getAcademyName().isEmpty())
-                            ? n.getAcademyName()
-                            : "학원 " + n.getAcademyNumber();
 
-            String msg = "· [" + academy + "] " + n.getTitle() + " (" + rel + ")";
+            // 학원 이름
+            String acName = (n.getAcademyName() != null && !n.getAcademyName().isEmpty())
+                    ? n.getAcademyName()
+                    : "학원";
+
+            String msg = "· [" + acName + "] " + n.getTitle() + " (" + rel + ")";
 
             TextView tv;
             switch (i) {
-                case 0:
-                    tv = tvNotice1;
-                    break;
-                case 1:
-                    tv = tvNotice2;
-                    break;
-                case 2:
-                    tv = tvNotice3;
-                    break;
-                default:
-                    tv = tvNotice4;
-                    break;
+                case 0: tv = tvNotice1; break;
+                case 1: tv = tvNotice2; break;
+                case 2: tv = tvNotice3; break;
+                default: tv = tvNotice4; break;
             }
-            if (tv != null) {
-                tv.setText(msg);
-            }
+
+            if (tv != null) tv.setText(msg);
         }
 
         blockNotice1.setOnClickListener(recentNotices.size() > 0 ? v -> openNoticeDetailAtIndex(0) : null);
@@ -411,6 +452,7 @@ public class MainActivity extends AppCompatActivity {
         blockNotice3.setOnClickListener(recentNotices.size() > 2 ? v -> openNoticeDetailAtIndex(2) : null);
         blockNotice4.setOnClickListener(recentNotices.size() > 3 ? v -> openNoticeDetailAtIndex(3) : null);
     }
+
 
 
     private void openNoticeDetailAtIndex(int index) {

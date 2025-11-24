@@ -27,15 +27,18 @@ public class TimetableAdapter extends RecyclerView.Adapter<TimetableAdapter.VH> 
     private String displayDateIso;
     private final TimeZone tz = TimeZone.getTimeZone("Asia/Seoul");
     private final Locale loc = Locale.KOREA;
-    private final String prefAcademyName;
+    private final String academyNameFromPrefs;   // 🔥 prefs에서 가져온 학원명
 
     public TimetableAdapter(Context ctx, List<Course> initial) {
+
+        // 🔥 날짜 기본값
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", loc);
         sdf.setTimeZone(tz);
         this.displayDateIso = sdf.format(new Date());
 
+        // 🔥 로그인 prefs에서 학원 이름만 가져옴
         SharedPreferences prefs = ctx.getSharedPreferences("login_prefs", Context.MODE_PRIVATE);
-        this.prefAcademyName = prefs.getString("academyName", "");
+        academyNameFromPrefs = prefs.getString("academyName", "");
 
         if (initial != null) {
             items.addAll(initial);
@@ -78,40 +81,23 @@ public class TimetableAdapter extends RecyclerView.Adapter<TimetableAdapter.VH> 
     public void onBindViewHolder(@NonNull VH h, int position) {
         Course c = items.get(position);
 
-        // 수업명
+        // ▷ 수업명
         h.className.setText(c.getClassName() != null ? c.getClassName() : "");
 
-        // 학원명
-        String name = prefAcademyName != null ? prefAcademyName : "";
-        if (name.isEmpty()) {
-            SharedPreferences sp = h.itemView.getContext()
-                    .getSharedPreferences("login_prefs", Context.MODE_PRIVATE);
+        // ▷ 🔥 학원명 = prefs에서 받아온 academyName
+        h.academyName.setText(academyNameFromPrefs);
 
-            String nums = sp.getString("academyNumbers", "");
-            if (nums != null && !nums.isEmpty()) {
-                String[] parts = nums.replaceAll("[\\[\\]\"]", "").split(",");
-                if (parts.length > 0) {
-                    String firstRaw = parts[0].trim();
-                    if (!firstRaw.isEmpty()) {
-                        if (firstRaw.matches("\\d+")) name = firstRaw + "학원";
-                        else name = firstRaw;
-                    }
-                }
-            }
-        }
-        h.academyName.setText(name);
-
-        // 날짜
+        // ▷ 날짜
         h.date.setText(displayDateIso);
 
-        // 🔥 핵심: Activity에서 계산해준 todayStatus 표시
+        // ▷ 상태
         String st = c.getTodayStatus();
-        if (st != null && !st.isEmpty())
+        if (st != null && !st.trim().isEmpty())
             h.status.setText(st);
         else
             h.status.setText("예정");
 
-        // 시간
+        // ▷ 시간
         String s = normalizeTime(c.getStartTime());
         String e = normalizeTime(c.getEndTime());
         if (!s.isEmpty() && !e.isEmpty()) {

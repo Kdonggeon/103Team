@@ -1,14 +1,14 @@
 package com.mobile.greenacademypartner.model.attendance;
 
 import com.google.gson.annotations.SerializedName;
-
 import java.util.List;
 
 public class AttendanceResponse {
-    @SerializedName("academyName")
+
+    @SerializedName(value = "academyName", alternate = {"academy_name", "academyname"})
     private String academyName;
 
-    @SerializedName("className")
+    @SerializedName(value = "className", alternate = {"class_name", "classname"})
     private String className;
 
     @SerializedName("date")       // "yyyy-MM-dd"
@@ -17,15 +17,13 @@ public class AttendanceResponse {
     @SerializedName("status")     // "출석"/"지각"/"결석" 등
     private String status;
 
-    @SerializedName("startTime")  // "HH:mm"
+    @SerializedName(value = "startTime", alternate = {"start_time"})
     private String startTime;
 
-    @SerializedName("endTime")    // "HH:mm"
+    @SerializedName(value = "endTime", alternate = {"end_time"})
     private String endTime;
 
     private List<Integer> daysOfWeek;
-
-    // --- getters / setters ---
 
     public String getAcademyName() { return academyName; }
     public void setAcademyName(String academyName) { this.academyName = academyName; }
@@ -44,7 +42,6 @@ public class AttendanceResponse {
 
     public String getEndTime() { return endTime; }
     public void setEndTime(String endTime) { this.endTime = endTime; }
-
 
     public List<Integer> getDaysOfWeek() { return daysOfWeek; }
     public void setDaysOfWeek(List<Integer> daysOfWeek) { this.daysOfWeek = daysOfWeek; }
