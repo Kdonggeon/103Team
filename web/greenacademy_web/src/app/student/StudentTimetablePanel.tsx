@@ -23,14 +23,19 @@ type LoginSession = {
   token?: string;
 };
 
-type StudentClassPattern = {
+/**
+ * 백엔드 /api/students/{id}/timetable (StudentClassSlotDto)와 1:1로 맞춘 슬롯 타입
+ * => "어느 날짜에, 어떤 반이, 몇 시~몇 시, 어느 방에서 열리는지" 한 칸
+ */
+type StudentScheduleSlot = {
   classId: string;
   className: string;
-  roomNumber?: number | string;
-  // 1~7 (1=월 ... 7=일)
-  daysOfWeek: (1 | 2 | 3 | 4 | 5 | 6 | 7)[];
+  date: string; // "YYYY-MM-DD"
+  dayOfWeek: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  roomNumber?: number | null;
   startTime: string; // "HH:mm"
   endTime: string; // "HH:mm"
+  academyNumber?: number | null;
 };
 
 const API_BASE = "/backend";
@@ -63,6 +68,23 @@ function ymd(d: Date): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+// 주간 범위 표시용: "25.11.11~25.11.17" 형태로 변환
+function formatWeekRange(weekStart: string): string {
+  // weekStart: "YYYY-MM-DD"
+  const start = new Date(weekStart + "T00:00:00");
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6); // 7일 범위
+
+  const fmt = (d: Date): string => {
+    const yy = String(d.getFullYear()).slice(2);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yy}.${mm}.${dd}`;
+  };
+
+  return `${fmt(start)}~${fmt(end)}`;
 }
 
 /* 🎨 파스텔 팔레트 (선생이랑 동일) */
@@ -99,176 +121,102 @@ const STATIC_HOLIDAYS: Holiday[] = [
   { date: "2025-12-25", name: "성탄절" },
 ];
 
-/* ============ 학생 반 JSON → 패턴(StudentClassPattern) 변환 ============ */
+/* ================= 월간 모달 (학생용: 읽기 전용, 슬롯 기반) ================= */
 
-/**
- * /api/students/{id}/classes 응답 1개(raw)를
- * "요일/시간 패턴" 여러 개로 풀어냄.
- *
- * 지원하는 필드(둘 중 하나 있으면 처리):
- *  - schedule: [{ dow, startTime, endTime, roomNumber? }, ...]
- *  - Days_Of_Week / daysOfWeek + Start_Time / End_Time
- */
-function extractPatternsFromClass(raw: any): StudentClassPattern[] {
-  if (!raw) return [];
-
-  const classId =
-    raw.Class_ID ?? raw.classId ?? raw.id ?? raw._id ?? undefined;
-  const className =
-    raw.Class_Name ??
-    raw.className ??
-    raw.Title ??
-    raw.name ??
-    raw.title ??
-    undefined;
-
-  if (!classId || !className) return [];
-
-  const baseRoom =
-    raw.roomNumber ??
-    raw.Room_Number ??
-    raw.Room ??
-    (Array.isArray(raw.roomNumbers) && raw.roomNumbers.length
-      ? raw.roomNumbers[0]
-      : undefined);
-
-  const patterns: StudentClassPattern[] = [];
-
-  // 1) schedule 배열이 있는 경우 (선생 CourseLite.schedule과 유사)
-  if (Array.isArray(raw.schedule) && raw.schedule.length > 0) {
-    for (const s of raw.schedule) {
-      const dow = s?.dow ?? s?.dayOfWeek;
-      if (!dow) continue;
-      const iso =
-        dow === 0
-          ? 7
-          : (Number(dow) as 1 | 2 | 3 | 4 | 5 | 6 | 7);
-
-      const start =
-        s.startTime ??
-        raw.Start_Time ??
-        raw.startTime ??
-        "00:00";
-      const end =
-        s.endTime ??
-        raw.End_Time ??
-        raw.endTime ??
-        "23:59";
-
-      const room =
-        s.roomNumber ??
-        baseRoom;
-
-      patterns.push({
-        classId: String(classId),
-        className: String(className),
-        roomNumber: room,
-        daysOfWeek: [iso],
-        startTime: String(start),
-        endTime: String(end),
-      });
-    }
-    return patterns;
-  }
-
-  // 2) Days_Of_Week 기반 패턴
-  let dows: number[] = [];
-  if (Array.isArray(raw.Days_Of_Week)) {
-    dows = raw.Days_Of_Week.map((n: any) => Number(n));
-  } else if (Array.isArray(raw.daysOfWeek)) {
-    dows = raw.daysOfWeek.map((n: any) => Number(n));
-  } else if (typeof raw.Days_Of_Week === "string") {
-    dows = raw.Days_Of_Week.split(",")
- .map((s: string) => Number(s.trim()))
-    .filter((n: number) => n >= 1 && n <= 7);
-  } else if (raw.dow != null) {
-    dows = [Number(raw.dow)];
-  }
-
-  // 3) date만 있는 경우 → 그 날짜의 요일로 1개 패턴
-  if (!dows.length && raw.date) {
-    const d = new Date(String(raw.date).slice(0, 10) + "T00:00:00");
-    dows = [jsToIsoDow(d.getDay())];
-  }
-
-  if (!dows.length) return [];
-
-  const start = raw.Start_Time ?? raw.startTime ?? "00:00";
-  const end = raw.End_Time ?? raw.endTime ?? "23:59";
-
-  const uniqDows = Array.from(
-    new Set(
-      dows
-        .map((n) => Number(n))
-        .filter((n) => n >= 1 && n <= 7)
-    )
-  ) as (1 | 2 | 3 | 4 | 5 | 6 | 7)[];
-
-  if (!uniqDows.length) return [];
-
-  patterns.push({
-    classId: String(classId),
-    className: String(className),
-    roomNumber: baseRoom,
-    daysOfWeek: uniqDows,
-    startTime: String(start),
-    endTime: String(end),
-  });
-
-  return patterns;
-}
-
-/* ================= 월간 모달 (학생용: 읽기 전용) ================= */
+type StudentMonthModalProps = {
+  open: boolean;
+  onClose: () => void;
+  studentId?: string;
+  token?: string;
+};
 
 function StudentMonthModal({
   open,
   onClose,
-  patterns,
-}: {
-  open: boolean;
-  onClose: () => void;
-  patterns: StudentClassPattern[];
-}) {
+  studentId,
+  token,
+}: StudentMonthModalProps) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState<string>(ymd(now));
 
-  // 패턴 + year/month → MonthEvent[]
+  const [slots, setSlots] = useState<StudentScheduleSlot[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  // 해당 year/month 전체를 /timetable로 호출해서 슬롯을 가져온다.
+  useEffect(() => {
+    if (!open) return;
+    if (!studentId) {
+      setSlots([]);
+      return;
+    }
+
+    let aborted = false;
+
+    const fetchMonth = async () => {
+      try {
+        setLoading(true);
+        setErr(null);
+
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const startStr = `${year}-${String(month).padStart(2, "0")}-01`;
+
+        const raw = await apiGet<StudentScheduleSlot[]>(
+          `/api/students/${encodeURIComponent(
+            studentId,
+          )}/timetable?weekStart=${startStr}&days=${daysInMonth}`,
+          token,
+        );
+        if (aborted) return;
+        setSlots(Array.isArray(raw) ? raw : []);
+      } catch (e: any) {
+        if (aborted) return;
+        const msg = String(e?.message ?? "");
+        setErr(msg || "월간 시간표를 불러오지 못했습니다.");
+        setSlots([]);
+      } finally {
+        if (!aborted) setLoading(false);
+      }
+    };
+
+    fetchMonth();
+
+    return () => {
+      aborted = true;
+    };
+  }, [open, studentId, token, year, month]);
+
+  // 슬롯 + year/month → MonthEvent[]
   const events = useMemo<MonthEvent[]>(() => {
-    const first = new Date(year, month - 1, 1);
-    const last = new Date(year, month, 0);
-    const out: MonthEvent[] = [];
-
-    for (let day = 1; day <= last.getDate(); day++) {
-      const d = new Date(year, month - 1, day);
-      const isoDow = jsToIsoDow(d.getDay());
-      const dateStr = ymd(d);
-
-      for (const p of patterns) {
-        if (!p.daysOfWeek.includes(isoDow)) continue;
-        const key = `${p.classId}-${isoDow}`;
-        out.push({
-          id: `${key}-${dateStr}`,
-          date: dateStr,
-          title: p.className,
-          classId: p.classId,
-          startTime: p.startTime,
-          endTime: p.endTime,
+    if (!slots.length) return [];
+    return slots
+      .filter((s) => {
+        const [y, m] = s.date.split("-");
+        return Number(y) === year && Number(m) === month;
+      })
+      .map((s) => {
+        const key = `${s.classId}-${s.date}`;
+        return {
+          id: key,
+          date: s.date,
+          title: s.className,
+          classId: s.classId,
+          startTime: s.startTime,
+          endTime: s.endTime,
           roomNumber:
-            p.roomNumber != null && !Number.isNaN(Number(p.roomNumber))
-              ? Number(p.roomNumber)
+            typeof s.roomNumber === "number" && !Number.isNaN(s.roomNumber)
+              ? s.roomNumber
               : undefined,
           color: colorByKey(key),
-        });
-      }
-    }
-    return out;
-  }, [patterns, year, month]);
+        } satisfies MonthEvent;
+      });
+  }, [slots, year, month]);
 
   const dayEvents = useMemo(
     () => events.filter((e) => e.date === selectedDate),
-    [events, selectedDate]
+    [events, selectedDate],
   );
 
   const onPrev = () =>
@@ -307,6 +255,12 @@ function StudentMonthModal({
 
         {/* body */}
         <div className="p-4 overflow-auto">
+          {err && (
+            <div className="mb-2 text-xs text-red-600 break-words">
+              {err}
+            </div>
+          )}
+
           <MonthCalendar
             year={year}
             month={month}
@@ -325,7 +279,9 @@ function StudentMonthModal({
             <div className="font-semibold text-black mb-2">
               {selectedDate} 시간표
             </div>
-            {dayEvents.length === 0 ? (
+            {loading ? (
+              <div className="text-sm text-gray-700">로딩 중…</div>
+            ) : dayEvents.length === 0 ? (
               <div className="text-sm text-gray-700">
                 이 날짜에는 수업이 없습니다.
               </div>
@@ -366,12 +322,38 @@ export default function StudentTimetablePanel() {
   // 1) 훅: 항상 같은 순서로 선언
   const [login, setLogin] = useState<LoginSession | null>(null);
 
-  const [patterns, setPatterns] = useState<StudentClassPattern[]>([]);
+  const [slots, setSlots] = useState<StudentScheduleSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const [roomFilter, setRoomFilter] = useState<string>("ALL");
   const [openMonth, setOpenMonth] = useState(false);
+
+  // 🔹 현재 보고 있는 주의 월요일 (YYYY-MM-DD)
+  const [weekStart, setWeekStart] = useState<string>(() => {
+    const now = new Date();
+    const jsDay = now.getDay(); // 0=Sun..6=Sat
+    const diff = jsDay === 0 ? -6 : 1 - jsDay; // 월요일로 보정
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diff);
+    return ymd(monday);
+  });
+
+  const handlePrevWeek = () => {
+    setWeekStart((prev) => {
+      const d = new Date(prev + "T00:00:00");
+      d.setDate(d.getDate() - 7);
+      return ymd(d);
+    });
+  };
+
+  const handleNextWeek = () => {
+    setWeekStart((prev) => {
+      const d = new Date(prev + "T00:00:00");
+      d.setDate(d.getDate() + 7);
+      return ymd(d);
+    });
+  };
 
   // 2) 세션 로드
   useEffect(() => {
@@ -388,10 +370,10 @@ export default function StudentTimetablePanel() {
     }
   }, []);
 
-  // 3) 학생 클래스 목록 → 패턴으로 변환
+  // 3) 학생 시간표 슬롯(/timetable) 로드 – weekStart 기준 7일
   useEffect(() => {
     if (!login) {
-      setPatterns([]);
+      setSlots([]);
       return;
     }
     const studentId = login.username;
@@ -403,19 +385,20 @@ export default function StudentTimetablePanel() {
       setLoading(true);
       setErr(null);
       try {
-        const raw = await apiGet<any[]>(
-          `/api/students/${encodeURIComponent(studentId)}/classes`,
-          token
+        const raw = await apiGet<StudentScheduleSlot[]>(
+          `/api/students/${encodeURIComponent(
+            studentId,
+          )}/timetable?weekStart=${weekStart}&days=7`,
+          token,
         );
         if (aborted) return;
         const list = Array.isArray(raw) ? raw : [];
-        const pats = list.flatMap(extractPatternsFromClass);
-        setPatterns(pats);
+        setSlots(list);
       } catch (e: any) {
         if (aborted) return;
         const msg = String(e?.message ?? "");
         setErr(msg || "시간표를 불러오지 못했습니다.");
-        setPatterns([]);
+        setSlots([]);
       } finally {
         if (!aborted) setLoading(false);
       }
@@ -424,49 +407,45 @@ export default function StudentTimetablePanel() {
     return () => {
       aborted = true;
     };
-  }, [login]);
+  }, [login, weekStart]);
 
   // 4) 방 필터 옵션
   const roomOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const p of patterns) {
-      if (p.roomNumber != null) {
-        set.add(String(p.roomNumber));
+    for (const s of slots) {
+      if (s.roomNumber != null) {
+        set.add(String(s.roomNumber));
       }
     }
     return Array.from(set).sort((a, b) => Number(a) - Number(b));
-  }, [patterns]);
+  }, [slots]);
 
-  // 5) 주간 캘린더 이벤트 (요일 기반, 날짜 상관 없음)
+  // 5) 주간 캘린더 이벤트 (현재 weekStart 기준으로 받아온 실제 슬롯들)
   const weekEvents: CalendarEvent[] = useMemo(() => {
     const out: CalendarEvent[] = [];
-    patterns.forEach((p, idx) => {
-      p.daysOfWeek.forEach((dow) => {
-        if (roomFilter !== "ALL") {
-          if (
-            p.roomNumber == null ||
-            String(p.roomNumber) !== roomFilter
-          ) {
-            return;
-          }
-        }
-        const key = `${p.classId}-${dow}`;
-        out.push({
-          id: `${p.classId}-${dow}-${idx}`,
-          title: p.className,
-          room:
-            p.roomNumber != null
-              ? `Room ${p.roomNumber}`
-              : undefined,
-          dayOfWeek: dow,
-          startTime: p.startTime,
-          endTime: p.endTime,
-          color: colorByKey(key),
-        });
+    slots.forEach((s, idx) => {
+      if (
+        roomFilter !== "ALL" &&
+        (s.roomNumber == null || String(s.roomNumber) !== roomFilter)
+      ) {
+        return;
+      }
+      const key = `${s.classId}-${s.date}`;
+      out.push({
+        id: `${s.classId}-${s.date}-${idx}`,
+        title: s.className,
+        room:
+          s.roomNumber != null
+            ? `Room ${s.roomNumber}`
+            : undefined,
+        dayOfWeek: s.dayOfWeek,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        color: colorByKey(key),
       });
     });
     return out;
-  }, [patterns, roomFilter]);
+  }, [slots, roomFilter]);
 
   // 6) 렌더링
 
@@ -507,15 +486,10 @@ export default function StudentTimetablePanel() {
                 <label className="text-xs text-gray-700">방</label>
                 <select
                   value={roomFilter}
-                  onChange={(e) =>
-                    setRoomFilter(e.target.value)
-                  }
+                  onChange={(e) => setRoomFilter(e.target.value)}
                   className="border rounded px-2 py-1 text-sm text-black"
                 >
-                  <option
-                    value="ALL"
-                    className="text-black"
-                  >
+                  <option value="ALL" className="text-black">
                     전체
                   </option>
                   {roomOptions.map((rn) => (
@@ -530,12 +504,30 @@ export default function StudentTimetablePanel() {
                 </select>
               </div>
 
-              <button
-                onClick={() => setOpenMonth(true)}
-                className="px-3 py-1.5 rounded bg-black text-white text-sm hover:bg-black/90"
-              >
-                월간 보기
-              </button>
+              {/* 주간 날짜 범위 + 주간 이동 + 월간 보기 */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-700 whitespace-nowrap">
+                  {formatWeekRange(weekStart)}
+                </span>
+                <button
+                  onClick={handlePrevWeek}
+                  className="px-3 py-1.5 rounded border text-sm text-black hover:bg-gray-100"
+                >
+                  이전 주
+                </button>
+                <button
+                  onClick={() => setOpenMonth(true)}
+                  className="px-3 py-1.5 rounded bg-black text-white text-sm hover:bg-black/90"
+                >
+                  월간 보기
+                </button>
+                <button
+                  onClick={handleNextWeek}
+                  className="px-3 py-1.5 rounded border text-sm text-black hover:bg-gray-100"
+                >
+                  다음 주
+                </button>
+              </div>
             </div>
           }
         >
@@ -562,11 +554,12 @@ export default function StudentTimetablePanel() {
         </Panel>
       </PanelGrid>
 
-      {/* 월간 보기 모달 (읽기 전용) */}
+      {/* 월간 보기 모달 (읽기 전용, 슬롯 기반) */}
       <StudentMonthModal
         open={openMonth}
         onClose={() => setOpenMonth(false)}
-        patterns={patterns}
+        studentId={login.username}
+        token={login.token}
       />
     </div>
   );

@@ -34,6 +34,7 @@ public class StudentAttendanceController {
      *
      * → 이 엔드포인트는 기존처럼
      *   "한 수업 = 하나의 시간(start/end) + 여러 요일(daysOfWeek)" 구조를 유지한다.
+     *   (웹 학생 시간표는 아래 /timetable 엔드포인트를 사용)
      */
     @GetMapping("/{studentId}/classes")
     public List<StudentClassLiteDto> getMyClasses(@PathVariable String studentId) {
@@ -138,9 +139,9 @@ public class StudentAttendanceController {
      * - weekStart가 없으면, 요청 시점을 포함하는 주의 "월요일"부터 days일 간 계산
      * - 한 수업(Course)에 대해서도 날짜별로 slot을 쪼개서 반환한다.
      *
-     * → 이 엔드포인트를 웹 학생 시간표(StudentTimetablePanel)가 사용하면,
-     *   "2025-11-18 15:00~16:00 / 2025-11-20 00:30~10:00"처럼
-     *   날짜/요일별로 시간이 다른 케이스도 정확히 분리해서 표시할 수 있다.
+     * ⚠ 주간반(daysOfWeek) 패턴은 사용하지 않고,
+     *   Extra_Dates (+ Cancelled_Dates, Overrides)만 기준으로 "실제 여는 날짜"를 계산한다.
+     *   → 선생 시간표에서 날짜를 찍어서 만든 세션만 학생에게도 보이게 되는 구조.
      */
     @GetMapping("/{studentId}/timetable")
     public List<StudentClassSlotDto> getWeeklyTimetable(
@@ -181,7 +182,7 @@ public class StudentAttendanceController {
             Integer baseRoom = c.getPrimaryRoomNumber();
             Integer academyNumber = c.getAcademyNumber();
 
-            List<Integer> daysOfWeek = c.getDaysOfWeekInt(); // 1~7
+            // "주간반" 패턴은 사용하지 않고, Extra_Dates만 사용
             List<String> extraDates = c.getExtraDates();
             List<String> cancelled = c.getCancelledDates();
             Map<String, Integer> dateRoomOverrides = c.getDateRoomOverrides();
@@ -192,9 +193,6 @@ public class StudentAttendanceController {
 
             Set<String> cancelledSet = new HashSet<>();
             if (cancelled != null) cancelledSet.addAll(cancelled);
-
-            Set<Integer> dowSet = new HashSet<>();
-            if (daysOfWeek != null) dowSet.addAll(daysOfWeek);
 
             for (int i = 0; i < days; i++) {
                 LocalDate d = startDate.plusDays(i);
@@ -209,19 +207,10 @@ public class StudentAttendanceController {
                 }
 
                 // 2-2) 이 날짜에 수업이 있는지 판단
-                boolean occurs;
-                if (extraSet.contains(ymd)) {
-                    // Extra_Dates에 명시된 날짜는 우선
-                    occurs = true;
-                } else if (!dowSet.isEmpty()) {
-                    // 요일 기반 반복 수업
-                    occurs = dowSet.contains(dayValue);
-                } else {
-                    // Days_Of_Week도 없고 Extra_Dates에도 없으면 이 주간에는 없는 걸로 처리
-                    occurs = false;
+                //     → "주간반"은 안 쓰고, Extra_Dates 기준으로만 계산
+                if (!extraSet.contains(ymd)) {
+                    continue;
                 }
-
-                if (!occurs) continue;
 
                 // 2-3) 시간: Date_Time_Overrides → 기본 Start/End_Time
                 DailyTime dt = c.getTimeFor(ymd); // Date_Time_Overrides 우선, 없으면 기본 start/end
@@ -248,11 +237,12 @@ public class StudentAttendanceController {
                 slot.setClassId(classId);
                 slot.setClassName(className);
                 slot.setDate(ymd);
+                // 이 dayOfWeek는 패턴이 아니라, 해당 date의 요일(캘린더 표시용)
                 slot.setDayOfWeek(dayValue);  // 1~7
                 slot.setRoomNumber(roomNumber);
                 slot.setStartTime(startTime);
                 slot.setEndTime(endTime);
-                slot.setAcademyNumber(academyNumber); 
+                slot.setAcademyNumber(academyNumber);
 
                 slots.add(slot);
             }
