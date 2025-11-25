@@ -15,10 +15,24 @@ import ScheduleEditModal from "@/components/teacher/ScheduleEditModal";
 
 /* ───────── helpers ───────── */
 const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
-const ymd = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1 < 10 ? "0" : ""}${d.getMonth() + 1}-${d.getDate() < 10 ? "0" : ""}${d.getDate()}`;
-function jsToIsoDow(jsDow: number) { return (jsDow === 0 ? 7 : (jsDow as 1|2|3|4|5|6|7)); }
+const ymd = (d: Date) =>
+  `${d.getFullYear()}-${d.getMonth() + 1 < 10 ? "0" : ""}${d.getMonth() + 1}-${
+    d.getDate() < 10 ? "0" : ""
+  }${d.getDate()}`;
+function jsToIsoDow(jsDow: number) {
+  return jsDow === 0 ? 7 : (jsDow as 1 | 2 | 3 | 4 | 5 | 6 | 7);
+}
 const getRoomNumber = (r: Room) =>
   Number((r as any).roomNumber ?? (r as any).number ?? (r as any).Room_Number);
+
+// ⏰ 시간 제한 (08:00 ~ 22:00)
+const MIN_ALLOWED_MINUTES = 8 * 60;
+const MAX_ALLOWED_MINUTES = 22 * 60;
+const timeToMinutes = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return NaN;
+  return h * 60 + m;
+};
 
 /** 이번 주 [from, to) */
 function weekRange(base = new Date()) {
@@ -40,16 +54,28 @@ function monthRange(base = new Date()) {
 }
 
 /* 🎨 파스텔 팔레트 */
-const PALETTE = ["#E0F2FE","#FCE7F3","#FEF3C7","#DCFCE7","#EDE9FE","#FFE4E6","#F5F5F4","#D1FAE5","#FDE68A","#E9D5FF"];
+const PALETTE = [
+  "#E0F2FE",
+  "#FCE7F3",
+  "#FEF3C7",
+  "#DCFCE7",
+  "#EDE9FE",
+  "#FFE4E6",
+  "#F5F5F4",
+  "#D1FAE5",
+  "#FDE68A",
+  "#E9D5FF",
+];
 const colorByKey = (key: string) => {
-  let h = 0; for (let i=0;i<key.length;i++) h = (h*31 + key.charCodeAt(i))>>>0;
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
   return PALETTE[h % PALETTE.length];
 };
 
 /* ✓ user 복구(안전) */
 function loadUserFromClient(): LoginResponse | null {
   if (typeof window === "undefined") return null;
-  const keys = ["session","login","auth"];
+  const keys = ["session", "login", "auth"];
   for (const k of keys) {
     const raw = localStorage.getItem(k);
     if (!raw) continue;
@@ -75,7 +101,12 @@ const STATIC_HOLIDAYS: Holiday[] = [
 
 /* ================== 스케줄 추가 모달 (월간에서 날짜 클릭 시) ================== */
 function ScheduleAddModal({
-  open, date, teacherId, academyNumber, onClose, onCreated,
+  open,
+  date,
+  teacherId,
+  academyNumber,
+  onClose,
+  onCreated,
 }: {
   open: boolean;
   date: string | null;
@@ -144,10 +175,12 @@ function ScheduleAddModal({
               ? [c.roomNumber]
               : [];
 
-          const filtered = nums.map((n) => {
-            const info = roomInfo.find((r) => r.roomNumber === n);
-            return { roomNumber: n, roomName: info?.roomName };
-          }).filter((r) => Number.isFinite(r.roomNumber));
+          const filtered = nums
+            .map((n) => {
+              const info = roomInfo.find((r) => r.roomNumber === n);
+              return { roomNumber: n, roomName: info?.roomName };
+            })
+            .filter((r) => Number.isFinite(r.roomNumber));
 
           setMyRooms(filtered);
           setSelectedRoom(filtered.length ? filtered[0].roomNumber : null);
@@ -163,7 +196,7 @@ function ScheduleAddModal({
         setSelectedRoom(null);
       }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, teacherId, academyNumber]);
 
   // ▽ 반 선택이 바뀔 때마다: 그 반에서 사용 가능한 방만 필터
@@ -204,26 +237,59 @@ function ScheduleAddModal({
   }, [open, classId, courses, allRooms]);
 
   const submit = async () => {
-    if (!date || !classId) { setErr("날짜/반을 선택하세요."); return; }
-    if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
-      setErr("시간은 HH:MM 형식이어야 합니다."); return;
+    if (!date || !classId) {
+      setErr("날짜/반을 선택하세요.");
+      return;
     }
-    if (endTime <= startTime) { setErr("종료 시간이 시작 시간보다 늦어야 합니다."); return; }
+    if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
+      setErr("시간은 HH:MM 형식이어야 합니다.");
+      return;
+    }
+    if (endTime <= startTime) {
+      setErr("종료 시간이 시작 시간보다 늦어야 합니다.");
+      return;
+    }
+
+    // ⏰ 프론트에서도 08:00 ~ 22:00 제한 먼저 체크
+    const startMin = timeToMinutes(startTime);
+    const endMin = timeToMinutes(endTime);
+    if (Number.isNaN(startMin) || Number.isNaN(endMin)) {
+      setErr("시간 형식이 올바르지 않습니다.");
+      return;
+    }
+    if (startMin < MIN_ALLOWED_MINUTES) {
+      setErr("너무 이른 시간입니다. 수업 시작은 08:00 이후만 가능합니다.");
+      return;
+    }
+    if (endMin > MAX_ALLOWED_MINUTES) {
+      setErr("너무 늦은 시간입니다. 수업 종료는 22:00 이전이어야 합니다.");
+      return;
+    }
 
     try {
-      setLoading(true); setErr(null);
+      setLoading(true);
+      setErr(null);
       await api.createSchedule(teacherId, {
         date,
         classId,
         title: title || undefined,
         startTime,
         endTime,
-        roomNumber: selectedRoom ?? undefined,  // ✅ 선택한 반에서 허용된 방만
+        roomNumber: selectedRoom ?? undefined, // ✅ 선택한 반에서 허용된 방만
       });
       onCreated();
       onClose();
     } catch (e: any) {
-      setErr(e?.message ?? "스케줄 추가 실패");
+      const msg: string = e?.message ?? "";
+
+      // 🔎 상태 코드 기반 한글 매핑
+      if (msg.startsWith("400") || msg.includes("400 Bad Request")) {
+        setErr("시간이 너무 이르거나 늦어서 저장할 수 없습니다. (08:00~22:00 사이만 가능합니다.)");
+      } else if (msg.startsWith("409") || msg.includes("409 Conflict")) {
+        setErr("다른 수업과 시간이 겹칩니다. 시간이나 강의실을 조정해 주세요.");
+      } else {
+        setErr(msg || "스케줄 추가에 실패했습니다.");
+      }
     } finally {
       setLoading(false);
     }
@@ -235,10 +301,14 @@ function ScheduleAddModal({
       <div className="w-full max-w-xl bg-white rounded-2xl border border-gray-300 p-5 space-y-3 text-black">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-black">스케줄 추가</h2>
-          <button onClick={onClose} className="px-3 py-1 rounded border text-black">닫기</button>
+          <button onClick={onClose} className="px-3 py-1 rounded border text-black">
+            닫기
+          </button>
         </div>
 
-        <div className="text-sm text-gray-700">날짜: <span className="text-black">{date}</span></div>
+        <div className="text-sm text-gray-700">
+          날짜: <span className="text-black">{date}</span>
+        </div>
 
         <div>
           <label className="block text-sm mb-1 text-black">반 선택</label>
@@ -247,7 +317,7 @@ function ScheduleAddModal({
             value={classId}
             onChange={(e) => setClassId(e.target.value)}
           >
-            {courses.map(c => (
+            {courses.map((c) => (
               <option key={c.classId} value={c.classId} className="text-black">
                 {c.className}
               </option>
@@ -260,22 +330,26 @@ function ScheduleAddModal({
           <div className="border rounded-xl p-2 flex flex-wrap gap-2 min-h-[40px]">
             {myRooms.length === 0 ? (
               <div className="text-sm text-gray-600">이 반에 연결된 강의실이 없습니다.</div>
-            ) : myRooms.map(r => {
-              const active = selectedRoom === r.roomNumber;
-              return (
-                <button
-                  key={r.roomNumber}
-                  type="button"
-                  onClick={() => setSelectedRoom(r.roomNumber)}
-                  className={`px-4 py-1.5 rounded-full ring-1 text-sm ${
-                    active ? "bg-black text-white ring-black" : "bg-white text-black ring-gray-300 hover:bg-gray-50"
-                  }`}
-                  title={r.roomName ? `${r.roomName} (#${r.roomNumber})` : `Room ${r.roomNumber}`}
-                >
-                  {r.roomName ? `${r.roomName} (${r.roomNumber})` : `Room ${r.roomNumber}`}
-                </button>
-              );
-            })}
+            ) : (
+              myRooms.map((r) => {
+                const active = selectedRoom === r.roomNumber;
+                return (
+                  <button
+                    key={r.roomNumber}
+                    type="button"
+                    onClick={() => setSelectedRoom(r.roomNumber)}
+                    className={`px-4 py-1.5 rounded-full ring-1 text-sm ${
+                      active
+                        ? "bg-black text-white ring-black"
+                        : "bg-white text-black ring-gray-300 hover:bg-gray-50"
+                    }`}
+                    title={r.roomName ? `${r.roomName} (#${r.roomNumber})` : `Room ${r.roomNumber}`}
+                  >
+                    {r.roomName ? `${r.roomName} (${r.roomNumber})` : `Room ${r.roomNumber}`}
+                  </button>
+                );
+              })
+            )}
           </div>
           {myRooms.length > 0 && (
             <div className="mt-1 text-xs text-gray-600">이 반에서 사용 가능한 방 {myRooms.length}개</div>
@@ -284,20 +358,31 @@ function ScheduleAddModal({
 
         <div>
           <label className="block text-sm mb-1 text-black">제목(선택)</label>
-          <input className="border rounded px-2 py-1 w-full text-black"
-                 value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input
+            className="border rounded px-2 py-1 w-full text-black"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="block text-sm text-black">시작</label>
-            <input type="time" className="border rounded px-2 py-1 w-full text-black"
-                   value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <input
+              type="time"
+              className="border rounded px-2 py-1 w-full text-black"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+            />
           </div>
           <div>
             <label className="block text-sm text-black">끝</label>
-            <input type="time" className="border rounded px-2 py-1 w-full text-black"
-                   value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            <input
+              type="time"
+              className="border rounded px-2 py-1 w-full text-black"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+            />
           </div>
         </div>
 
@@ -323,7 +408,9 @@ const ClassDetailClient = dynamic(
 );
 
 function ClassDetailPanelModal({
-  open, classId, onClose,
+  open,
+  classId,
+  onClose,
 }: {
   open: boolean;
   classId: string | null;
@@ -342,7 +429,11 @@ function ClassDetailPanelModal({
 /* ================== 월간 모달 ================== */
 
 function MonthCenterModal({
-  open, onClose, teacherId, academyNumber, onChanged,
+  open,
+  onClose,
+  teacherId,
+  academyNumber,
+  onChanged,
 }: {
   open: boolean;
   onClose: () => void;
@@ -366,40 +457,63 @@ function MonthCenterModal({
   const [editOpen, setEditOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<MonthEvent | null>(null);
 
-  const dayEvents = useMemo(() => events.filter(e => e.date === selectedDate), [events, selectedDate]);
+  const dayEvents = useMemo(
+    () => events.filter((e) => e.date === selectedDate),
+    [events, selectedDate]
+  );
 
-  const fetchMonth = useCallback(async (y = year, m = month) => {
-    setLoading(true); setErr(null);
-    try {
-      const first = new Date(y, m - 1, 1);
-      const { from, to } = monthRange(first);
-      const rows: ScheduleItem[] = await api.listSchedules(teacherId, from, to);
-      const mapped: MonthEvent[] = (rows ?? []).map(s => {
-        const safeDate = s.date ? String(s.date).slice(0,10) : from;
-        const key = s.classId || s.title || "event";
-        return {
-          id: s.scheduleId || `${s.classId}-${safeDate}-${s.startTime ?? ""}`,
-          date: safeDate,
-          title: (s.title && String(s.title).trim()) || (s.classId ?? "수업"),
-          classId: s.classId,
-          startTime: s.startTime ?? undefined,
-          endTime: s.endTime ?? undefined,
-          roomNumber: s.roomNumber ?? undefined,
-          color: colorByKey(key),
-        };
-      });
-      setEvents(mapped);
-    } catch (e: any) {
-      setErr(e?.message ?? "스케줄을 불러오지 못했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  }, [teacherId, year, month]);
+  const fetchMonth = useCallback(
+    async (y = year, m = month) => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const first = new Date(y, m - 1, 1);
+        const { from, to } = monthRange(first);
+        const rows: ScheduleItem[] = await api.listSchedules(teacherId, from, to);
+        const mapped: MonthEvent[] = (rows ?? []).map((s) => {
+          const safeDate = s.date ? String(s.date).slice(0, 10) : from;
+          const key = s.classId || s.title || "event";
+          return {
+            id: s.scheduleId || `${s.classId}-${safeDate}-${s.startTime ?? ""}`,
+            date: safeDate,
+            title: (s.title && String(s.title).trim()) || (s.classId ?? "수업"),
+            classId: s.classId,
+            startTime: s.startTime ?? undefined,
+            endTime: s.endTime ?? undefined,
+            roomNumber: s.roomNumber ?? undefined,
+            color: colorByKey(key),
+          };
+        });
+        setEvents(mapped);
+      } catch (e: any) {
+        setErr(e?.message ?? "스케줄을 불러오지 못했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [teacherId, year, month]
+  );
 
-  useEffect(() => { if (open) void fetchMonth(); }, [open, fetchMonth]);
+  useEffect(() => {
+    if (open) void fetchMonth();
+  }, [open, fetchMonth]);
 
-  const onPrev = () => setMonth(m => { if (m === 1) { setYear(y => y - 1); return 12; } return m - 1; });
-  const onNext = () => setMonth(m => { if (m === 12) { setYear(y => y + 1); return 1; } return m + 1; });
+  const onPrev = () =>
+    setMonth((m) => {
+      if (m === 1) {
+        setYear((y) => y - 1);
+        return 12;
+      }
+      return m - 1;
+    });
+  const onNext = () =>
+    setMonth((m) => {
+      if (m === 12) {
+        setYear((y) => y + 1);
+        return 1;
+      }
+      return m + 1;
+    });
 
   // ✅ 닫기 + 주간 새로고침
   const handleClose = () => {
@@ -413,7 +527,7 @@ function MonthCenterModal({
     try {
       await api.deleteSchedule(teacherId, scheduleId);
       await fetchMonth();
-      onChanged?.();     // 주간 캘린더도 조용히 갱신
+      onChanged?.(); // 주간 캘린더도 조용히 갱신
     } catch (e: any) {
       alert(e?.message ?? "삭제 실패");
     }
@@ -421,11 +535,52 @@ function MonthCenterModal({
 
   // ✅ 수정 저장 함수 (지금은 create로 새로 만드는 구조 유지)
   const handleSave = async (patch: {
-    date: string; classId: string; title: string; startTime: string; endTime: string; roomNumber?: number;
+    date: string;
+    classId: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    roomNumber?: number;
   }) => {
-    await api.createSchedule(teacherId, patch);
-    await fetchMonth();
-    onChanged?.();
+    // 프론트에서도 기본 시간 검증
+    if (!/^\d{2}:\d{2}$/.test(patch.startTime) || !/^\d{2}:\d{2}$/.test(patch.endTime)) {
+      setErr("시간은 HH:MM 형식이어야 합니다.");
+      return;
+    }
+    if (patch.endTime <= patch.startTime) {
+      setErr("종료 시간이 시작 시간보다 늦어야 합니다.");
+      return;
+    }
+    const sMin = timeToMinutes(patch.startTime);
+    const eMin = timeToMinutes(patch.endTime);
+    if (Number.isNaN(sMin) || Number.isNaN(eMin)) {
+      setErr("시간 형식이 올바르지 않습니다.");
+      return;
+    }
+    if (sMin < MIN_ALLOWED_MINUTES) {
+      setErr("너무 이른 시간입니다. 수업 시작은 08:00 이후만 가능합니다.");
+      return;
+    }
+    if (eMin > MAX_ALLOWED_MINUTES) {
+      setErr("너무 늦은 시간입니다. 수업 종료는 22:00 이전이어야 합니다.");
+      return;
+    }
+
+    try {
+      setErr(null);
+      await api.createSchedule(teacherId, patch);
+      await fetchMonth();
+      onChanged?.();
+    } catch (e: any) {
+      const msg: string = e?.message ?? "";
+      if (msg.startsWith("400") || msg.includes("400 Bad Request")) {
+        setErr("시간이 너무 이르거나 늦어서 저장할 수 없습니다. (08:00~22:00 사이만 가능합니다.)");
+      } else if (msg.startsWith("409") || msg.includes("409 Conflict")) {
+        setErr("다른 수업과 시간이 겹칩니다. 시간이나 강의실을 조정해 주세요.");
+      } else {
+        setErr(msg || "스케줄 저장에 실패했습니다.");
+      }
+    }
   };
 
   if (!open) return null;
@@ -438,7 +593,9 @@ function MonthCenterModal({
           <div className="font-semibold text-black">월간 스케줄</div>
           <div className="flex items-center gap-2">
             {loading && <span className="text-xs text-gray-600">불러오는 중…</span>}
-            <button onClick={handleClose} className="px-3 py-1.5 rounded border text-black">닫기</button>
+            <button onClick={handleClose} className="px-3 py-1.5 rounded border text-black">
+              닫기
+            </button>
           </div>
         </div>
 
@@ -471,19 +628,27 @@ function MonthCenterModal({
               <div className="text-sm text-gray-700">이 날짜에는 스케줄이 없습니다.</div>
             ) : (
               <div className="space-y-2">
-                {dayEvents.map(ev => (
-                  <div key={ev.id} className="border rounded px-3 py-2 bg-white flex items-center justify-between">
+                {dayEvents.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="border rounded px-3 py-2 bg-white flex items-center justify-between"
+                  >
                     <div>
                       <div className="font-medium text-black">
-                        {ev.title}{typeof ev.roomNumber === "number" ? ` · R${ev.roomNumber}` : ""}
+                        {ev.title}
+                        {typeof ev.roomNumber === "number" ? ` · R${ev.roomNumber}` : ""}
                       </div>
                       <div className="text-sm text-gray-800">
-                        {ev.startTime ?? ""}{ev.endTime ? ` ~ ${ev.endTime}` : ""}
+                        {ev.startTime ?? ""}
+                        {ev.endTime ? ` ~ ${ev.endTime}` : ""}
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => { setEditEvent(ev); setEditOpen(true); }}
+                        onClick={() => {
+                          setEditEvent(ev);
+                          setEditOpen(true);
+                        }}
                         className="px-3 py-1.5 rounded border text.black"
                       >
                         수정
@@ -520,15 +685,17 @@ function MonthCenterModal({
       <ScheduleEditModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        event={editEvent && {
-          id: editEvent.id,
-          date: editEvent.date,
-          classId: editEvent.classId ?? "",
-          title: editEvent.title ?? "",
-          startTime: editEvent.startTime,
-          endTime: editEvent.endTime,
-          roomNumber: editEvent.roomNumber ?? "",
-        }}
+        event={
+          editEvent && {
+            id: editEvent.id,
+            date: editEvent.date,
+            classId: editEvent.classId ?? "",
+            title: editEvent.title ?? "",
+            startTime: editEvent.startTime,
+            endTime: editEvent.endTime,
+            roomNumber: editEvent.roomNumber ?? "",
+          }
+        }
         onSave={handleSave}
         onDelete={(id) => (id ? handleDelete(id) : Promise.resolve())}
         teacherId={teacherId}
@@ -543,7 +710,9 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
   const router = useRouter();
 
   const [user, setUser] = useState<LoginResponse | null>(userProp ?? null);
-  useEffect(() => { setUser(userProp ?? loadUserFromClient()); }, [userProp]);
+  useEffect(() => {
+    setUser(userProp ?? loadUserFromClient());
+  }, [userProp]);
 
   if (!user) {
     return (
@@ -622,7 +791,7 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
         room: s.roomNumber != null ? `Room ${s.roomNumber}` : undefined,
         dayOfWeek: jsToIsoDow(d.getDay()),
         startTime: (s.startTime as any) || "00:00",
-        endTime:   (s.endTime   as any) || "23:59",
+        endTime: (s.endTime as any) || "23:59",
         color: colorByKey(key),
       });
     }
@@ -650,7 +819,9 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
                   onChange={(e) => setRoomFilter(e.target.value)}
                   className="border rounded px-2 py-1 text-sm text-black"
                 >
-                  <option value="ALL" className="text-black">전체</option>
+                  <option value="ALL" className="text-black">
+                    전체
+                  </option>
                   {rooms.map((r) => {
                     const rn = getRoomNumber(r);
                     return (
@@ -683,9 +854,11 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
                 textColor="#111111"
                 showNowLine
                 onEventClick={(ev) => {
-                  const r = rows.find(x =>
-                    (x.scheduleId && ev.id === x.scheduleId) ||
-                    (!x.scheduleId && ev.id === `${x.classId}-${x.date ?? ""}-${x.startTime ?? ""}`)
+                  const r = rows.find(
+                    (x) =>
+                      (x.scheduleId && ev.id === x.scheduleId) ||
+                      (!x.scheduleId &&
+                        ev.id === `${x.classId}-${x.date ?? ""}-${x.startTime ?? ""}`)
                   );
                   if (r?.classId) {
                     setClassIdForPanel(r.classId);
