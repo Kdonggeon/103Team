@@ -25,9 +25,9 @@ function jsToIsoDow(jsDow: number) {
 const getRoomNumber = (r: Room) =>
   Number((r as any).roomNumber ?? (r as any).number ?? (r as any).Room_Number);
 
-// ⏰ 시간 제한 (08:00 ~ 22:00)
-const MIN_ALLOWED_MINUTES = 8 * 60;
-const MAX_ALLOWED_MINUTES = 22 * 60;
+// ⏰ 시간 제한 (00:00 ~ 23:59)
+const MIN_ALLOWED_MINUTES = 0;
+const MAX_ALLOWED_MINUTES = 23 * 60 + 59;
 const timeToMinutes = (t: string) => {
   const [h, m] = t.split(":").map(Number);
   if (Number.isNaN(h) || Number.isNaN(m)) return NaN;
@@ -250,7 +250,7 @@ function ScheduleAddModal({
       return;
     }
 
-    // ⏰ 프론트에서도 08:00 ~ 22:00 제한 먼저 체크
+    // ⏰ 프론트에서도 00:00 ~ 23:59 제한 먼저 체크
     const startMin = timeToMinutes(startTime);
     const endMin = timeToMinutes(endTime);
     if (Number.isNaN(startMin) || Number.isNaN(endMin)) {
@@ -258,11 +258,11 @@ function ScheduleAddModal({
       return;
     }
     if (startMin < MIN_ALLOWED_MINUTES) {
-      setErr("너무 이른 시간입니다. 수업 시작은 08:00 이후만 가능합니다.");
+      setErr("너무 이른 시간입니다. 00:00 이후로 입력해주세요.");
       return;
     }
     if (endMin > MAX_ALLOWED_MINUTES) {
-      setErr("너무 늦은 시간입니다. 수업 종료는 22:00 이전이어야 합니다.");
+      setErr("너무 늦은 시간입니다. 23:59 이전으로 입력해주세요.");
       return;
     }
 
@@ -284,7 +284,7 @@ function ScheduleAddModal({
 
       // 🔎 상태 코드 기반 한글 매핑
       if (msg.startsWith("400") || msg.includes("400 Bad Request")) {
-        setErr("시간이 너무 이르거나 늦어서 저장할 수 없습니다. (08:00~22:00 사이만 가능합니다.)");
+        setErr("시간이 너무 이르거나 늦어서 저장할 수 없습니다. (00:00~23:59 사이만 가능합니다.)");
       } else if (msg.startsWith("409") || msg.includes("409 Conflict")) {
         setErr("다른 수업과 시간이 겹칩니다. 시간이나 강의실을 조정해 주세요.");
       } else {
@@ -558,11 +558,11 @@ function MonthCenterModal({
       return;
     }
     if (sMin < MIN_ALLOWED_MINUTES) {
-      setErr("너무 이른 시간입니다. 수업 시작은 08:00 이후만 가능합니다.");
+      setErr("너무 이른 시간입니다. 00:00 이후로 입력해주세요.");
       return;
     }
     if (eMin > MAX_ALLOWED_MINUTES) {
-      setErr("너무 늦은 시간입니다. 수업 종료는 22:00 이전이어야 합니다.");
+      setErr("너무 늦은 시간입니다. 23:59 이전이어야 합니다.");
       return;
     }
 
@@ -574,7 +574,7 @@ function MonthCenterModal({
     } catch (e: any) {
       const msg: string = e?.message ?? "";
       if (msg.startsWith("400") || msg.includes("400 Bad Request")) {
-        setErr("시간이 너무 이르거나 늦어서 저장할 수 없습니다. (08:00~22:00 사이만 가능합니다.)");
+        setErr("시간이 너무 이르거나 늦어서 저장할 수 없습니다. (00:00~23:59 사이만 가능합니다.)");
       } else if (msg.startsWith("409") || msg.includes("409 Conflict")) {
         setErr("다른 수업과 시간이 겹칩니다. 시간이나 강의실을 조정해 주세요.");
       } else {
@@ -798,6 +798,22 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
     return out;
   }, [rows, roomFilter]);
 
+  const hourRange = useMemo(() => {
+    if (weekEvents.length === 0) return { start: 8, end: 22 };
+    let minH = 24;
+    let maxH = 0;
+    for (const ev of weekEvents) {
+      const s = Math.max(0, Math.floor(timeToMinutes(ev.startTime) / 60));
+      const e = Math.min(23, Math.ceil(timeToMinutes(ev.endTime) / 60));
+      minH = Math.min(minH, isFinite(s) ? s : 8);
+      maxH = Math.max(maxH, isFinite(e) ? e : 22);
+    }
+    return {
+      start: Math.max(0, Math.min(minH, 8)),
+      end: Math.min(23, Math.max(maxH, 22)),
+    };
+  }, [weekEvents]);
+
   return (
     <div className="space-y-4">
       {err && (
@@ -847,8 +863,8 @@ export default function TeacherSchedulePanelInline({ user: userProp }: { user?: 
           ) : (
             <div className="px-4 sm:px-6 w-full">
               <WeekCalendar
-                startHour={8}
-                endHour={22}
+                startHour={hourRange.start}
+                endHour={hourRange.end}
                 events={weekEvents}
                 lineColor="rgba(0,0,0,0.18)"
                 textColor="#111111"

@@ -5,13 +5,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import NoticeEditorPanel from "./NoticeEditorPanel";
 import NoticeDetailPanel from "./NoticeDetailPanel";
 
-/**
- * API 베이스
- * - Vercel 배포: NEXT_PUBLIC_API_BASE 없으면 "/backend"
- *   → next.config.mjs 에서 /backend → EC2 백엔드로 프록시
- * - 로컬에서 직접 붙이고 싶으면 .env.local 에서만 NEXT_PUBLIC_API_BASE=http://localhost:9090 설정
- *   (코드에는 localhost 하드코딩 없음)
- */
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "/backend").replace(/\/$/, "");
 
 async function fetchApi(path: string, init?: RequestInit) {
@@ -19,7 +12,6 @@ async function fetchApi(path: string, init?: RequestInit) {
   const url = `${API_BASE}${p}`;
   const opts: RequestInit = { credentials: init?.credentials ?? "include", ...init };
   const res = await fetch(url, opts);
-  // ✅ 더 이상 404 HTML → localhost:9090 재시도 같은 로컬 전용 fallback 없음
   return res;
 }
 
@@ -415,23 +407,6 @@ export default function NoticePanel() {
     return notices.filter((n) => (n.academyNumbers ?? []).includes(target));
   }, [notices, selAcademy]);
 
-  /** id->name 매핑 (공지 우선, API/조회 보강) */
-  const classNameMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const n of notices) {
-      const id = (n.classId || "").trim();
-      const nm = pickName({ name: n.className, Class_Name: (n as any)?.Class_Name });
-      if (id && nm) m.set(id, nm);
-    }
-    for (const c of classes) {
-      const id = (c?.id || "").trim();
-      const nm = (c?.name || "").trim();
-      if (id && nm) m.set(id, nm);
-    }
-    return m;
-  }, [notices, classes]);
-
-  /** 역할/라벨 */
   const role = session?.role;
   const isStaff = role === "teacher" || role === "director";
 
@@ -454,6 +429,22 @@ export default function NoticePanel() {
     if (!role || role === "director") return false;
     return myClassesSet.size > 0;
   }, [role, myClassesSet]);
+
+  const classNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of classes) {
+      const id = (c.id || "").trim();
+      if (!id) continue;
+      const nm = (c.name || "").trim();
+      if (nm) map.set(id, nm);
+    }
+    for (const n of notices) {
+      const id = (n.classId || "").trim();
+      const nm = pickName({ name: n.className, Class_Name: (n as any)?.Class_Name });
+      if (id && nm && !map.has(id)) map.set(id, nm);
+    }
+    return map;
+  }, [classes, notices]);
 
   /** 과목 스피너 옵션 구성 */
   const classOptions = useMemo(() => {

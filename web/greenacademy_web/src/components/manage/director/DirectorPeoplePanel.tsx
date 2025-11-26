@@ -172,6 +172,15 @@ export default function DirectorPeoplePanel() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1); // 1-base
 
+  const session = useMemo(() => getSession(), []);
+  const academies = useMemo(
+    () => (Array.isArray(session?.academyNumbers) ? session!.academyNumbers.filter((n) => n != null) : []),
+    [session]
+  );
+  const [academy, setAcademy] = useState<number | null>(() =>
+    academies.length > 0 ? Number(academies[0]) : null
+  );
+
   const resetDetail = () => {
     setClasses([]);
     setAttendance([]);
@@ -191,10 +200,12 @@ export default function DirectorPeoplePanel() {
     (async () => {
       try {
         if (tab === "students") {
-          const list = await apiGet<StudentLite[]>("/api/students");
+          const qs = academy != null ? `?academyNumber=${encodeURIComponent(academy)}` : "";
+          const list = await apiGet<StudentLite[]>(`/api/students${qs}`);
           setStudents(list || []);
         } else {
-          const list = await apiGet<TeacherLite[]>("/api/teachers");
+          const qs = academy != null ? `?academyNumber=${encodeURIComponent(academy)}` : "";
+          const list = await apiGet<TeacherLite[]>(`/api/teachers${qs}`);
           setTeachers(list || []);
         }
       } catch (e: any) {
@@ -203,12 +214,12 @@ export default function DirectorPeoplePanel() {
         setLoadingList(false);
       }
     })();
-  }, [tab]);
+  }, [tab, academy]);
 
   // 검색어 변경 시 페이지 1로
   useEffect(() => {
     setPage(1);
-  }, [query, tab]);
+  }, [query, tab, academy]);
 
   /* ---- 학생 선택 → 수업/출결 ---- */
   const loadStudentDetail = async (s: StudentLite) => {
@@ -280,9 +291,20 @@ export default function DirectorPeoplePanel() {
   };
 
   /* ---- 검색 필터링 & 페이징 계산 ---- */
+  const matchesAcademy = (item: any) => {
+    if (academy == null) return true;
+    const nums =
+      item?.academyNumbers ??
+      item?.academyNumber ??
+      (Array.isArray(item?.academy) ? item.academy : item?.academy ?? null);
+    if (Array.isArray(nums)) return nums.some((n) => Number(n) === Number(academy));
+    if (nums == null) return true;
+    return Number(nums) === Number(academy);
+  };
+
   const { pageItems, totalPages, totalCount } = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = tab === "students" ? students : teachers;
+    const list = (tab === "students" ? students : teachers).filter((item: any) => matchesAcademy(item));
 
     const filtered = !q
       ? list
@@ -332,7 +354,7 @@ export default function DirectorPeoplePanel() {
   return (
     <div className="space-y-6">
       {/* 상단 탭 */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {(["students", "teachers"] as const).map((k) => (
           <button
             key={k}
@@ -343,6 +365,27 @@ export default function DirectorPeoplePanel() {
             {k === "students" ? "학생 명단" : "선생 명단"}
           </button>
         ))}
+
+        {academies.length > 1 && (
+          <div className="flex items-center gap-2">
+            {academies.map((a) => (
+              <button
+                key={a}
+                onClick={() => setAcademy(Number(a))}
+                className={`px-3 py-1 rounded-full text-xs ring-1 ${
+                  Number(academy) === Number(a)
+                    ? "bg-emerald-100 text-emerald-800 ring-emerald-300"
+                    : "bg-white text-black ring-black/20"
+                }`}
+              >
+                학원 {a}
+              </button>
+            ))}
+          </div>
+        )}
+
+
+        
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-6">

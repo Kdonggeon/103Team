@@ -158,9 +158,31 @@ export { ApiError };
  * 내부 유틸
  * ========================================================================== */
 
-/** 백엔드 베이스 URL: .env에 NEXT_PUBLIC_API_BASE 없으면 localhost:9090 */
-/** 백엔드 베이스 URL: Next rewrites(/backend → EC2) 사용 */
 const BASE_URL = "/backend";
+
+function friendlyHttpMessage(status: number, body?: any): string {
+  const serverMsg: string | undefined =
+    (body?.message as string | undefined) ??
+    (body?.error as string | undefined) ??
+    (body?.msg as string | undefined);
+
+  switch (status) {
+    case 400:
+      return serverMsg || "요청을 처리할 수 없습니다. 입력 값을 확인해 주세요.";
+    case 401:
+      return "로그인이 필요합니다. 다시 로그인해 주세요.";
+    case 403:
+      return "접근 권한이 없습니다.";
+    case 404:
+      return serverMsg || "요청한 데이터를 찾을 수 없습니다.";
+    case 409:
+      return serverMsg || "이미 존재하거나 충돌이 발생했습니다.";
+    case 500:
+      return serverMsg || "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+    default:
+      return serverMsg || `${status} 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.`;
+  }
+}
 
 
 /** 교사 API 공통 프리픽스 */
@@ -266,7 +288,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   if (!res.ok) {
     let body: any = undefined;
     try { body = text ? JSON.parse(text) : undefined; } catch {}
-    throw new ApiError(res.status, body?.message || `${res.status} ${res.statusText}`, body);
+    throw new ApiError(res.status, friendlyHttpMessage(res.status, body), body);
   }
   return text ? (JSON.parse(text) as T) : ({} as T);
 }

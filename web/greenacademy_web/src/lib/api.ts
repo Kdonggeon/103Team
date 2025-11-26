@@ -25,16 +25,10 @@ export interface LoginResponse {
   childStudentId?: string;   // 학부모만 (첫 자녀)
 }
 
-// ---------- 환경설정 ----------
-// NoticePanel 과 동일한 기본값으로 통일
-// - 클라이언트: /backend → next.config.mjs에서 백엔드로 프록시
-// - 서버(SSR): localhost:9090 로 직접 호출
 const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE;
-const API_BASE =
-  RAW_BASE ??
-  (typeof window === "undefined" ? "http://localhost:9090" : "/backend");
+const API_BASE = RAW_BASE ?? "/backend";
 
-// ---------- 세션/토큰 유틸 ----------
+// ---------- ??/?? ?? ----------
 type SavedSession = {
   token?: string | null;
   role?: Role | string;

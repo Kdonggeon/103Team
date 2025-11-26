@@ -68,6 +68,30 @@ export type SeatBoardResponse = {
   waiting?: Array<{ studentId: string; studentName?: string | null; status?: string | null; checkedInAt?: string | null }>;
 };
 
+function friendlyHttpMessage(status: number, body?: any): string {
+  const serverMsg: string | undefined =
+    (body?.message as string | undefined) ??
+    (body?.error as string | undefined) ??
+    (body?.msg as string | undefined);
+
+  switch (status) {
+    case 400:
+      return serverMsg || "요청을 처리할 수 없습니다. 입력 값을 확인해 주세요.";
+    case 401:
+      return "로그인이 필요합니다. 다시 로그인해 주세요.";
+    case 403:
+      return "접근 권한이 없습니다.";
+    case 404:
+      return serverMsg || "요청한 데이터를 찾을 수 없습니다.";
+    case 409:
+      return serverMsg || "이미 존재하거나 충돌이 발생했습니다.";
+    case 500:
+      return serverMsg || "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+    default:
+      return serverMsg || `${status} 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.`;
+  }
+}
+
 /* ===== 날짜 유틸 ===== */
 const KST = "Asia/Seoul";
 export const todayYmd = () => {
@@ -96,7 +120,9 @@ async function _request<T>(url: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText} @ ${abs(url)}`);
+    let body: any = undefined;
+    try { body = await res.json(); } catch {}
+    throw new Error(friendlyHttpMessage(res.status, body));
   }
 
   const text = await res.text();

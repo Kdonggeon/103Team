@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import TeacherManagePanel from "./TeacherManagePanel";
+import TeacherMainPanel from "@/components/manage/TeacherMainPanel";
 import type { LoginResponse } from "@/app/lib/api";
 
 export default function TeacherTopPage() {
@@ -21,7 +21,7 @@ export default function TeacherTopPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <TeacherManagePanel user={user} />
+      <TeacherMainPanel user={user} />
     </div>
   );
 }

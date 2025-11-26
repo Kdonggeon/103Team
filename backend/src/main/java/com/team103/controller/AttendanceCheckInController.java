@@ -125,27 +125,6 @@ public class AttendanceCheckInController {
                 mongo.upsert(wq, wup, COLL_WAIT);
             }
 
-            /* =========================================================
-             *  🚀 2) 오늘 날짜의 모든 수업 출석 문서에서 “이동” 처리 + 좌석 제거
-             * ========================================================= */
-            try {
-                Query findAtt = new Query(
-                        Criteria.where("Date").is(ymd)
-                                .and("Attendance_List.Student_ID").is(studentId)
-                );
-                List<Attendance> docs = mongo.find(findAtt, Attendance.class, COLL_ATT);
-
-                for (Attendance doc : docs) {
-                    if (doc.getClassId() == null || doc.getClassId().isBlank()) continue;
-
-                    // ⭐ SeatBoardService 호출 → 좌석 해제 + 상태 이동 처리
-                    seatBoardService.moveOrBreak(doc.getClassId(), ymd, studentId, "이동");
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
             CheckInResponse r = new CheckInResponse();
             r.setStatus("입구 출석");
             r.setDate(ymd);

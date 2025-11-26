@@ -4,30 +4,40 @@
 import React from "react";
 import type { LoginResponse } from "@/app/lib/api";
 import Panel, { PanelGrid } from "@/components/ui/Panel";
+import SeatBoardCard from "@/components/manage/SeatBoardCard";
 import {
   fetchDirectorOverview,
   type DirectorOverviewResponse,
   type DirectorRoomStatus,
 } from "@/app/lib/directorApi";
-
-// ✅ Teacher 화면에서 쓰던 API 재사용 (좌석판 폴백 용)
 import { fetchSeatBoard, todayYmd, type SeatBoardResponse } from "@/app/lib/teachermainApi";
 
-/* ====================== 유틸 ====================== */
 const isVectorRoom = (r: DirectorRoomStatus | null) =>
   !!r &&
-  (r.layoutType === "vector" ||
-    (r.seats ?? []).some((s) => s?.x != null || s?.w != null || s?.h != null));
+  (r.layoutType === "vector" || (r.seats ?? []).some((s) => s?.x != null || s?.w != null || s?.h != null));
 
 type Selection =
   | { type: "waiting" }
   | { type: "room"; roomNumber: number };
 
-/* ====== 기존 좌석판 + 새 좌석판 머지 (색/상태만 갱신) ====== */
+// API가 여러 학원 데이터를 동시에 줄 경우, 현재 선택된 학원 번호로 한번 더 필터
+function filterOverviewByAcademy(data: DirectorOverviewResponse, academy: number): DirectorOverviewResponse {
+  const roomList = (data?.rooms ?? []).filter((r) => {
+    const num = (r as any).academyNumber ?? (r as any).academy ?? null;
+    return num == null || Number(num) === Number(academy);
+  });
+  const waitingList = (data?.waiting ?? []).filter((w) => {
+    const nums = (w as any).academyNumbers ?? (w as any).academyNumber ?? null;
+    if (Array.isArray(nums)) return nums.some((n: any) => Number(n) === Number(academy));
+    if (nums == null) return true;
+    return Number(nums) === Number(academy);
+  });
+  return { ...data, rooms: roomList, waiting: waitingList };
+}
+
 function mergeSeatBoard(prev: SeatBoardResponse | null, next: SeatBoardResponse): SeatBoardResponse {
   if (!prev || !prev.seats || !next.seats) return next;
 
-  // seatNumber > (row,col) > index 순으로 매칭
   const keyOf = (s: any, idx: number) => {
     if (s.seatNumber != null) return `seat-${s.seatNumber}`;
     if (s.row != null && s.col != null) return `rc-${s.row}-${s.col}`;
@@ -38,10 +48,8 @@ function mergeSeatBoard(prev: SeatBoardResponse | null, next: SeatBoardResponse)
   next.seats.forEach((s, idx) => nextMap.set(keyOf(s, idx), s));
 
   const mergedSeats = prev.seats.map((old, idx) => {
-    const k = keyOf(old, idx);
-    const newer = nextMap.get(k);
+    const newer = nextMap.get(keyOf(old, idx));
     if (!newer) return old;
-    // 위치/크기는 그대로 두고, 상태/이름/ID 등만 덮어쓰기
     return {
       ...old,
       attendanceStatus: newer.attendanceStatus ?? old.attendanceStatus,
@@ -50,19 +58,15 @@ function mergeSeatBoard(prev: SeatBoardResponse | null, next: SeatBoardResponse)
     };
   });
 
-  return {
-    ...prev,
-    ...next,
-    seats: mergedSeats,
-  };
+  return { ...prev, ...next, seats: mergedSeats };
 }
 
-/* ====================== 메인 ====================== */
 export default function DirectorOverviewPanel({ user }: { user: NonNullable<LoginResponse> }) {
-  const academyNumber =
+  const academies =
     Array.isArray(user.academyNumbers) && user.academyNumbers.length > 0
-      ? user.academyNumbers[0]
-      : 0;
+      ? user.academyNumbers
+      : [0];
+  const [academy, setAcademy] = React.useState<number>(academies[0] ?? 0);
 
   const [ymd, setYmd] = React.useState<string>(todayYmd());
   const [data, setData] = React.useState<DirectorOverviewResponse | null>(null);
@@ -70,21 +74,22 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
 
-  // 우측 좌석판(교사 좌석 API 재사용; vector가 아닌 경우 폴백)
   const [board, setBoard] = React.useState<SeatBoardResponse | null>(null);
   const [loadingBoard, setLoadingBoard] = React.useState(false);
+  const [modalOpen, setModalOpen] = React.useState(false);
 
+  // 개요 로드
   const load = React.useCallback(async () => {
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetchDirectorOverview(academyNumber, ymd);
-      setData(res);
-      // 초기 선택: 대기실 → 없으면 첫 방
+      const res = await fetchDirectorOverview(academy, ymd);
+      const filtered = filterOverviewByAcademy(res, academy);
+      setData(filtered);
       setSel((prev) => {
         if (prev) return prev;
-        if ((res.waiting?.length ?? 0) > 0) return { type: "waiting" };
-        const first = res.rooms[0]?.roomNumber;
+        if ((filtered.waiting?.length ?? 0) > 0) return { type: "waiting" };
+        const first = filtered.rooms[0]?.roomNumber;
         return first ? { type: "room", roomNumber: first } : null;
       });
     } catch (e: any) {
@@ -92,16 +97,22 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
     } finally {
       setLoading(false);
     }
-  }, [academyNumber, ymd]);
+  }, [academy, ymd]);
 
   React.useEffect(() => {
     load();
-    // ✅ 전체 개요는 15초마다 새로고침
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, [load]);
 
-  // 좌측에서 방을 선택했을 때 좌석판 로드 + 3초 폴링 (vector가 아니고 classId가 있으면)
+  // 학원 변경 시 리셋
+  React.useEffect(() => {
+    setSel(null);
+    setBoard(null);
+    setModalOpen(false);
+  }, [academy]);
+
+  // 우측 좌석판 로드 + 3초 폴링
   React.useEffect(() => {
     if (!data || !sel || sel.type !== "room") {
       setBoard(null);
@@ -113,14 +124,7 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
       return;
     }
 
-    // vector는 우측에서 room.seats를 바로 그림 (fetchSeatBoard 안 씀)
-    if (isVectorRoom(room)) {
-      setBoard(null);
-      return;
-    }
-
-    // grid인데 classId가 없으면 폴백 불가
-    if (!room.classId) {
+    if (isVectorRoom(room) || !room.classId) {
       setBoard(null);
       return;
     }
@@ -141,18 +145,15 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
       }
     };
 
-    // 처음 선택 시 한 번 로드 (로딩 문구 표시)
     loadBoard(true);
-    // 이후 3초마다 자동 갱신 (로딩 문구 없이 색/상태만 바뀜)
     const timer = setInterval(() => loadBoard(false), 3000);
-
     return () => {
       alive = false;
       clearInterval(timer);
     };
   }, [data, sel, ymd]);
 
-  // 합계 (상단 요약)
+  // 합계
   const totals = React.useMemo(
     () =>
       (data?.rooms ?? []).reduce(
@@ -174,9 +175,55 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
       ? data?.rooms.find((r) => r.roomNumber === sel.roomNumber) ?? null
       : null;
 
+  // board 없을 때 room seats로 fallback
+  const boardToShow: SeatBoardResponse | null = React.useMemo(() => {
+    if (board) return board;
+    if (!selectedRoom) return null;
+
+    if (isVectorRoom(selectedRoom)) {
+      return {
+        date: data?.date ?? ymd,
+        layoutType: "vector",
+        seats: (selectedRoom as any).seats ?? [],
+        presentCount: selectedRoom.presentCount ?? undefined,
+        lateCount: selectedRoom.lateCount ?? undefined,
+        absentCount: selectedRoom.absentCount ?? undefined,
+        moveOrBreakCount: selectedRoom.moveOrBreakCount ?? undefined,
+        notRecordedCount: selectedRoom.notRecordedCount ?? undefined,
+      };
+    }
+
+    if (Array.isArray((selectedRoom as any).seats) && (selectedRoom as any).seats.length > 0) {
+      return {
+        date: data?.date ?? ymd,
+        layoutType: "grid",
+        seats: (selectedRoom as any).seats,
+        rows: selectedRoom.rows ?? undefined,
+        cols: selectedRoom.cols ?? undefined,
+        presentCount: selectedRoom.presentCount ?? undefined,
+        lateCount: selectedRoom.lateCount ?? undefined,
+        absentCount: selectedRoom.absentCount ?? undefined,
+        moveOrBreakCount: selectedRoom.moveOrBreakCount ?? undefined,
+        notRecordedCount: selectedRoom.notRecordedCount ?? undefined,
+      };
+    }
+
+    return null;
+  }, [board, selectedRoom, data?.date, ymd]);
+
+  // ESC 모달 닫기
+  React.useEffect(() => {
+    if (!modalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setModalOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modalOpen]);
+
   return (
     <PanelGrid>
-      {/* 좌측: 강의실 + 대기실 항목 */}
+      {/* 좌측: 강의실 리스트 */}
       <Panel
         title="강의실"
         className="h-full"
@@ -188,6 +235,23 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
               onChange={(e) => setYmd(e.target.value)}
               className="border border-gray-300 rounded px-2 py-1 text-black"
             />
+            {academies.length > 1 && (
+              <div className="flex gap-2">
+                {academies.map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => setAcademy(a)}
+                    className={`px-2.5 py-1 rounded-full border text-xs ${
+                      academy === a
+                        ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                        : "bg-white border-gray-300 text-gray-700"
+                    }`}
+                  >
+                    학원 {a}
+                  </button>
+                ))}
+              </div>
+            )}
             {loading && <span className="text-xs text-gray-500">새로고침 중…</span>}
           </div>
         }
@@ -195,7 +259,7 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
         {err && <div className="mb-2 text-xs text-rose-600">{err}</div>}
 
         <ul className="space-y-2">
-          {/* 대기실 항목 */}
+          {/* 대기실 */}
           <li>
             <button
               onClick={() => setSel({ type: "waiting" })}
@@ -204,7 +268,7 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="font-medium text-black">대기/이동/휴식 (학원 전체)</div>
+                <div className="font-medium text-black">대기/이동/휴식 (학원 {academy})</div>
                 <span className="text-xs text-gray-500">{data?.waiting?.length ?? 0}명</span>
               </div>
             </button>
@@ -227,13 +291,10 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
                     <div className="flex items-center justify-between">
                       <div className="font-medium text-black">
                         강의실 {r.roomNumber}
-                        {r.className ? (
-                          <span className="ml-2 text-gray-600">· {r.className}</span>
-                        ) : null}
+                        {r.className ? <span className="ml-2 text-gray-600">· {r.className}</span> : null}
                       </div>
                       <span className="text-xs text-gray-500">
-                        출석 {r.presentCount ?? 0} · 지각 {r.lateCount ?? 0} · 결석{" "}
-                        {r.absentCount ?? 0}
+                        출석 {r.presentCount ?? 0} · 지각 {r.lateCount ?? 0} · 결석 {r.absentCount ?? 0}
                       </span>
                     </div>
                   </button>
@@ -244,7 +305,7 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
         </ul>
       </Panel>
 
-      {/* 우측: 좌석 현황 / 대기실 목록 */}
+      {/* 우측: 좌석 현황 */}
       <Panel
         title={
           sel?.type === "waiting"
@@ -256,13 +317,10 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
         right={
           <span className="text-xs text-gray-600">
             {data?.date ?? ymd}
-            {selectedRoom && !isVectorRoom(selectedRoom) && board
-              ? " · 3초마다 좌석 자동 갱신"
-              : ""}
+            {selectedRoom && boardToShow ? " · 3초마다 좌석 자동 갱신" : ""}
           </span>
         }
       >
-        {/* 상단 합계 */}
         <div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
           <Badge label="출석" className="bg-emerald-100 text-emerald-700 border-emerald-300" />
           <Badge label="지각" className="bg-yellow-100 text-yellow-700 border-yellow-300" />
@@ -270,12 +328,11 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
           <Badge label="대기/이동/휴식" className="bg-blue-100 text-blue-700 border-blue-300" />
           <Badge label="미기록" className="bg-gray-100 text-gray-700 border-gray-300" />
           <span className="ml-auto text-gray-600">
-            전체 합계 — 출석 {totals.present} · 지각 {totals.late} · 결석 {totals.absent} ·
-            이동/휴식 {totals.move} · 미기록 {totals.none}
+            전체 합계 — 출석 {totals.present} · 지각 {totals.late} · 결석 {totals.absent} · 이동/휴식 {totals.move} ·
+            미기록 {totals.none}
           </span>
         </div>
 
-        {/* 본문 */}
         {sel?.type === "waiting" ? (
           <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
             <div className="flex flex-wrap gap-2">
@@ -297,46 +354,45 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
           <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
             왼쪽에서 강의실을 선택하세요.
           </div>
-        ) : isVectorRoom(selectedRoom) ? (
-          <CanvasVectorBoard room={selectedRoom} />
-        ) : loadingBoard ? (
+        ) : loadingBoard && !boardToShow ? (
           <div className="text-sm text-gray-500">좌석판 불러오는 중…</div>
-        ) : board ? (
-          board.layoutType === "vector" ? (
-            <CanvasVectorBoard
-              room={{
-                roomNumber: selectedRoom.roomNumber,
-                classId: selectedRoom.classId,
-                className: selectedRoom.className,
-                seats: board.seats ?? [],
-                layoutType: "vector",
-                canvasW: (board as any).canvasW ?? 1000,
-                canvasH: (board as any).canvasH ?? 600,
-                presentCount: board.presentCount,
-                lateCount: board.lateCount,
-                absentCount: board.absentCount,
-                moveOrBreakCount: board.moveOrBreakCount,
-                notRecordedCount: board.notRecordedCount,
-              }}
-            />
-          ) : (
-            <CanvasGridBoard
-              room={{
-                roomNumber: selectedRoom.roomNumber,
-                classId: selectedRoom.classId,
-                className: selectedRoom.className,
-                seats: board.seats ?? [],
-                layoutType: "grid",
-                rows: board.rows,
-                cols: board.cols,
-                presentCount: board.presentCount,
-                lateCount: board.lateCount,
-                absentCount: board.absentCount,
-                moveOrBreakCount: board.moveOrBreakCount,
-                notRecordedCount: board.notRecordedCount,
-              }}
-            />
-          )
+        ) : boardToShow ? (
+          <>
+            {!modalOpen && (
+              <SeatBoardCard
+                title={selectedRoom.className ?? `강의실 ${selectedRoom.roomNumber}`}
+                date={data?.date ?? ymd}
+                board={boardToShow}
+                onExpand={() => setModalOpen(true)}
+              />
+            )}
+            {modalOpen && (
+              <div
+                className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4"
+                onClick={() => setModalOpen(false)}
+              >
+                <div
+                  className="w-full max-w-6xl max-h-[90vh] overflow-auto bg-white rounded-2xl border border-gray-300 shadow-2xl p-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-black">좌석 현황 확대</h3>
+                    <button
+                      onClick={() => setModalOpen(false)}
+                      className="px-3 py-1 rounded border text-sm text-gray-800 hover:bg-gray-100"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                  <SeatBoardCard
+                    title={selectedRoom.className ?? `강의실 ${selectedRoom.roomNumber}`}
+                    date={data?.date ?? ymd}
+                    board={boardToShow}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
             오늘 이 방에서 표시할 좌석판이 없습니다.
@@ -348,120 +404,6 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
   );
 }
 
-/* ====================== 보드 렌더러 ====================== */
-
-function statusClass(att?: string | null): string {
-  const s = (att ?? "").toUpperCase();
-  if (s.includes("PRESENT") || s.includes("출석"))
-    return "bg-emerald-100 text-emerald-700 border-emerald-300";
-  if (s.includes("LATE") || s.includes("지각"))
-    return "bg-yellow-100 text-yellow-700 border-yellow-300";
-  if (s.includes("ABSENT") || s.includes("결석"))
-    return "bg-rose-100 text-rose-700 border-rose-300";
-  if (s.includes("MOVE") || s.includes("BREAK") || s.includes("WAIT") || s.includes("RELOC"))
-    return "bg-blue-100 text-blue-700 border-blue-300";
-  return "bg-gray-100 text-gray-700 border-gray-300";
-}
-
-// Vector 좌석판: 0~1 정규화 값 사용
-function CanvasVectorBoard({ room }: { room: any }) {
-  const cw = room.canvasW && room.canvasW > 0 ? room.canvasW : 1000;
-  const ch = room.canvasH && room.canvasH > 0 ? room.canvasH : 600;
-  const ratio = (ch / cw) * 100;
-
-  return (
-    <div className="w-full">
-      <div
-        className="relative w-full border rounded-2xl bg-white ring-1 ring-black/5 shadow-sm"
-        style={{ paddingTop: `${ratio}%` }}
-      >
-        {(room.seats ?? []).map((s: any, idx: number) => {
-          const left = `${Math.max(0, Math.min(1, s.x ?? 0)) * 100}%`;
-          const top = `${Math.max(0, Math.min(1, s.y ?? 0)) * 100}%`;
-          const width = `${Math.max(0, Math.min(1, s.w ?? 0.12)) * 100}%`;
-          const height = `${Math.max(0, Math.min(1, s.h ?? 0.08)) * 100}%`;
-          const label = s.studentName || s.studentId || s.seatNumber || `Seat ${idx + 1}`;
-          return (
-            <div
-              key={idx}
-              className={`absolute rounded-xl border flex items-center justify-center text-xs font-semibold truncate ${statusClass(
-                s.attendanceStatus
-              )} ${s.disabled ? "opacity-50" : ""}`}
-              style={{ left, top, width, height }}
-              title={label}
-            >
-              <span className="px-1">{label}</span>
-            </div>
-          );
-        })}
-        {(!room.seats || room.seats.length === 0) && (
-          <div className="absolute inset-0 grid place-items-center text-sm text-gray-600">
-            좌석 배치가 없습니다.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Grid 좌석판: rows/cols + row/col 좌표 사용
-function CanvasGridBoard({ room }: { room: any }) {
-  const rows = Math.max(0, room.rows ?? 0);
-  const cols = Math.max(0, room.cols ?? 0);
-  type Cell = { seatNumber?: number; studentId?: string; studentName?: string; att?: string | null } | null;
-  const grid: Cell[][] = Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
-
-  for (const s of room.seats ?? []) {
-    if (s?.disabled) continue;
-    const r = (s.row ?? 1) - 1;
-    const c = (s.col ?? 1) - 1;
-    if (r >= 0 && r < rows && c >= 0 && c < cols) {
-      grid[r][c] = {
-        seatNumber: s.seatNumber ?? undefined,
-        studentId: s.studentId ?? undefined,
-        studentName: s.studentName ?? undefined,
-        att: s.attendanceStatus ?? undefined,
-      };
-    }
-  }
-
-  return (
-    <div className="w-full overflow-auto">
-      <div
-        className="grid gap-2"
-        style={{ gridTemplateColumns: `repeat(${Math.max(cols, 1)}, minmax(44px, 1fr))` }}
-      >
-        {grid.flatMap((row, ri) =>
-          row.map((cell, ci) => (
-            <div key={`${ri}-${ci}`} className="h-12">
-              {cell ? (
-                <div
-                  className={`h-full rounded-xl ring-1 ring-black/5 shadow-sm flex items-center justify-center text-xs ${statusClass(
-                    cell.att
-                  )}`}
-                  title={cell.studentName ?? cell.studentId ?? ""}
-                >
-                  <div className="px-2 text-center leading-tight">
-                    <div className="font-medium">{cell.seatNumber ?? ""}</div>
-                    {(cell.studentName || cell.studentId) && (
-                      <div className="opacity-80 truncate">
-                        {cell.studentName ?? cell.studentId}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="h-full rounded-xl bg-transparent" />
-              )}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ====================== 작은 컴포넌트 ====================== */
 function Badge({ label, className = "" }: { label: string; className?: string }) {
   return <span className={`rounded-full border px-2 py-0.5 ${className}`}>{label}</span>;
 }

@@ -172,13 +172,6 @@ public class SeatBoardService {
         for (WaitingRoom w : raws) {
             String sid = w.getStudentId();
 
-            // 입구 출석 승격 로직
-            if (sid != null) {
-                String cur = statusByStudent.get(sid);
-                if (cur == null || cur.isBlank() || "미기록".equals(cur)) {
-                    statusByStudent.put(sid, "입구 출석");
-                }
-            }
 
             SeatBoardResponse.WaitingItem it = new SeatBoardResponse.WaitingItem();
             it.setStudentId(sid);

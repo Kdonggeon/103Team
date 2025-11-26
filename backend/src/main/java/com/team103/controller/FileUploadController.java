@@ -38,7 +38,7 @@ public class FileUploadController {
 
             // ★ 정적 매핑(/files/**)과 맞춰 공개 URL 생성
             String publicUrl = ServletUriComponentsBuilder
-                    .fromCurrentContextPath() // ex) http://localhost:9090
+                    .fromCurrentContextPath()
                     .path("/files/")
                     .path(filename)
                     .toUriString();

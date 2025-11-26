@@ -43,46 +43,51 @@ export default function FindIdPage() {
   };
 
   return (
-    <main className="min-h-dvh flex items-center justify-center p-6">
+    <main className="min-h-[100svh] bg-gray-50 grid place-items-center px-4">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-md space-y-4 rounded-2xl p-6 shadow-lg border"
+        className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-6"
+        aria-describedby={msg ? "find-id-error" : undefined}
       >
-        <h1 className="text-2xl font-semibold">아이디 찾기</h1>
+        <div className="text-center">
+          <h1 className="text-2xl font-extrabold text-emerald-600">아이디 찾기</h1>
+          <p className="mt-2 text-sm text-gray-900">이름과 연락처를 입력하면 등록된 아이디를 알려드립니다.</p>
+        </div>
 
-        <div className="grid gap-3">
+        <div className="grid gap-4">
+          <div className="grid grid-cols-2 gap-2">
+            {(["student", "parent", "teacher", "director"] as Role[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRole(r)}
+                className={`h-10 rounded-xl ring-1 ring-black/5 font-semibold text-sm ${
+                  role === r ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+                }`}
+                aria-pressed={role === r}
+              >
+                {r === "student" ? "학생" : r === "parent" ? "학부모" : r === "teacher" ? "교사" : "원장"}
+              </button>
+            ))}
+          </div>
+
           <label className="space-y-1">
-            <span className="text-sm">역할</span>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-              className="w-full rounded-lg border px-3 py-2 bg-neutral-900 text-white [color-scheme:dark]"
-            >
-              <option value="student">학생</option>
-              <option value="parent">학부모</option>
-              <option value="teacher">교사</option>
-              <option value="director">원장</option> {/* 추가 */}
-            </select>
-            </label>
-
-
-          <label className="space-y-1">
-            <span className="text-sm">이름</span>
+            <span className="text-sm text-gray-900">이름</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2"
+              className="w-full h-11 rounded-xl border border-gray-300 px-3 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-emerald-300 focus:border-emerald-300"
               placeholder="홍길동"
               autoComplete="name"
             />
           </label>
 
           <label className="space-y-1">
-            <span className="text-sm">전화번호</span>
+            <span className="text-sm text-gray-900">전화번호</span>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2"
+              className="w-full h-11 rounded-xl border border-gray-300 px-3 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-emerald-300 focus:border-emerald-300"
               placeholder="010-1234-5678"
               inputMode="numeric"
             />
@@ -92,23 +97,35 @@ export default function FindIdPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg px-4 py-2 font-medium border hover:opacity-90 disabled:opacity-50"
+          className="w-full h-11 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "조회 중..." : "아이디 찾기"}
         </button>
 
-        {msg && <p className="text-sm text-red-500">{msg}</p>}
-
-        {foundId && (
-          <div className="rounded-lg border px-4 py-3">
-            <p>회원님의 아이디는</p>
-            <p className="mt-1 text-xl font-semibold select-all">{foundId}</p>
+        {msg && (
+          <div
+            id="find-id-error"
+            className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg"
+            aria-live="polite"
+          >
+            {msg}
           </div>
         )}
 
-        <div className="flex items-center justify-between text-sm pt-2">
-          <Link href="/login" className="underline">로그인으로</Link>
-          <Link href="/reset_pw" className="underline">비밀번호 재설정</Link>
+        {foundId && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-gray-900">
+            <p>회원님의 아이디는</p>
+            <p className="mt-1 text-xl font-semibold select-all text-emerald-700">{foundId}</p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between text-sm pt-2 text-gray-600">
+          <Link href="/login" className="hover:underline">
+            로그인으로
+          </Link>
+          <Link href="/reset_pw" className="hover:underline">
+            비밀번호 재설정
+          </Link>
         </div>
       </form>
     </main>
