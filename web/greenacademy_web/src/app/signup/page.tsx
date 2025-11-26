@@ -164,16 +164,16 @@ function Field({
   const err = (errors as any)[name]?.message as string | undefined;
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm text-gray-200">{label}</label>
+      <label className="text-sm text-gray-900">{label}</label>
       <input
         {...register(name as any)}
         type={type}
         placeholder={placeholder}
-        className={`w-full rounded-xl px-3 py-2 bg-gray-800 text-gray-100 outline-none ring-1 ring-gray-700 focus:ring-2 focus:ring-green-400 ${
-          err ? "ring-red-500" : ""
+        className={`w-full h-11 rounded-xl border px-3 py-2 bg-white text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-300 ${
+          err ? "border-red-400 ring-red-200" : "border-gray-300"
         }`}
       />
-      {err && <p className="text-xs text-red-400">{err}</p>}
+      {err && <p className="text-xs text-red-600">{err}</p>}
     </div>
   );
 }
@@ -194,10 +194,10 @@ function RoleFields() {
         <Field name="grade" label="학년" type="number" />
         <Field name="parentsNumber" label="학부모 번호(선택)" />
         <div className="flex flex-col gap-1">
-          <label className="text-sm text-gray-200">성별</label>
+          <label className="text-sm text-gray-900">성별</label>
           <select
             {...register("gender")}
-            className="w-full rounded-xl px-3 py-2 bg-gray-800 text-gray-100 ring-1 ring-gray-700 focus:ring-2 focus:ring-green-400"
+            className="w-full h-11 rounded-xl border border-gray-300 px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-emerald-300 focus:border-emerald-300"
           >
             <option value="">선택 안 함</option>
             <option value="M">남</option>
@@ -301,27 +301,26 @@ export default function RoleBasedSignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl bg-gray-850/60 backdrop-blur rounded-2xl shadow-2xl p-6 md:p-8 ring-1 ring-gray-800">
-        <h1 className="text-2xl md:text-3xl font-bold mb-4">역할별 회원가입</h1>
+    <main className="min-h-[100svh] bg-gray-50 flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-10 space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-extrabold text-emerald-600">회원가입</h1>
+          <p className="text-sm text-gray-700">학생·학부모·교사·원장 중 하나를 선택해 정보를 입력하세요.</p>
+        </div>
 
         {/* 역할 토글 */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {(["student", "parent", "teacher", "director"] as Role[]).map((r) => (
             <button
               key={r}
               onClick={() => setRole(r)}
-              className={`px-4 py-2 rounded-full text-sm font-medium ring-1 ring-gray-700 hover:ring-green-400 ${
-                role === r ? "bg-green-500 text-black" : "bg-gray-800"
+              type="button"
+              className={`h-11 rounded-xl ring-1 ring-black/5 font-semibold text-sm transition ${
+                role === r ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-900 hover:bg-gray-200"
               }`}
+              aria-pressed={role === r}
             >
-              {r === "student"
-                ? "학생"
-                : r === "parent"
-                ? "학부모"
-                : r === "teacher"
-                ? "교사"
-                : "원장"}
+              {r === "student" ? "학생" : r === "parent" ? "학부모" : r === "teacher" ? "교사" : "원장"}
             </button>
           ))}
         </div>
@@ -333,7 +332,7 @@ export default function RoleBasedSignupPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full md:w-auto self-end bg-green-500 text-black font-semibold px-6 py-3 rounded-xl hover:brightness-110 disabled:opacity-60"
+              className="w-full md:w-auto self-end h-11 px-6 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? "처리 중..." : "회원가입"}
             </button>
@@ -341,12 +340,16 @@ export default function RoleBasedSignupPage() {
         </FormProvider>
 
         {msg && (
-          <div className="mt-4 text-sm rounded-lg p-3 bg-gray-800 ring-1 ring-gray-700">
+          <div className="mt-2 text-sm rounded-lg p-3 bg-emerald-50 border border-emerald-200 text-gray-900">
             {msg}
           </div>
         )}
+
+        <div className="pt-2 text-center text-sm text-gray-600">
+          <a href="/login" className="hover:underline">로그인으로 돌아가기</a>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
 

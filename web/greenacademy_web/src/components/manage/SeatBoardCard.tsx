@@ -13,54 +13,28 @@ type Props = {
   onExpand?: () => void;
 };
 
-/* 상태별 색상 */
 function statusClass(att?: string | null): string {
   const s = (att ?? "").toUpperCase();
-  if (s.includes("PRESENT") || s.includes("출석"))
-    return "bg-emerald-100 text-emerald-700 border-emerald-300";
-  if (s.includes("LATE") || s.includes("지각"))
-    return "bg-yellow-100 text-yellow-700 border-yellow-300";
-  if (s.includes("ABSENT") || s.includes("결석"))
-    return "bg-rose-100 text-rose-700 border-rose-300";
+  if (s.includes("PRESENT") || s.includes("출석")) return "bg-emerald-100 text-emerald-700 border-emerald-300";
+  if (s.includes("LATE") || s.includes("지각")) return "bg-amber-100 text-amber-700 border-amber-300";
+  if (s.includes("ABSENT") || s.includes("결석")) return "bg-rose-100 text-rose-700 border-rose-300";
   if (s.includes("MOVE") || s.includes("BREAK") || s.includes("WAIT") || s.includes("RELOC") || s.includes("LOBBY"))
     return "bg-blue-100 text-blue-700 border-blue-300";
   return "bg-gray-100 text-gray-700 border-gray-300";
 }
 
 const STATUS_STYLES = {
-  present: {
-    bg: "bg-emerald-50",
-    border: "border-emerald-400",
-    text: "text-emerald-700",
-  },
-  late: {
-    bg: "bg-amber-50",
-    border: "border-amber-400",
-    text: "text-amber-700",
-  },
-  absent: {
-    bg: "bg-rose-50",
-    border: "border-rose-400",
-    text: "text-rose-700",
-  },
-  move: {
-    bg: "bg-blue-50",
-    border: "border-blue-400",
-    text: "text-blue-700",
-  },
-  none: {
-    bg: "bg-gray-50",
-    border: "border-gray-300",
-    text: "text-gray-700",
-  },
+  present: { bg: "bg-emerald-50", border: "border-emerald-400", text: "text-emerald-700" },
+  late: { bg: "bg-amber-50", border: "border-amber-400", text: "text-amber-700" },
+  absent: { bg: "bg-rose-50", border: "border-rose-400", text: "text-rose-700" },
+  move: { bg: "bg-blue-50", border: "border-blue-400", text: "text-blue-700" },
+  none: { bg: "bg-gray-50", border: "border-gray-300", text: "text-gray-700" },
 } as const;
 
 function Badge({ label, variant }: { label: string; variant: keyof typeof STATUS_STYLES }) {
   const v = STATUS_STYLES[variant];
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${v.bg} ${v.border} ${v.text}`}
-    >
+    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${v.bg} ${v.border} ${v.text}`}>
       {label}
     </span>
   );
@@ -101,17 +75,13 @@ function computeCounts(board: SeatBoardResponse | null) {
 }
 
 function CanvasVectorBoard({ seats }: { seats: SeatBoardSeat[] }) {
-  // 좌표/크기가 없을 때 기본값 사용
   const cw = 1000;
   const ch = 600;
   const ratio = (ch / cw) * 100;
 
   return (
     <div className="w-full">
-      <div
-        className="relative w-full border rounded-2xl bg-white ring-1 ring-black/5 shadow-sm"
-        style={{ paddingTop: `${ratio}%` }}
-      >
+      <div className="relative w-full border rounded-2xl bg-white ring-1 ring-black/5 shadow-sm" style={{ paddingTop: `${ratio}%` }}>
         {(seats ?? []).map((s, idx) => {
           const left = `${Math.max(0, Math.min(1, s.x ?? 0)) * 100}%`;
           const top = `${Math.max(0, Math.min(1, s.y ?? 0)) * 100}%`;
@@ -132,9 +102,7 @@ function CanvasVectorBoard({ seats }: { seats: SeatBoardSeat[] }) {
           );
         })}
         {(!seats || seats.length === 0) && (
-          <div className="absolute inset-0 grid place-items-center text-sm text-gray-600">
-            좌석 배치가 없습니다.
-          </div>
+          <div className="absolute inset-0 grid place-items-center text-sm text-gray-600">좌석 배치가 없습니다.</div>
         )}
       </div>
     </div>
@@ -163,10 +131,7 @@ function CanvasGridBoard({ seats, rows, cols }: { seats: SeatBoardSeat[]; rows?:
 
   return (
     <div className="w-full overflow-auto">
-      <div
-        className="grid gap-2"
-        style={{ gridTemplateColumns: `repeat(${Math.max(c || 1, 1)}, minmax(44px, 1fr))` }}
-      >
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(c || 1, 1)}, minmax(44px, 1fr))` }}>
         {grid.flatMap((row, ri) =>
           row.map((cell, ci) => (
             <div key={`${ri}-${ci}`} className="h-12">
@@ -180,9 +145,7 @@ function CanvasGridBoard({ seats, rows, cols }: { seats: SeatBoardSeat[]; rows?:
                   <div className="px-2 text-center leading-tight">
                     <div className="font-medium">{cell.seatNumber ?? ""}</div>
                     {(cell.studentName || cell.studentId) && (
-                      <div className="opacity-80 truncate">
-                        {cell.studentName ?? cell.studentId}
-                      </div>
+                      <div className="opacity-80 truncate">{cell.studentName ?? cell.studentId}</div>
                     )}
                   </div>
                 </div>
@@ -200,8 +163,7 @@ function CanvasGridBoard({ seats, rows, cols }: { seats: SeatBoardSeat[]; rows?:
 export default function SeatBoardCard({ title, date, board, loading, error, onExpand }: Props) {
   const counts = computeCounts(board);
   const isVector =
-    board?.layoutType === "vector" ||
-    (board?.seats ?? []).some((s) => s?.x != null || s?.w != null || s?.h != null);
+    board?.layoutType === "vector" || (board?.seats ?? []).some((s) => s?.x != null || s?.w != null || s?.h != null);
 
   const clickable = typeof onExpand === "function";
 
@@ -230,9 +192,7 @@ export default function SeatBoardCard({ title, date, board, loading, error, onEx
       </div>
 
       <div
-        className={`flex flex-col gap-1.5 mb-3 ${
-          clickable ? "cursor-pointer select-none" : ""
-        }`}
+        className={`flex flex-col gap-1.5 mb-3 ${clickable ? "cursor-pointer select-none" : ""}`}
         onClick={clickable ? onExpand : undefined}
         role={clickable ? "button" : undefined}
         tabIndex={clickable ? 0 : undefined}
@@ -245,43 +205,23 @@ export default function SeatBoardCard({ title, date, board, loading, error, onEx
           <Badge label="미기록" variant="none" />
         </div>
         <div className="text-[11px] text-gray-700">
-          전체 합계 — 출석 {counts.present} · 지각 {counts.late} · 결석 {counts.absent} · 이동/휴식 {counts.move} · 미기록 {counts.none}
+          출석 {counts.present} · 지각 {counts.late} · 결석 {counts.absent} · 대기/이동/휴식 {counts.move} · 미기록 {counts.none}
         </div>
       </div>
 
-      {error && (
-        <div className="mb-3 text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded px-3 py-2">
-          {error}
-        </div>
-      )}
+      {error && <div className="text-sm text-rose-600 mb-3">{error}</div>}
 
-      {loading ? (
-        <div className="text-sm text-gray-700">로딩 중…</div>
+      {loading && !board ? (
+        <div className="text-sm text-gray-500">좌석판을 불러오는 중…</div>
       ) : !board ? (
-        <div className="text-gray-600">좌석 데이터가 없습니다.</div>
+        <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 text-sm text-gray-700">
+          오늘 표시할 좌석판이 없습니다.
+        </div>
       ) : isVector ? (
         <CanvasVectorBoard seats={board.seats ?? []} />
       ) : (
         <CanvasGridBoard seats={board.seats ?? []} rows={board.rows} cols={board.cols} />
       )}
-
-      <div className="mt-5">
-        <div className="text-sm font-semibold text-black mb-2">대기/이동/외출 명단</div>
-        <div className="flex flex-wrap gap-2">
-          {(board?.waiting ?? []).map((w) => (
-            <span
-              key={w.studentId}
-              className="text-xs rounded-full border px-2 py-1 bg-blue-50 text-blue-700 border-blue-200"
-              title={w.checkedInAt ?? ""}
-            >
-              {(w.studentName ?? w.studentId) + (w.status ? ` · ${w.status}` : "")}
-            </span>
-          ))}
-          {(board?.waiting?.length ?? 0) === 0 && (
-            <span className="text-xs text-gray-500">현재 대기/이동/외출 학생 없음</span>
-          )}
-        </div>
-      </div>
     </section>
   );
 }

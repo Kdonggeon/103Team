@@ -430,6 +430,22 @@ export default function NoticePanel() {
     return myClassesSet.size > 0;
   }, [role, myClassesSet]);
 
+  const classNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of classes) {
+      const id = (c.id || "").trim();
+      if (!id) continue;
+      const nm = (c.name || "").trim();
+      if (nm) map.set(id, nm);
+    }
+    for (const n of notices) {
+      const id = (n.classId || "").trim();
+      const nm = pickName({ name: n.className, Class_Name: (n as any)?.Class_Name });
+      if (id && nm && !map.has(id)) map.set(id, nm);
+    }
+    return map;
+  }, [classes, notices]);
+
   /** 과목 스피너 옵션 구성 */
   const classOptions = useMemo(() => {
     const ids = new Set<string>();
