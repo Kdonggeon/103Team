@@ -158,8 +158,6 @@ export { ApiError };
  * 내부 유틸
  * ========================================================================== */
 
-/** 백엔드 베이스 URL: .env에 NEXT_PUBLIC_API_BASE 없으면 localhost:9090 */
-/** 백엔드 베이스 URL: Next rewrites(/backend → EC2) 사용 */
 const BASE_URL = "/backend";
 
 

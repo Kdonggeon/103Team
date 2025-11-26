@@ -7,7 +7,6 @@ import React, { useEffect, useState } from "react";
  * API 베이스
  * - Vercel 배포: NEXT_PUBLIC_API_BASE 없으면 "/backend"
  *   → next.config.mjs 에서 /backend → EC2(13.217.211.242:9090) 로 프록시
- * - 로컬 개발: NEXT_PUBLIC_API_BASE= "http://localhost:9090" 같은 식으로 .env에서 직접 지정
  */
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "/backend").replace(/\/$/, "");
 

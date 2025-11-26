@@ -1,5 +1,5 @@
 "use client";
-import TeacherManagePanel from "@/app/teacher/TeacherManagePanel";
+import TeacherMainPanel from "@/components/manage/TeacherMainPanel";
 import { getSession } from "@/app/lib/session";
 
 export default function TeacherClassesPage() {
@@ -11,7 +11,7 @@ export default function TeacherClassesPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-6">
-      <TeacherManagePanel user={me} />
+      <TeacherMainPanel user={me} />
     </div>
   );
 }

@@ -36,7 +36,6 @@ export type Room = {
  * - 실제 운영 기준:
  *   - NEXT_PUBLIC_API_BASE가 있으면 그걸 사용
  *   - 없으면 /backend (Next rewrite → 백엔드로 프록시)
- * - 더 이상 localhost:9090 하드코딩 없음
  */
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "/backend").replace(/\/$/, "");
 
