@@ -97,6 +97,18 @@ type SeatCell = {
   attendance?: string;
 };
 
+const notifyKey = (kind: "notice" | "qna", user?: string | null) =>
+  `${kind}:lastSeen:${user || "anon"}`;
+
+const maxTime = (...vals: (string | undefined | null)[]) =>
+  Math.max(
+    ...vals.map((v) => {
+      if (!v) return 0;
+      const t = new Date(v).getTime();
+      return Number.isFinite(t) ? t : 0;
+    })
+  );
+
 /** 날짜 유틸 */
 const toYmd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -220,7 +232,15 @@ function NavTabs({
 const colors = { green: "#65E478", grayBg: "#F2F4F7" };
 
 /** 프로필 드롭다운 */
-function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
+function ProfileMenu({
+  user,
+  hasNotice,
+  hasQna,
+}: {
+  user: NonNullable<LoginSession> | null;
+  hasNotice?: boolean;
+  hasQna?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -243,12 +263,15 @@ function ProfileMenu({ user }: { user: NonNullable<LoginSession> | null }) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((p) => !p)}
-        className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
+        className="relative w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="프로필 메뉴 열기"
       >
         {initial}
+        {(hasNotice || hasQna) && (
+          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white" />
+        )}
       </button>
 
       {open && (
@@ -581,6 +604,8 @@ export default function GreenAcademyDashboard() {
 
   const [forcedQnaId, setForcedQnaId] = useState<string | null>(null);
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
+  const [hasNoticeAlert, setHasNoticeAlert] = useState(false);
+  const [hasQnaAlert, setHasQnaAlert] = useState(false);
 
   /** 🔥 세션 로드 & 가드 (localStorage("login") 우선 반영) */
   useEffect(() => {
@@ -643,6 +668,65 @@ export default function GreenAcademyDashboard() {
     }
   }, [user]);
 
+  /** 공지/QnA 알림 체크 */
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      const noticeKey = notifyKey("notice", user.username);
+      const qnaKey = notifyKey("qna", user.username);
+
+      // 공지
+      try {
+        const notices: any[] = await apiGet("/api/notices");
+        const latest = notices
+          .map((n) => n?.createdAt || n?.updatedAt || n?.created_at)
+          .filter(Boolean);
+        const latestTs = latest.length ? maxTime(...latest) : 0;
+        const lastSeenTs = (() => {
+          try {
+            const s = localStorage.getItem(noticeKey);
+            return s ? new Date(s).getTime() : 0;
+          } catch {
+            return 0;
+          }
+        })();
+        setHasNoticeAlert(latestTs > lastSeenTs);
+      } catch {
+        /* ignore */
+      }
+
+      // QnA
+      try {
+        const qs = await listQuestions();
+        const unread = qs.some((q) => (q.unreadCount ?? 0) > 0);
+        const latestTs = qs.length
+          ? Math.max(
+              ...qs.map((q) =>
+                maxTime(
+                  q.lastFollowupAt as any,
+                  q.lastParentMsgAt as any,
+                  q.lastStudentMsgAt as any,
+                  q.updatedAt as any,
+                  q.createdAt as any
+                )
+              )
+            )
+          : 0;
+        const lastSeenTs = (() => {
+          try {
+            const s = localStorage.getItem(qnaKey);
+            return s ? new Date(s).getTime() : 0;
+          } catch {
+            return 0;
+          }
+        })();
+        setHasQnaAlert(unread || latestTs > lastSeenTs);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [user]);
+
   /** 역할별 데이터 로딩 (종합정보) */
   useEffect(() => {
     if (!ready || !user) return;
@@ -693,6 +777,9 @@ export default function GreenAcademyDashboard() {
       if (recent?.questionId) {
         setForcedQnaId(recent.questionId);
         setActiveTab("Q&A");
+        // QnA 열었으므로 lastSeen 갱신
+        const key = notifyKey("qna", user?.username);
+        try { localStorage.setItem(key, new Date().toISOString()); } catch {}
       } else {
         alert("최근 QnA가 없습니다.");
       }
@@ -721,6 +808,15 @@ export default function GreenAcademyDashboard() {
     }
 
     if (t !== "Q&A") setForcedQnaId(null);
+    // 탭 이동 시 알림 소거
+    if (t === "Q&A") {
+      try { localStorage.setItem(notifyKey("qna", user?.username), new Date().toISOString()); } catch {}
+      setHasQnaAlert(false);
+    }
+    if (t === "공지사항") {
+      try { localStorage.setItem(notifyKey("notice", user?.username), new Date().toISOString()); } catch {}
+      setHasNoticeAlert(false);
+    }
   };
 
   if (!ready) return null;
@@ -759,8 +855,8 @@ export default function GreenAcademyDashboard() {
             }}
           />
 
-          <ProfileMenu user={user} />
-        </div>
+        <ProfileMenu user={user} hasNotice={hasNoticeAlert} hasQna={hasQnaAlert} />
+      </div>
       </header>
 
       {/* 본문 */}

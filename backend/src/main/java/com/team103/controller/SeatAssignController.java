@@ -139,7 +139,8 @@ public class SeatAssignController {
             if (Boolean.TRUE.equals(req.getUnassign())) {
                 seatBoardService.unassignSeat(classId, ymd, seatLabel);
             } else {
-                seatBoardService.assignSeat(classId, ymd, seatLabel, req.getStudentId());
+                boolean markAttendance = !"manual".equalsIgnoreCase(req.getSource());
+                seatBoardService.assignSeat(classId, ymd, seatLabel, req.getStudentId(), markAttendance);
             }
             SeatBoardResponse board = seatBoardService.getSeatBoard(classId, ymd);
             return ResponseEntity.ok(board);

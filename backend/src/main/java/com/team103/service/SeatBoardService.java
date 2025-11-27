@@ -475,6 +475,13 @@ public class SeatBoardService {
     }
 
     public void assignSeat(String classId,String date,String seatLabel,String studentId){
+        assignSeat(classId, date, seatLabel, studentId, true);
+    }
+
+    /**
+     * @param markAttendance true이면 좌석 배정과 함께 출결 상태도 판정(기존 QR 동작), false이면 좌석만 배정
+     */
+    public void assignSeat(String classId,String date,String seatLabel,String studentId, boolean markAttendance){
         if(isBlank(seatLabel)||isBlank(studentId))
             throw new IllegalArgumentException("seatLabel/studentId required");
         String ymd=isBlank(date)?todayYmd():date.trim();
@@ -489,18 +496,22 @@ public class SeatBoardService {
         list.add(a);
         att.setSeatAssignments(list);
 
-        // 🔥 수업 시작 시간 기준으로 출석/지각/결석 판정
-        Course c = courseRepo.findByClassId(classId).orElse(null);
-        String newStatus = decideStatusForCheckIn(c, ymd);
+        if (markAttendance) {
+            // 🔥 수업 시작 시간 기준으로 출석/지각/결석 판정
+            Course c = courseRepo.findByClassId(classId).orElse(null);
+            String newStatus = decideStatusForCheckIn(c, ymd);
 
-        ensureAttendanceStatus(att,studentId,newStatus);
-        attRepo.save(att);
+            ensureAttendanceStatus(att,studentId,newStatus);
+            attRepo.save(att);
 
-        // 웨이팅 삭제
-        try{
-            Integer an=(Integer)tryInvoke(c,"getAcademyNumber",null,null);
-            if(an!=null)waitingRepo.deleteByAcademyNumberAndStudentId(an,studentId);
-        }catch(Exception ignore){}
+            // 웨이팅 삭제
+            try{
+                Integer an=(Integer)tryInvoke(c,"getAcademyNumber",null,null);
+                if(an!=null)waitingRepo.deleteByAcademyNumberAndStudentId(an,studentId);
+            }catch(Exception ignore){}
+        } else {
+            attRepo.save(att);
+        }
     }
 
     public void unassignSeat(String classId,String date,String seatLabel){

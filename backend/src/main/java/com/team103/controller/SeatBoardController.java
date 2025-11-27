@@ -58,7 +58,8 @@ public class SeatBoardController {
             throw new IllegalArgumentException("seatLabel/seatNumber required");
         }
 
-        seatBoardService.assignSeat(classId, date, seatLabel, req.getStudentId()); // 내부에서 '출석' 처리까지
+        // 교사/원장 수동 배정은 출결을 자동으로 올리지 않음
+        seatBoardService.assignSeat(classId, date, seatLabel, req.getStudentId(), false);
         return ResponseEntity.noContent().build();
     }
 
