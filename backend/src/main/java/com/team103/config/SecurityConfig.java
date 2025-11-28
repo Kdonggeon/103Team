@@ -203,6 +203,18 @@ public class SecurityConfig {
             // JWT 필터 추가
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
+        // 보안 헤더 강화
+        http.headers(headers -> headers
+            .contentSecurityPolicy(csp -> csp
+                .policyDirectives("default-src 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"))
+            .xssProtection(xss -> xss.disable()) // 최신 브라우저는 CSP로 대체
+            .frameOptions(frame -> frame.deny())
+            .referrerPolicy(ref -> ref.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+            .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).preload(true))
+            .defaultsDisabled()
+            .contentTypeOptions(contentType -> {})
+        );
+
         return http.build();
     }
 

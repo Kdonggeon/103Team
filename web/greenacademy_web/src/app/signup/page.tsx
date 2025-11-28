@@ -50,7 +50,6 @@ const parentSchema = z.object({
   parentsName: baseRequired("이름"),
   parentsPhoneNumber: phoneString("전화번호"),
   parentsNumber: z.string().optional(),
-  academyNumber: z.coerce.number().int().nonnegative().optional(), // 단일 숫자
 });
 
 const teacherSchema = z.object({
@@ -59,7 +58,6 @@ const teacherSchema = z.object({
   teacherPw: baseRequired("비밀번호").min(4),
   teacherName: baseRequired("이름"),
   teacherPhoneNumber: phoneString("전화번호"),
-  academyNumber: z.coerce.number().int().nonnegative().optional(), // 단일 숫자
 });
 
 // ✅ 원장은 학원번호 입력 안 함 (백엔드에서 자동 생성)
@@ -115,7 +113,6 @@ export function payloadMapper(values: FormValues) {
         parentsName: values.parentsName,
         parentsPhoneNumber: values.parentsPhoneNumber,
         parentsNumber: values.parentsNumber ?? null,
-        academyNumber: values.academyNumber ?? 0,
       };
     case "teacher":
       return {
@@ -123,7 +120,6 @@ export function payloadMapper(values: FormValues) {
         teacherPw: values.teacherPw,
         teacherName: values.teacherName,
         teacherPhoneNumber: values.teacherPhoneNumber,
-        academyNumber: values.academyNumber ?? 0,
       };
     case "director":
       // ✅ 학원번호는 백엔드에서 자동 생성
@@ -216,8 +212,7 @@ function RoleFields() {
         <Field name="parentsPw" label="비밀번호" type="password" />
         <Field name="parentsName" label="이름" />
         <Field name="parentsPhoneNumber" label="전화번호" placeholder="010-1234-5678" />
-        {/* <Field name="parentsNumber" label="학부모 번호(선택)" /> */}
-        <Field name="academyNumber" label="학원 번호" type="number" />
+        {/* 학부모 번호 필드가 필요하면 여기에 추가 */}
       </div>
     );
   }
@@ -229,7 +224,6 @@ function RoleFields() {
         <Field name="teacherPw" label="비밀번호" type="password" />
         <Field name="teacherName" label="이름" />
         <Field name="teacherPhoneNumber" label="전화번호" placeholder="010-1234-5678" />
-        <Field name="academyNumber" label="학원 번호" type="number" />
       </div>
     );
   }
@@ -379,9 +373,8 @@ if (process.env.NODE_ENV !== "production") {
       parentsName: "부모",
       parentsPhoneNumber: "010-3333-4444",
       parentsNumber: "PN-1",
-      academyNumber: 101,
     } as any);
-    console.assert("parentsId" in p && typeof p.academyNumber === "number", "parent payload shape ok");
+    console.assert("parentsId" in p && !("academyNumber" in p), "parent payload shape ok");
 
     const t = payloadMapper({
       role: "teacher",
@@ -389,9 +382,8 @@ if (process.env.NODE_ENV !== "production") {
       teacherPw: "pw",
       teacherName: "선생님",
       teacherPhoneNumber: "010-5555-6666",
-      academyNumber: 201,
     } as any);
-    console.assert("teacherId" in t && typeof t.academyNumber === "number", "teacher payload shape ok");
+    console.assert("teacherId" in t && !("academyNumber" in t), "teacher payload shape ok");
 
     const d = payloadMapper({
       role: "director",

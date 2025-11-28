@@ -3,6 +3,7 @@ package com.team103.controller;
 import com.team103.dto.AccountDeleteRequest;
 import com.team103.model.*;
 import com.team103.repository.*;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -33,13 +34,7 @@ public class AccountController {
     }
 
     @PostMapping("/delete")
-    public ResponseEntity<?> delete(@RequestBody AccountDeleteRequest req) {
-        if (req == null || req.getRole() == null || req.getId() == null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "role, id는 필수입니다."));
-        }
-        if (!req.isConfirm()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "탈퇴 확인에 동의가 필요합니다."));
-        }
+    public ResponseEntity<?> delete(@Valid @RequestBody AccountDeleteRequest req) {
 
         String role = req.getRole().trim().toLowerCase();
         String id   = req.getId().trim();

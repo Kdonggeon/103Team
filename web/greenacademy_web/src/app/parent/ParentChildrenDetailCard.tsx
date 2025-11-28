@@ -169,6 +169,20 @@ export default function ParentChildrenDetailCard() {
     [children, selectedChild]
   );
 
+  const approvedAcademies = useMemo(
+    () =>
+      requests
+        .filter((r) => r.status === "APPROVED")
+        .map((r) => Number(r.academyNumber))
+        .filter(Number.isFinite),
+    [requests]
+  );
+
+  const displayAcademies = useMemo(() => {
+    const base = Array.isArray(selectedChildObj?.academies) ? selectedChildObj!.academies! : [];
+    return Array.from(new Set([...base, ...approvedAcademies]));
+  }, [selectedChildObj, approvedAcademies]);
+
   /** 상세 출력 빌더 — 학원번호는 제외 */
   function isEmpty(v: any) {
     if (v === null || v === undefined) return true;
@@ -348,9 +362,9 @@ export default function ParentChildrenDetailCard() {
                     <div className="text-xs font-medium text-gray-900 mb-1">현재 학원번호</div>
                     {!selectedChildObj ? (
                       <div className="text-sm text-gray-600">자녀를 먼저 선택하세요.</div>
-                    ) : selectedChildObj.academies?.length ? (
+                    ) : displayAcademies.length ? (
                       <div className="flex flex-wrap gap-2 overflow-x-auto">
-                        {selectedChildObj.academies!.map((n) => (
+                        {displayAcademies.map((n) => (
                           <span key={n} className="inline-flex items-center gap-2 rounded-full bg-gray-50 ring-1 ring-gray-200 px-3 py-1 text-sm text-gray-900">
                             #{n}
                           </span>
@@ -363,27 +377,25 @@ export default function ParentChildrenDetailCard() {
 
                   <div className="mb-3">
                     <div className="text-xs font-medium text-gray-900 mb-1">내 승인 요청</div>
-                    {!requests.length ? (
+                    {requests.filter((r) => r.status !== "APPROVED").length === 0 ? (
                       <div className="text-sm text-gray-600">대기 중인 요청이 없습니다.</div>
                     ) : (
                       <div className="space-y-2">
-                        {requests.map((r) => (
+                        {requests.filter((r) => r.status !== "APPROVED").map((r) => (
                           <div key={r.id} className="rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2 flex items-center justify-between text-sm">
                             <div>
                               <div className="font-semibold text-gray-900">학원 #{r.academyNumber}</div>
                               <div className="text-xs text-gray-600">
-                                {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                                {r.status === "PENDING" ? "대기" : "거절"}
                                 {r.processedMemo ? ` · ${r.processedMemo}` : ""}
                               </div>
                             </div>
                             <span className={`px-2 py-0.5 rounded-full text-xs ${
-                              r.status === "APPROVED"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : r.status === "REJECTED"
+                              r.status === "REJECTED"
                                 ? "bg-rose-100 text-rose-700"
                                 : "bg-amber-100 text-amber-700"
                             }`}>
-                              {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                              {r.status === "PENDING" ? "대기" : "거절"}
                             </span>
                           </div>
                         ))}

@@ -14,6 +14,7 @@ import api, { type LoginResponse } from "@/app/lib/api";
 import DirectorRoomsPanel from "@/components/rooms/director/DirectorRoomsPanel";
 import TeacherManagePanel from "@/components/manage/TeacherManagePanel";
 import TeacherSchedulePanelInline from "@/components/manage/TeacherSchedulePanelInline";
+import DirectorRegistrationPanel from "@/components/manage/DirectorRegistrationPanel";
 
 // ⚠️ 경로가 같은 이름이라 헷갈리지 않도록 명확히 분리해서 임포트
 // 출결 전용(원장 탭 '출결확인'에서 쓰는) 패널 = components 경로
@@ -671,9 +672,6 @@ export default function GreenAcademyDashboard() {
   const [hasNoticeAlert, setHasNoticeAlert] = useState(false);
   const [hasQnaAlert, setHasQnaAlert] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<number>(0);
-  const [pendingList, setPendingList] = useState<any[]>([]);
-  const [pendingErr, setPendingErr] = useState<string | null>(null);
-  const [pendingLoading, setPendingLoading] = useState(false);
 
   /** 🔥 세션 로드 & 가드 (localStorage("login") 우선 반영) */
   useEffect(() => {
@@ -810,20 +808,15 @@ export default function GreenAcademyDashboard() {
   useEffect(() => {
     if (!user || user.role !== "director") {
       setPendingApproval(0);
-      setPendingList([]);
-      setPendingErr(null);
       return;
     }
     const acad = user.academyNumbers?.[0];
     if (!acad) {
       setPendingApproval(0);
-      setPendingList([]);
-      setPendingErr(null);
       return;
     }
     let aborted = false;
     (async () => {
-      setPendingLoading(true);
       try {
         const rows = await apiGet<any[]>(
           `/api/academy-requests?scope=director&academyNumber=${encodeURIComponent(acad)}&status=PENDING`
@@ -831,17 +824,11 @@ export default function GreenAcademyDashboard() {
         if (!aborted) {
           const arr = Array.isArray(rows) ? rows : [];
           setPendingApproval(arr.length);
-          setPendingList(arr);
-          setPendingErr(null);
         }
       } catch (e: any) {
         if (!aborted) {
           setPendingApproval(0);
-          setPendingList([]);
-          setPendingErr(e?.message ?? "승인 요청을 불러오지 못했습니다.");
         }
-      } finally {
-        if (!aborted) setPendingLoading(false);
       }
     })();
     return () => { aborted = true; };
@@ -989,7 +976,10 @@ export default function GreenAcademyDashboard() {
             setActiveTab("Q&A");
             try { localStorage.setItem(notifyKey("qna", user?.username), new Date().toISOString()); } catch {}
           }}
-          onGoApproval={() => router.push("/director/registration")}
+          onGoApproval={() => {
+            setActiveTab("관리");
+            setManageMenu("등록관리");
+          }}
         />
       </div>
       </header>
@@ -1059,43 +1049,7 @@ export default function GreenAcademyDashboard() {
 
             {/* 등록관리: 원장 전용 링크 */}
             {manageMenu === "등록관리" && user?.role === "director" && (
-              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 space-y-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">등록관리</h2>
-                  <p className="text-sm text-gray-700">대기 중 승인 요청을 확인하고 처리하세요.</p>
-                </div>
-
-                {pendingErr && (
-                  <div className="rounded-lg bg-rose-50 text-rose-700 text-sm px-3 py-2 ring-1 ring-rose-200">
-                    {pendingErr}
-                  </div>
-                )}
-                {pendingLoading && <div className="text-sm text-gray-600">불러오는 중…</div>}
-                {!pendingLoading && pendingList.length === 0 && !pendingErr && (
-                  <div className="text-sm text-gray-700">대기 중인 요청이 없습니다.</div>
-                )}
-
-                <div className="space-y-2">
-                  {pendingList.slice(0, 5).map((r, idx) => (
-                    <div
-                      key={`${r.id ?? idx}`}
-                      className="rounded-xl ring-1 ring-gray-200 bg-white px-3 py-2 flex items-center justify-between text-sm"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-semibold text-gray-900">
-                          학원 #{r.academyNumber} · {r.requesterRole} · {r.requesterId}
-                        </div>
-                        <div className="text-xs text-gray-600 truncate">
-                          {r.memo || "메모 없음"}
-                        </div>
-                      </div>
-                      <span className="text-xs text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-2 py-0.5 rounded-full">
-                        대기
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <DirectorRegistrationPanel />
             )}
 
             {/* QR 생성 */}

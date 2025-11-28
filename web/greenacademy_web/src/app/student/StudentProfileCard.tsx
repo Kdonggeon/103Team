@@ -201,6 +201,20 @@ export default function StudentProfileCard() {
     return Array.from(new Set(arr.map((x) => Number(x)).filter(Number.isFinite)));
   }, [detail, login]);
 
+  const approvedAcademies = useMemo(
+    () =>
+      requests
+        .filter((r) => r.status === "APPROVED")
+        .map((r) => Number(r.academyNumber))
+        .filter(Number.isFinite),
+    [requests]
+  );
+
+  const displayAcademies = useMemo(
+    () => Array.from(new Set([...academies, ...approvedAcademies])),
+    [academies, approvedAcademies]
+  );
+
   // 내 승인 요청 목록
   useEffect(() => {
     if (!studentId) return;
@@ -260,9 +274,9 @@ export default function StudentProfileCard() {
     push("학년", pick(detail, ["Grade", "grade", "year"]));
     push("성별", pick(detail, ["Gender", "gender", "sex"]));
     // 학원번호는 보기만
-    push("학원번호", academies, formatAcademies);
+    push("학원번호", displayAcademies, formatAcademies);
     return out;
-  }, [detail, academies]);
+  }, [detail, displayAcademies]);
 
   return (
     <div className="space-y-5">
@@ -332,27 +346,25 @@ export default function StudentProfileCard() {
 
           <div className="mt-3">
             <div className="text-xs font-medium text-gray-900 mb-1">내 승인 요청</div>
-            {!requests.length ? (
+            {requests.filter((r) => r.status !== "APPROVED").length === 0 ? (
               <div className="text-sm text-gray-600">대기 중인 요청이 없습니다.</div>
             ) : (
               <div className="space-y-2">
-                {requests.map((r) => (
+                {requests.filter((r) => r.status !== "APPROVED").map((r) => (
                   <div key={r.id} className="rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2 flex items-center justify-between text-sm">
                     <div>
                       <div className="font-semibold text-gray-900">학원 #{r.academyNumber}</div>
                       <div className="text-xs text-gray-600">
-                        {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                        {r.status === "PENDING" ? "대기" : "거절"}
                         {r.processedMemo ? ` · ${r.processedMemo}` : ""}
                       </div>
                     </div>
                     <span className={`px-2 py-0.5 rounded-full text-xs ${
-                      r.status === "APPROVED"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : r.status === "REJECTED"
+                      r.status === "REJECTED"
                         ? "bg-rose-100 text-rose-700"
                         : "bg-amber-100 text-amber-700"
                     }`}>
-                      {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                      {r.status === "PENDING" ? "대기" : "거절"}
                     </span>
                   </div>
                 ))}

@@ -325,6 +325,20 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
     return Array.from(new Set(nums));
   }, [src, user, login]);
 
+  const APPROVED_ACADEMIES = useMemo(
+    () =>
+      requests
+        .filter((r) => r.status === "APPROVED")
+        .map((r) => Number(r.academyNumber))
+        .filter(Number.isFinite),
+    [requests]
+  );
+
+  const DISPLAY_ACADEMY_NUMBERS = useMemo(
+    () => Array.from(new Set([...ACADEMY_NUMBERS, ...APPROVED_ACADEMIES])),
+    [ACADEMY_NUMBERS, APPROVED_ACADEMIES]
+  );
+
   /** 🔹 소속 해제 호출 */
   const handleDetach = async (academyNumber: number) => {
     if (!teacherId || !academyNumber) return;
@@ -453,11 +467,11 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
               <Info
                 label="학원번호"
                 value={
-                  ACADEMY_NUMBERS.length === 0 ? (
+                  DISPLAY_ACADEMY_NUMBERS.length === 0 ? (
                     "—"
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
-                      {ACADEMY_NUMBERS.map((n) => (
+                      {DISPLAY_ACADEMY_NUMBERS.map((n) => (
                         <span
                           key={n}
                           className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium bg-gray-100 text-gray-800 ring-1 ring-gray-200"
@@ -538,27 +552,25 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
 
           <div className="mt-3">
             <div className="text-xs font-medium text-gray-900 mb-1">내 승인 요청</div>
-            {!requests.length ? (
+            {requests.filter((r) => r.status !== "APPROVED").length === 0 ? (
               <div className="text-sm text-gray-600">대기 중인 요청이 없습니다.</div>
             ) : (
               <div className="space-y-2">
-                {requests.map((r) => (
+                {requests.filter((r) => r.status !== "APPROVED").map((r) => (
                   <div key={r.id} className="rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2 flex items-center justify-between text-sm">
                     <div>
                       <div className="font-semibold text-gray-900">학원 #{r.academyNumber}</div>
                       <div className="text-xs text-gray-600">
-                        {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                        {r.status === "PENDING" ? "대기" : "거절"}
                         {r.processedMemo ? ` · ${r.processedMemo}` : ""}
                       </div>
                     </div>
                     <span className={`px-2 py-0.5 rounded-full text-xs ${
-                      r.status === "APPROVED"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : r.status === "REJECTED"
+                      r.status === "REJECTED"
                         ? "bg-rose-100 text-rose-700"
                         : "bg-amber-100 text-amber-700"
                     }`}>
-                      {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                      {r.status === "PENDING" ? "대기" : "거절"}
                     </span>
                   </div>
                 ))}
