@@ -19,7 +19,7 @@
     <description>Login + MongoDB Backend</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>17</java.version>
         <start-class>com.team103.Team103BackendApplication</start-class>
     </properties>
 
@@ -123,8 +123,8 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.11.0</version>
                     <configuration>
-                        <!-- Use release flag to compile for Java 21 -->
-                        <release>21</release>
+                        <!-- Use release flag to compile for Java 17 -->
+                        <release>17</release>
                     </configuration>
                 </plugin>
 
