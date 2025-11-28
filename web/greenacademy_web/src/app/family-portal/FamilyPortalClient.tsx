@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getRecentQna } from "@/lib/qna";
+import { listQuestions } from "@/lib/qna";
 import QnaPanel from "../qna/QnaPanel";
 import TeacherQnaPanel from "../qna/TeacherQnaPanel";
 import ChildAttendancePanel from "../parent/ChildAttendancePanel";
@@ -13,6 +14,7 @@ import ChildSchedulePanel from "../parent/ChildSchedulePanel";
 import StudentProfileCard from "../student/StudentProfileCard";
 import StudentAttendancePanel from "../student/StudentAttendancePanel";
 import StudentTimetablePanel from "../student/StudentTimetablePanel";
+import { getSession as getServerSession } from "@/app/lib/session";
 
 // ✅ 공지 패널(목록/필터)
 import NoticePanel from "../notice/NoticePanel";
@@ -58,6 +60,18 @@ type Notice = {
   academyNumbers?: number[]; // 배열 스키마
   academyNumber?: number;    // 단일 스키마(혼재 대비)
 };
+
+const notifyKey = (kind: "notice" | "qna", user?: string | null) =>
+  `${kind}:lastSeen:${user || "anon"}`;
+
+const maxTime = (...vals: (string | undefined | null)[]) =>
+  Math.max(
+    ...vals.map((v) => {
+      if (!v) return 0;
+      const t = new Date(v).getTime();
+      return Number.isFinite(t) ? t : 0;
+    })
+  );
 
 /** 유틸 */
 // ❗ 빈 값이면 /backend 로 폴백
@@ -108,6 +122,43 @@ function getNoticeAcademies(n: Notice): number[] {
     .filter((v): v is number => v !== null);
 }
 
+/** 학원번호 최신화: 역할별 프로필 엔드포인트 조회 */
+async function fetchLatestAcademies(role: Role, username: string, token?: string): Promise<number[] | null> {
+  let path = "";
+  if (role === "student") path = `/api/students/${encodeURIComponent(username)}`;
+  else if (role === "parent") path = `/api/parents/${encodeURIComponent(username)}`;
+  else if (role === "teacher") path = `/api/teachers/${encodeURIComponent(username)}`;
+  else path = `/api/directors/${encodeURIComponent(username)}`;
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const raw =
+      data?.academyNumbers ??
+      data?.academyNumber ??
+      data?.academies ??
+      data?.academy ??
+      null;
+
+    if (Array.isArray(raw)) {
+      const nums = raw.map((v: any) => normAcadNum(v)).filter((v): v is number => v !== null);
+      return nums.length ? nums : null;
+    }
+
+    const single = normAcadNum(raw);
+    return single != null ? [single] : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 역할 문자열 정규화(부분일치) */
 function normalizeRole(raw?: unknown): Role {
   const s = String(raw ?? "").toLowerCase();
@@ -134,7 +185,6 @@ const TAB_TO_SLUG: Record<string, string> = {
   "시간표": "timetable",
   "Q&A": "qna",
   "공지사항": "notices",
-  "가이드": "guide",
 };
 function SLUG_TO_TAB(slug?: string | null): string {
   switch (slug) {
@@ -142,7 +192,6 @@ function SLUG_TO_TAB(slug?: string | null): string {
     case "timetable": return "시간표";
     case "qna": return "Q&A";
     case "notices": return "공지사항";
-    case "guide": return "가이드";
     case "home":
     default: return "종합정보";
   }
@@ -273,74 +322,93 @@ function NavTabs({
 }
 
 /** 프로필 드롭다운 */
-function ProfileMenu({ user }: { user: LoginSession | null }) {
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, []);
-
+function ProfileMenu({
+  user,
+  hasNotice,
+  hasQna,
+  hasApproval,
+  approvalSummary,
+  onGoNotice,
+  onGoQna,
+  onGoApproval,
+}: {
+  user: LoginSession | null;
+  hasNotice?: boolean;
+  hasQna?: boolean;
+  hasApproval?: boolean;
+  approvalSummary?: string;
+  onGoNotice?: () => void;
+  onGoQna?: () => void;
+  onGoApproval?: () => void;
+}) {
   const initial =
     user?.name?.[0]?.toUpperCase() ??
     user?.username?.[0]?.toUpperCase() ??
     "?";
 
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  const alerts: Array<{ label: string; onClick?: () => void }> = [];
+  if (hasNotice) alerts.push({ label: "공지 알림이 있습니다.", onClick: onGoNotice });
+  if (hasQna) alerts.push({ label: "Q&A 답변/메시지가 있습니다.", onClick: onGoQna });
+  if (hasApproval && approvalSummary) alerts.push({ label: approvalSummary, onClick: onGoApproval });
+  if (hasApproval && !approvalSummary) alerts.push({ label: "승인 요청이 대기 중입니다.", onClick: onGoApproval });
+  if (!alerts.length) alerts.push({ label: "새 알림이 없습니다." });
+
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" title={user?.name || user?.username || "프로필"} ref={ref}>
       <button
+        type="button"
         onClick={() => setOpen((p) => !p)}
-        className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="프로필 메뉴 열기"
+        className="relative w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-gray-900 ring-1 ring-black/5 hover:bg-gray-300 transition"
+        aria-label="프로필"
       >
         {initial}
+        {(hasNotice || hasQna || hasApproval) && (
+          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white" />
+        )}
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
-          <div className="px-4 py-2 text-xs font-medium text-gray-900 border-b border-gray-100">
-            {user?.name || user?.username}
+        <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-white shadow-lg ring-1 ring-black/10 z-30 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <div className="text-sm font-semibold text-gray-900">{user?.name || user?.username || "사용자"}</div>
+            <div className="text-xs text-gray-600">알림</div>
           </div>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/notifications");
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-          >
-            🔔 내 알림
-          </button>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings/theme");
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-          >
-            🎨 테마 설정
-          </button>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings");
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-50"
-          >
-            ⚙️ 환경 설정
-          </button>
+          <div className="divide-y divide-gray-100">
+            {alerts.map((a, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  a.onClick?.();
+                }}
+                className={`w-full text-left px-4 py-3 text-sm ${
+                  a.onClick ? "hover:bg-gray-50 text-gray-900" : "text-gray-800"
+                }`}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -586,6 +654,9 @@ export default function FamilyPortalClient() {
   const [err, setErr] = useState<string | null>(null);
   const [list, setList] = useState<Array<{ label: string; sub?: string; status?: string }>>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [hasNoticeAlert, setHasNoticeAlert] = useState(false);
+  const [hasQnaAlert, setHasQnaAlert] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<number>(0);
 
   // 통계
   const [present, setPresent] = useState(0);
@@ -602,49 +673,101 @@ export default function FamilyPortalClient() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const applyLogin = () => {
+    let aborted = false;
+
+    const applyLogin = async () => {
+      // 1) 서버 세션 우선
+      let base = getServerSession() as LoginSession | null;
+
+      // 2) localStorage("login") 병합 (동일 사용자만)
       const raw = localStorage.getItem("login");
-      if (!raw) {
+      if (!raw && !base) {
         router.replace("/login");
         return;
       }
-      try {
-        const parsed: any = JSON.parse(raw);
-        const nums =
-          Array.isArray(parsed?.academyNumbers)
+
+      if (raw) {
+        try {
+          const parsed: any = JSON.parse(raw);
+          const nums = Array.isArray(parsed?.academyNumbers)
             ? parsed.academyNumbers
                 .map((n: any) => Number(n))
                 .filter((n: number) => Number.isFinite(n))
             : [];
-        const normalized: LoginSession = {
-          role: normalizeRole(parsed?.role),
-          username: parsed?.username ?? "",
-          name: parsed?.name ?? undefined,
-          token: parsed?.token ?? undefined,
-          childStudentId: parsed?.childStudentId ?? null,
-          academyNumbers: nums,
-        };
-        setUser(normalized);
-        setReady(true);
-      } catch {
-        localStorage.removeItem("login");
-        router.replace("/login");
+          const stored: LoginSession = {
+            role: normalizeRole(parsed?.role),
+            username: parsed?.username ?? "",
+            name: parsed?.name ?? undefined,
+            token: parsed?.token ?? undefined,
+            childStudentId: parsed?.childStudentId ?? null,
+            academyNumbers: nums,
+          };
+
+          // base가 없거나 동일 사용자면 병합
+          if (!base || base.username === stored.username) {
+            base = {
+              ...(base ?? {}),
+              ...stored,
+              // 서버 세션에 학원번호가 있으면 덮어쓰지 않음
+              academyNumbers:
+                base?.academyNumbers && base.academyNumbers.length > 0
+                  ? base.academyNumbers
+                  : stored.academyNumbers,
+            } as LoginSession;
+          }
+        } catch {
+          localStorage.removeItem("login");
+        }
       }
+
+      if (!base) {
+        router.replace("/login");
+        return;
+      }
+
+      // 3) 최신 학원번호 동기화 (서버 조회) — 삭제/변경 반영
+      if (base.role && base.username) {
+        const fresh = await fetchLatestAcademies(base.role, base.username, base.token);
+        if (aborted) return;
+        if (fresh && fresh.length) {
+          base = { ...base, academyNumbers: fresh };
+          // localStorage도 최신 상태로 업데이트
+          try {
+            localStorage.setItem(
+              "login",
+              JSON.stringify({
+                role: base.role,
+                username: base.username,
+                name: base.name,
+                token: base.token,
+                childStudentId: base.childStudentId ?? null,
+                academyNumbers: fresh,
+              })
+            );
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
+      if (aborted) return;
+      setUser(base);
+      setReady(true);
     };
 
     // 처음 한 번
-    applyLogin();
+    void applyLogin();
 
     // 다른 탭에서 login이 바뀐 경우
     const onStorage = (e: StorageEvent) => {
       if (e.key === "login") {
-        applyLogin();
+        void applyLogin();
       }
     };
 
     // 같은 탭에서 /settings/profile 등에서 수정 후 다시 돌아왔을 때
     const onFocus = () => {
-      applyLogin();
+      void applyLogin();
     };
 
     window.addEventListener("storage", onStorage);
@@ -652,6 +775,7 @@ export default function FamilyPortalClient() {
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", onFocus);
+      aborted = true;
     };
   }, [router]);
 
@@ -667,6 +791,126 @@ export default function FamilyPortalClient() {
     } else {
       setAcademyNumber(null);
     }
+  }, [user]);
+
+  // 탭 진입 시 알림 해제 (공지/QnA)
+  useEffect(() => {
+    if (activeTab === "공지사항") {
+      try { localStorage.setItem(notifyKey("notice", user?.username), new Date().toISOString()); } catch {}
+      setHasNoticeAlert(false);
+    }
+    if (activeTab === "Q&A") {
+      try { localStorage.setItem(notifyKey("qna", user?.username), new Date().toISOString()); } catch {}
+      setHasQnaAlert(false);
+    }
+  }, [activeTab, user?.username]);
+
+  // 공지 알림 체크 (역할 공통)
+  useEffect(() => {
+    if (!user) {
+      setHasNoticeAlert(false);
+      return;
+    }
+    const allowed = new Set<number>(
+      (user.academyNumbers ?? [])
+        .map((n) => normAcadNum(n))
+        .filter((n): n is number => n !== null)
+    );
+    if (!allowed.size) {
+      setHasNoticeAlert(false);
+      return;
+    }
+    let aborted = false;
+    (async () => {
+      try {
+        const nsRaw = await apiGet<Notice[]>(
+          `${API_BASE}/api/notices?limit=20`,
+          user.token
+        );
+        const filtered = Array.isArray(nsRaw)
+          ? nsRaw.filter((n) => {
+              const nums = getNoticeAcademies(n);
+              if (nums.length === 0) return false;
+              return nums.some((x) => allowed.has(x));
+            })
+          : [];
+        const latestTs = filtered.length
+          ? Math.max(...filtered.map((n) => maxTime(n.createdAt)))
+          : 0;
+        const lastSeenTs = (() => {
+          try {
+            const s = localStorage.getItem(notifyKey("notice", user.username));
+            return s ? new Date(s).getTime() : 0;
+          } catch {
+            return 0;
+          }
+        })();
+        if (!aborted) setHasNoticeAlert(latestTs > lastSeenTs);
+      } catch {
+        if (!aborted) setHasNoticeAlert(false);
+      }
+    })();
+    return () => { aborted = true; };
+  }, [user]);
+
+  // 원장: 승인 요청 대기 건수
+  useEffect(() => {
+    if (!user || user.role !== "director") {
+      setPendingApproval(0);
+      return;
+    }
+    const acad = user.academyNumbers?.[0];
+    if (!acad) {
+      setPendingApproval(0);
+      return;
+    }
+    let aborted = false;
+    (async () => {
+      try {
+        const rows = await apiGet<any[]>(
+          `${API_BASE}/api/academy-requests?scope=director&academyNumber=${encodeURIComponent(acad)}&status=PENDING`,
+          user.token
+        );
+        if (!aborted) setPendingApproval(Array.isArray(rows) ? rows.length : 0);
+      } catch {
+        if (!aborted) setPendingApproval(0);
+      }
+    })();
+    return () => { aborted = true; };
+  }, [user]);
+  // QnA 알림 체크
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      try {
+        const qs = await listQuestions();
+        const unread = qs.some((q: any) => (q.unreadCount ?? 0) > 0);
+        const latestTs = qs.length
+          ? Math.max(
+              ...qs.map((q: any) =>
+                maxTime(
+                  q.lastFollowupAt,
+                  q.lastParentMsgAt,
+                  q.lastStudentMsgAt,
+                  q.updatedAt as any,
+                  q.createdAt as any
+                )
+              )
+            )
+          : 0;
+        const lastSeenTs = (() => {
+          try {
+            const s = localStorage.getItem(notifyKey("qna", user.username));
+            return s ? new Date(s).getTime() : 0;
+          } catch {
+            return 0;
+          }
+        })();
+        setHasQnaAlert(unread || latestTs > lastSeenTs);
+      } catch {
+        /* ignore */
+      }
+    })();
   }, [user]);
 
   // URL 파라미터
@@ -709,12 +953,12 @@ export default function FamilyPortalClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabParam, myParam, qnaParam, roleKey]);
 
-  // 탭 배열
+  // 탭 배열 (불필요한 "가이드" 제거)
   const tabs = useMemo(() => {
     if (user?.role === "student" || user?.role === "parent") {
-      return ["종합정보", "마이페이지", "시간표", "Q&A", "공지사항", "가이드"];
+      return ["종합정보", "마이페이지", "시간표", "Q&A", "공지사항"];
     }
-    return ["종합정보", "시간표", "Q&A", "공지사항", "가이드"];
+    return ["종합정보", "시간표", "Q&A", "공지사항"];
   }, [user?.role]);
 
   // 마이페이지 드롭다운 항목
@@ -796,6 +1040,19 @@ export default function FamilyPortalClient() {
             : [];
 
           setNotices(filtered.slice(0, 7));
+          // 알림(공지) 최신 시각 비교
+          const latestTs = filtered.length
+            ? Math.max(...filtered.map((n) => maxTime(n.createdAt)))
+            : 0;
+          const lastSeenTs = (() => {
+            try {
+              const s = localStorage.getItem(notifyKey("notice", user.username));
+              return s ? new Date(s).getTime() : 0;
+            } catch {
+              return 0;
+            }
+          })();
+          setHasNoticeAlert(latestTs > lastSeenTs);
         } catch {
           setNotices([]);
         }
@@ -894,6 +1151,14 @@ export default function FamilyPortalClient() {
     } else {
       // 공지 탭으로 이동할 때는 my 제거만
       params.delete("my");
+      // 공지 탭 진입 시 알림 소거
+      try { localStorage.setItem(notifyKey("notice", user?.username), new Date().toISOString()); } catch {}
+      setHasNoticeAlert(false);
+    }
+
+    if (slug === "qna") {
+      try { localStorage.setItem(notifyKey("qna", user?.username), new Date().toISOString()); } catch {}
+      setHasQnaAlert(false);
     }
     router.replace(`?${params.toString()}`);
   };
@@ -957,7 +1222,30 @@ export default function FamilyPortalClient() {
             onChange={onChangeTab}
             onPick={onPickMyPageItem}
           />
-          <ProfileMenu user={user} />
+          <ProfileMenu
+            user={user}
+            hasNotice={hasNoticeAlert}
+            hasQna={hasQnaAlert}
+            hasApproval={pendingApproval > 0}
+            approvalSummary={pendingApproval > 0 ? `승인 요청 ${pendingApproval}건 대기` : undefined}
+            onGoNotice={() => {
+              setActiveTab("공지사항");
+              try { localStorage.setItem(notifyKey("notice", user?.username), new Date().toISOString()); } catch {}
+              const params = new URLSearchParams(window.location.search);
+              params.set("tab", "notices");
+              params.delete("noticeId");
+              router.replace(`?${params.toString()}`);
+            }}
+            onGoQna={() => {
+              setActiveTab("Q&A");
+              try { localStorage.setItem(notifyKey("qna", user?.username), new Date().toISOString()); } catch {}
+              const params = new URLSearchParams(window.location.search);
+              params.set("tab", "qna");
+              params.delete("noticeId");
+              router.replace(`?${params.toString()}`);
+            }}
+            onGoApproval={() => router.push("/director/registration")}
+          />
         </div>
       </header>
 
@@ -1112,14 +1400,6 @@ export default function FamilyPortalClient() {
           </div>
         )}
 
-        {activeTab === "가이드" && (
-          <div className="space-y-4">
-            <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">가이드</h2>
-              <p className="text-sm text-gray-700">사용 설명서/튜토리얼 영역입니다.</p>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

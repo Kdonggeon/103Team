@@ -9,6 +9,16 @@ import api, { type LoginResponse, type CourseLite } from "@/app/lib/api";
 type Role = "parent" | "student" | "teacher" | "director";
 type LoginSession = { role: Role; username: string; name?: string; token?: string; academyNumbers?: number[] };
 type TeacherDetail = Record<string, any>;
+type AcademyRequest = {
+  id: string;
+  academyNumber: number;
+  status: "PENDING" | "APPROVED" | "REJECTED" | string;
+  memo?: string;
+  processedMemo?: string;
+  processedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 const API_BASE = "/backend";
 
@@ -188,6 +198,11 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
   // 모달/소속 해제 모드
   const [openEdit, setOpenEdit] = useState(false);
   const [detachMode, setDetachMode] = useState(false);
+  const [academyInput, setAcademyInput] = useState("");
+  const [requests, setRequests] = useState<AcademyRequest[]>([]);
+  const [reqMsg, setReqMsg] = useState<string | null>(null);
+  const [reqErr, setReqErr] = useState<string | null>(null);
+  const [savingReq, setSavingReq] = useState(false);
 
   useEffect(() => {
     if (!teacherId) return;
@@ -239,6 +254,53 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
       aborted = true;
     };
   }, [teacherId, token]);
+
+  // 승인 요청 목록
+  useEffect(() => {
+    if (!teacherId) return;
+    let aborted = false;
+    (async () => {
+      try {
+        const list = await tryGetJson(`/api/academy-requests?scope=mine&requesterId=${encodeURIComponent(teacherId)}&requesterRole=teacher`, token);
+        if (!aborted) setRequests(Array.isArray(list) ? list : []);
+      } catch {
+        if (!aborted) setRequests([]);
+      }
+    })();
+    return () => { aborted = true; };
+  }, [teacherId, token]);
+
+  const submitRequest = async () => {
+    const raw = academyInput.trim();
+    const num = Number(raw);
+    if (!Number.isFinite(num)) { setReqErr("숫자만 입력하세요."); setReqMsg(null); return; }
+    setSavingReq(true); setReqErr(null); setReqMsg(null);
+    try {
+      await fetch(`${API_BASE}/api/academy-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          academyNumber: num,
+          requesterId: teacherId,
+          requesterRole: "teacher",
+          memo: "교사 학원 연결 요청",
+        }),
+      }).then(async (r) => {
+        if (!r.ok) {
+          const t = await r.text().catch(() => "");
+          throw new Error(`${r.status} ${r.statusText}${t ? " | " + t : ""}`);
+        }
+      });
+      setReqMsg("승인 요청을 등록했습니다."); setAcademyInput("");
+      const list = await tryGetJson(`/api/academy-requests?scope=mine&requesterId=${encodeURIComponent(teacherId)}&requesterRole=teacher`, token);
+      setRequests(Array.isArray(list) ? list : []);
+    } catch (e: any) {
+      setReqErr(e?.message ?? "승인 요청에 실패했습니다.");
+    } finally {
+      setSavingReq(false);
+      setTimeout(() => setReqMsg(null), 1500);
+    }
+  };
 
   /** 표기 원천 */
   const src = detail ?? {};
@@ -444,6 +506,65 @@ export default function TeacherProfileCard({ user }: { user?: LoginResponse }) {
               ))}
             </div>
           )}
+        </section>
+
+        {/* 학원 연결 요청 섹션 */}
+        <section className="rounded-2xl border bg-white p-5 md:p-6 shadow-sm ring-1 ring-black/5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-semibold text-gray-900">학원 연결 요청</h3>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-full sm:w-auto sm:max-w-[180px]">
+              <label className="block text-xs text-gray-600">학원번호</label>
+              <input
+                value={academyInput}
+                onChange={(e) => setAcademyInput(e.target.value)}
+                placeholder="예) 103"
+                className="mt-1 w-full rounded-xl border border-black/30 px-3 py-2 text-sm text-black placeholder-black/50 ring-1 ring-black/20 focus:outline-none focus:ring-2 focus:ring-black"
+                inputMode="numeric"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={submitRequest}
+              className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm disabled:opacity-50 hover:bg-emerald-700 active:scale-[0.99] transition"
+              disabled={!academyInput || savingReq}
+            >
+              {savingReq ? "요청 중…" : "요청"}
+            </button>
+            {reqErr && <span className="text-sm text-red-700 bg-red-50 ring-1 ring-red-200 rounded px-2 py-1">{reqErr}</span>}
+            {reqMsg && <span className="text-sm text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 rounded px-2 py-1">{reqMsg}</span>}
+          </div>
+
+          <div className="mt-3">
+            <div className="text-xs font-medium text-gray-900 mb-1">내 승인 요청</div>
+            {!requests.length ? (
+              <div className="text-sm text-gray-600">대기 중인 요청이 없습니다.</div>
+            ) : (
+              <div className="space-y-2">
+                {requests.map((r) => (
+                  <div key={r.id} className="rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2 flex items-center justify-between text-sm">
+                    <div>
+                      <div className="font-semibold text-gray-900">학원 #{r.academyNumber}</div>
+                      <div className="text-xs text-gray-600">
+                        {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                        {r.processedMemo ? ` · ${r.processedMemo}` : ""}
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${
+                      r.status === "APPROVED"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : r.status === "REJECTED"
+                        ? "bg-rose-100 text-rose-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}>
+                      {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
       </div>
 

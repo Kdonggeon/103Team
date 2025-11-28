@@ -8,6 +8,16 @@ type Role = "parent" | "student" | "teacher" | "director";
 type LoginSession = { role: Role; username: string; name?: string; token?: string; academyNumbers?: number[] };
 type ChildSummary = { studentId: string; studentName?: string | null; academies?: number[] };
 type StudentDetail = Record<string, any>;
+type AcademyRequest = {
+  id: string;
+  academyNumber: number;
+  status: "PENDING" | "APPROVED" | "REJECTED" | string;
+  memo?: string;
+  processedMemo?: string;
+  processedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 /** ===== API 유틸 ===== */
 const RAW = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
@@ -107,6 +117,7 @@ export default function ParentChildrenDetailCard() {
   const [savingAcademy, setSavingAcademy] = useState(false);
   const [academyMsg, setAcademyMsg] = useState<string | null>(null);
   const [academyErr, setAcademyErr] = useState<string | null>(null);
+  const [requests, setRequests] = useState<AcademyRequest[]>([]);
 
   // 자녀 목록 로드
   useEffect(() => {
@@ -189,7 +200,25 @@ export default function ParentChildrenDetailCard() {
     return out;
   }
 
-  /** 학원번호 추가/삭제 */
+  /** 내 승인 요청 목록 */
+  useEffect(() => {
+    if (!parentId) return;
+    let aborted = false;
+    (async () => {
+      try {
+        const list = await api<AcademyRequest[]>(
+          `/api/academy-requests?scope=mine&requesterId=${encodeURIComponent(parentId)}&requesterRole=parent`,
+          { token }
+        );
+        if (!aborted) setRequests(Array.isArray(list) ? list : []);
+      } catch {
+        if (!aborted) setRequests([]);
+      }
+    })();
+    return () => { aborted = true; };
+  }, [parentId, token]);
+
+  /** 학원번호 추가 → 승인 요청 */
   const addAcademy = async () => {
     if (!selectedChild) return;
     const raw = academyInput.trim();
@@ -197,14 +226,24 @@ export default function ParentChildrenDetailCard() {
     if (!Number.isFinite(num)) { setAcademyErr("숫자만 입력하세요."); setAcademyMsg(null); return; }
     setSavingAcademy(true); setAcademyMsg(null); setAcademyErr(null);
     try {
-      await api(`/api/parents/${encodeURIComponent(parentId)}/children/${encodeURIComponent(selectedChild)}/academies/${encodeURIComponent(num)}`, {
-        method: "POST", token
+      await api(`/api/academy-requests`, {
+        method: "POST",
+        body: JSON.stringify({
+          academyNumber: num,
+          requesterId: parentId,
+          requesterRole: "parent",
+          memo: `자녀 ${selectedChild} 학원 연결 요청`,
+        }),
+        token
       });
-      const kids = await api<ChildSummary[]>(`/api/parents/${encodeURIComponent(parentId)}/children`, { token });
-      setChildren(Array.isArray(kids) ? kids : []);
-      setAcademyMsg("추가되었습니다."); setAcademyInput("");
+      setAcademyMsg("승인 요청을 등록했습니다."); setAcademyInput("");
+      const list = await api<AcademyRequest[]>(
+        `/api/academy-requests?scope=mine&requesterId=${encodeURIComponent(parentId)}&requesterRole=parent`,
+        { token }
+      );
+      setRequests(Array.isArray(list) ? list : []);
     } catch (e: any) {
-      setAcademyErr(e?.message ?? "추가에 실패했습니다.");
+      setAcademyErr(e?.message ?? "승인 요청에 실패했습니다.");
     } finally {
       setSavingAcademy(false);
       setTimeout(() => setAcademyMsg(null), 1500);
@@ -303,7 +342,7 @@ export default function ParentChildrenDetailCard() {
 
                 {/* 학원번호 관리 */}
                 <div className="mt-5 rounded-2xl ring-1 ring-gray-200 p-4 max-w-full overflow-visible">
-                  <div className="text-sm font-semibold text-gray-900 mb-2">학원번호 관리</div>
+                  <div className="text-sm font-semibold text-gray-900 mb-2">학원번호 관리 (승인 요청)</div>
 
                   <div className="mb-3">
                     <div className="text-xs font-medium text-gray-900 mb-1">현재 학원번호</div>
@@ -314,20 +353,41 @@ export default function ParentChildrenDetailCard() {
                         {selectedChildObj.academies!.map((n) => (
                           <span key={n} className="inline-flex items-center gap-2 rounded-full bg-gray-50 ring-1 ring-gray-200 px-3 py-1 text-sm text-gray-900">
                             #{n}
-                            <button
-                              title="삭제"
-                              onClick={() => removeAcademy(n)}
-                              type="button"
-                              className="text-[12px] text-red-600 hover:underline disabled:opacity-50"
-                              disabled={savingAcademy}
-                            >
-                              삭제
-                            </button>
                           </span>
                         ))}
                       </div>
                     ) : (
                       <div className="text-sm text-gray-600">등록된 학원이 없습니다.</div>
+                    )}
+                  </div>
+
+                  <div className="mb-3">
+                    <div className="text-xs font-medium text-gray-900 mb-1">내 승인 요청</div>
+                    {!requests.length ? (
+                      <div className="text-sm text-gray-600">대기 중인 요청이 없습니다.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {requests.map((r) => (
+                          <div key={r.id} className="rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2 flex items-center justify-between text-sm">
+                            <div>
+                              <div className="font-semibold text-gray-900">학원 #{r.academyNumber}</div>
+                              <div className="text-xs text-gray-600">
+                                {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                                {r.processedMemo ? ` · ${r.processedMemo}` : ""}
+                              </div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-xs ${
+                              r.status === "APPROVED"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : r.status === "REJECTED"
+                                ? "bg-rose-100 text-rose-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}>
+                              {r.status === "PENDING" ? "대기" : r.status === "APPROVED" ? "승인" : "거절"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
 

@@ -36,6 +36,11 @@ public class SecurityConfig {
     private static final String[] AUTH_DIRECTOR_ONLY = {
             "DIRECTOR", "ROLE_DIRECTOR"
     };
+    private static final String[] AUTH_STU_PAR_TCH = {
+            "STUDENT", "ROLE_STUDENT",
+            "PARENT", "ROLE_PARENT",
+            "TEACHER", "ROLE_TEACHER"
+    };
 
     /* ====== 비밀번호 인코더 ====== */
     @Bean
@@ -124,6 +129,14 @@ public class SecurityConfig {
                 // 🔹 교사 소속 해제: 선생/원장 둘 다 허용
                 .requestMatchers(HttpMethod.PATCH, "/api/teachers/*/academies/detach")
                     .hasAnyAuthority(AUTH_TEACHER_OR_DIRECTOR)
+
+                /* ====== 학원 연결 요청 (승인형) ====== */
+                // 요청 생성/내 목록: 학생·학부모·교사
+                .requestMatchers(HttpMethod.POST, "/api/academy-requests").hasAnyAuthority(AUTH_STU_PAR_TCH)
+                .requestMatchers(HttpMethod.GET,  "/api/academy-requests").authenticated()
+                // 승인/거절: 원장만
+                .requestMatchers(HttpMethod.POST, "/api/academy-requests/*/approve").hasAnyAuthority(AUTH_DIRECTOR_ONLY)
+                .requestMatchers(HttpMethod.POST, "/api/academy-requests/*/reject").hasAnyAuthority(AUTH_DIRECTOR_ONLY)
 
                 // 나머지 /api/teachers/** 도 선생/원장만 접근
                 .requestMatchers("/api/teachers/**")

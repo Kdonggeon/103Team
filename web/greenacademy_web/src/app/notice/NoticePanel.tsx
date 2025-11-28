@@ -219,7 +219,7 @@ export default function NoticePanel() {
         ? normalized.filter((n) =>
             (n.academyNumbers ?? []).some((a) => allowedNums.has(a))
           )
-        : normalized;
+        : [];
 
       setNotices(filtered);
     } catch (e: any) {

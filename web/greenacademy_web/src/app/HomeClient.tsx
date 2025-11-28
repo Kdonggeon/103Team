@@ -30,7 +30,7 @@ import TeacherStudentManage from "@/app/teacher/StudentManage";
 import DirectorMyInfoCard from "@/app/director/DirectorMyInfoCard";
 
 // QnA
-import { getRecentQna } from "@/lib/qna";
+import { getRecentQna, listQuestions } from "@/lib/qna";
 import QnaPanel from "./qna/QnaPanel";
 import TeacherQnaPanel from "./qna/TeacherQnaPanel";
 
@@ -102,12 +102,28 @@ const notifyKey = (kind: "notice" | "qna", user?: string | null) =>
 
 const maxTime = (...vals: (string | undefined | null)[]) =>
   Math.max(
-    ...vals.map((v) => {
+    ...vals.map((v: string | undefined | null) => {
       if (!v) return 0;
       const t = new Date(v).getTime();
       return Number.isFinite(t) ? t : 0;
     })
   );
+
+/** 공지 학원번호 추출/정규화 */
+function normAcadNum(v: unknown): number | null {
+  const n = Number(v as any);
+  return Number.isFinite(n) ? n : null;
+}
+function getNoticeAcademies(n: any): number[] {
+  const nums: Array<number | string | null | undefined> = Array.isArray(n?.academyNumbers)
+    ? n.academyNumbers
+    : typeof n?.academyNumber === "number"
+    ? [n.academyNumber]
+    : [];
+  return nums
+    .map((v: number | string | null | undefined) => normAcadNum(v))
+    .filter((v): v is number => v !== null);
+}
 
 /** 날짜 유틸 */
 const toYmd = (d: Date) =>
@@ -135,7 +151,7 @@ function NavTabs({
   role?: string | null;
   manageMenu?: string | null;
   onSelectManage?: (
-    item: "내정보" | "학생관리" | "학생/선생 관리" | "반 관리" | "학원관리" | "QR 생성"
+    item: "내정보" | "학생관리" | "학생/선생 관리" | "반 관리" | "학원관리" | "등록관리" | "QR 생성"
   ) => void;
 }) {
   const left = ["종합정보"] as const;
@@ -147,7 +163,7 @@ function NavTabs({
   // 드롭다운 항목
   const manageItems =
     role === "director"
-      ? (["학생/선생 관리", "학원관리", "QR 생성"] as const)
+      ? (["학생/선생 관리", "학원관리", "등록관리", "QR 생성"] as const)
       : role === "teacher"
       ? (["학생관리", "반 관리", "QR 생성"] as const)
       : (["학생관리", "반 관리"] as const);
@@ -236,10 +252,20 @@ function ProfileMenu({
   user,
   hasNotice,
   hasQna,
+  hasApproval,
+  approvalSummary,
+  onGoNotice,
+  onGoQna,
+  onGoApproval,
 }: {
   user: NonNullable<LoginSession> | null;
   hasNotice?: boolean;
   hasQna?: boolean;
+  hasApproval?: boolean;
+  approvalSummary?: string;
+  onGoNotice?: () => void;
+  onGoQna?: () => void;
+  onGoApproval?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -269,7 +295,7 @@ function ProfileMenu({
         aria-label="프로필 메뉴 열기"
       >
         {initial}
-        {(hasNotice || hasQna) && (
+        {(hasNotice || hasQna || hasApproval) && (
           <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white" />
         )}
       </button>
@@ -278,6 +304,44 @@ function ProfileMenu({
         <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-20">
           <div className="px-4 py-2 text-xs font-semibold text-gray-900 border-b border-gray-100">
             {user?.name || user?.username}
+          </div>
+          <div className="divide-y divide-gray-100">
+            {hasNotice && (
+              <button
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                onClick={() => {
+                  setOpen(false);
+                  onGoNotice?.();
+                }}
+              >
+                공지 알림 — 바로가기
+              </button>
+            )}
+            {hasQna && (
+              <button
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                onClick={() => {
+                  setOpen(false);
+                  onGoQna?.();
+                }}
+              >
+                Q&A 알림 — 바로가기
+              </button>
+            )}
+            {hasApproval && (
+              <button
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                onClick={() => {
+                  setOpen(false);
+                  onGoApproval?.();
+                }}
+              >
+                {approvalSummary || "승인 요청 대기"}
+              </button>
+            )}
+            {!(hasNotice || hasQna || hasApproval) && (
+              <div className="px-4 py-2 text-sm text-gray-700">새 알림이 없습니다.</div>
+            )}
           </div>
         </div>
       )}
@@ -591,7 +655,7 @@ export default function GreenAcademyDashboard() {
 
   const [activeTab, setActiveTab] = useState<string>("종합정보");
   const [manageMenu, setManageMenu] =
-    useState<"내정보" | "학생관리" | "학생/선생 관리" | "반 관리" | "학원관리" | "QR 생성" | null>(null);
+    useState<"내정보" | "학생관리" | "학생/선생 관리" | "반 관리" | "학원관리" | "등록관리" | "QR 생성" | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -606,6 +670,10 @@ export default function GreenAcademyDashboard() {
   const [academyNumber, setAcademyNumber] = useState<number | null>(null);
   const [hasNoticeAlert, setHasNoticeAlert] = useState(false);
   const [hasQnaAlert, setHasQnaAlert] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<number>(0);
+  const [pendingList, setPendingList] = useState<any[]>([]);
+  const [pendingErr, setPendingErr] = useState<string | null>(null);
+  const [pendingLoading, setPendingLoading] = useState(false);
 
   /** 🔥 세션 로드 & 가드 (localStorage("login") 우선 반영) */
   useEffect(() => {
@@ -677,8 +745,19 @@ export default function GreenAcademyDashboard() {
 
       // 공지
       try {
+        const allowed = new Set<number>(
+          (user.academyNumbers ?? [])
+            .map((n) => normAcadNum(n))
+            .filter((n): n is number => n !== null)
+        );
         const notices: any[] = await apiGet("/api/notices");
-        const latest = notices
+        const filtered = allowed.size
+          ? notices.filter((n) => {
+              const nums = getNoticeAcademies(n);
+              return nums.length > 0 && nums.some((x) => allowed.has(x));
+            })
+          : [];
+        const latest = filtered
           .map((n) => n?.createdAt || n?.updatedAt || n?.created_at)
           .filter(Boolean);
         const latestTs = latest.length ? maxTime(...latest) : 0;
@@ -698,10 +777,10 @@ export default function GreenAcademyDashboard() {
       // QnA
       try {
         const qs = await listQuestions();
-        const unread = qs.some((q) => (q.unreadCount ?? 0) > 0);
+        const unread = qs.some((q: any) => (q.unreadCount ?? 0) > 0);
         const latestTs = qs.length
           ? Math.max(
-              ...qs.map((q) =>
+              ...qs.map((q: any) =>
                 maxTime(
                   q.lastFollowupAt as any,
                   q.lastParentMsgAt as any,
@@ -725,6 +804,47 @@ export default function GreenAcademyDashboard() {
         /* ignore */
       }
     })();
+  }, [user]);
+
+  /** 원장: 승인 대기 건수 */
+  useEffect(() => {
+    if (!user || user.role !== "director") {
+      setPendingApproval(0);
+      setPendingList([]);
+      setPendingErr(null);
+      return;
+    }
+    const acad = user.academyNumbers?.[0];
+    if (!acad) {
+      setPendingApproval(0);
+      setPendingList([]);
+      setPendingErr(null);
+      return;
+    }
+    let aborted = false;
+    (async () => {
+      setPendingLoading(true);
+      try {
+        const rows = await apiGet<any[]>(
+          `/api/academy-requests?scope=director&academyNumber=${encodeURIComponent(acad)}&status=PENDING`
+        );
+        if (!aborted) {
+          const arr = Array.isArray(rows) ? rows : [];
+          setPendingApproval(arr.length);
+          setPendingList(arr);
+          setPendingErr(null);
+        }
+      } catch (e: any) {
+        if (!aborted) {
+          setPendingApproval(0);
+          setPendingList([]);
+          setPendingErr(e?.message ?? "승인 요청을 불러오지 못했습니다.");
+        }
+      } finally {
+        if (!aborted) setPendingLoading(false);
+      }
+    })();
+    return () => { aborted = true; };
   }, [user]);
 
   /** 역할별 데이터 로딩 (종합정보) */
@@ -855,7 +975,22 @@ export default function GreenAcademyDashboard() {
             }}
           />
 
-        <ProfileMenu user={user} hasNotice={hasNoticeAlert} hasQna={hasQnaAlert} />
+        <ProfileMenu
+          user={user}
+          hasNotice={hasNoticeAlert}
+          hasQna={hasQnaAlert}
+          hasApproval={pendingApproval > 0}
+          approvalSummary={pendingApproval > 0 ? `승인 요청 ${pendingApproval}건 대기` : undefined}
+          onGoNotice={() => {
+            setActiveTab("공지사항");
+            try { localStorage.setItem(notifyKey("notice", user?.username), new Date().toISOString()); } catch {}
+          }}
+          onGoQna={() => {
+            setActiveTab("Q&A");
+            try { localStorage.setItem(notifyKey("qna", user?.username), new Date().toISOString()); } catch {}
+          }}
+          onGoApproval={() => router.push("/director/registration")}
+        />
       </div>
       </header>
 
@@ -919,6 +1054,47 @@ export default function GreenAcademyDashboard() {
               <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">학원관리</h2>
                 <p className="text-sm text-gray-700">이 항목은 현재 권한에서 사용하지 않습니다.</p>
+              </div>
+            )}
+
+            {/* 등록관리: 원장 전용 링크 */}
+            {manageMenu === "등록관리" && user?.role === "director" && (
+              <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-6 space-y-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">등록관리</h2>
+                  <p className="text-sm text-gray-700">대기 중 승인 요청을 확인하고 처리하세요.</p>
+                </div>
+
+                {pendingErr && (
+                  <div className="rounded-lg bg-rose-50 text-rose-700 text-sm px-3 py-2 ring-1 ring-rose-200">
+                    {pendingErr}
+                  </div>
+                )}
+                {pendingLoading && <div className="text-sm text-gray-600">불러오는 중…</div>}
+                {!pendingLoading && pendingList.length === 0 && !pendingErr && (
+                  <div className="text-sm text-gray-700">대기 중인 요청이 없습니다.</div>
+                )}
+
+                <div className="space-y-2">
+                  {pendingList.slice(0, 5).map((r, idx) => (
+                    <div
+                      key={`${r.id ?? idx}`}
+                      className="rounded-xl ring-1 ring-gray-200 bg-white px-3 py-2 flex items-center justify-between text-sm"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-semibold text-gray-900">
+                          학원 #{r.academyNumber} · {r.requesterRole} · {r.requesterId}
+                        </div>
+                        <div className="text-xs text-gray-600 truncate">
+                          {r.memo || "메모 없음"}
+                        </div>
+                      </div>
+                      <span className="text-xs text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-2 py-0.5 rounded-full">
+                        대기
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
