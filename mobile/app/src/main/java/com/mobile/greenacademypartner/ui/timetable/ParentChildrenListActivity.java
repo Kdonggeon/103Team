@@ -135,7 +135,7 @@ public class ParentChildrenListActivity extends AppCompatActivity {
         studentApi = RetrofitClient.getClient().create(StudentApi.class);
 
         rvTimetable.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new TimetableAdapter(this, new ArrayList<>());
+        adapter = new TimetableAdapter( new ArrayList<>());
         rvTimetable.setAdapter(adapter);
 
         // 초기 날짜/요일은 "오늘"

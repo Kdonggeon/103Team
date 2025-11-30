@@ -70,9 +70,9 @@
                 app:rippleColor="@android:color/transparent" />
         </LinearLayout>
 
-        <!-- 폰트 설정 카드 -->
+        <!-- 자녀 추가 카드 -->
         <LinearLayout
-            android:id="@+id/card_font_settings"
+            android:id="@+id/card_add_child_settings"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_below="@id/box_notifications"
@@ -83,71 +83,6 @@
             android:background="@drawable/bg_theme_color_group"
             android:padding="16dp">
 
-            <TextView
-                android:id="@+id/tv_font_settings_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="폰트 설정"
-                android:textSize="16sp"
-                android:textColor="@android:color/black"
-                android:textStyle="bold"
-                android:paddingBottom="8dp" />
-
-            <RadioGroup
-                android:id="@+id/rg_font_choice"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <RadioButton
-                    android:id="@+id/rb_font_system"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="기본 폰트(시스템)"
-                    android:background="@null"
-                    android:buttonTint="@android:color/darker_gray"
-                    app:useMaterialThemeColors="false"
-                    android:textColor="@android:color/black"/>
-
-                <RadioButton
-                    android:id="@+id/rb_font_noto"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Noto Sans KR"
-                    android:background="@null"
-                    android:buttonTint="@android:color/darker_gray"
-                    app:useMaterialThemeColors="false"
-                    android:textColor="@android:color/black"/>
-            </RadioGroup>
-
-            <!-- ✅ 폰트 적용 버튼 : 크기 고정 -->
-            <Button
-                android:id="@+id/btn_font_apply"
-                android:layout_width="wrap_content"
-                android:layout_height="44dp"
-                android:text="적용"
-                android:textAllCaps="false"
-                android:includeFontPadding="false"
-                android:minHeight="0dp"
-                android:paddingTop="0dp"
-                android:paddingBottom="0dp"
-                android:layout_marginTop="8dp"/>
-        </LinearLayout>
-
-        <!-- 자녀 추가 카드 -->
-        <LinearLayout
-            android:id="@+id/card_add_child_settings"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/card_font_settings"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginTop="12dp"
-            android:orientation="vertical"
-            android:background="@drawable/bg_theme_color_group"
-            android:padding="16dp">
-
-            <!-- ✅ MaterialButton도 고정 높이 + 패딩 제거 -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_add_child_settings"
                 android:layout_width="match_parent"
@@ -160,7 +95,7 @@
                 style="?attr/materialButtonStyle"/>
         </LinearLayout>
 
-        <!-- ▼ 네비게이션 숨기기 버튼 (가운데 정렬) -->
+        <!-- ▼ 네비게이션 숨기기 버튼 -->
         <ImageButton
             android:id="@+id/btn_hide_nav"
             android:layout_width="40dp"
@@ -171,7 +106,7 @@
             android:src="@android:drawable/arrow_down_float"
             android:contentDescription="네비게이션 숨기기"/>
 
-        <!-- ▲ 네비게이션 보이기 버튼 (가운데 정렬) -->
+        <!-- ▲ 네비게이션 보이기 버튼 -->
         <ImageButton
             android:id="@+id/btn_show_nav"
             android:layout_width="40dp"
@@ -183,7 +118,7 @@
             android:visibility="gone"
             android:contentDescription="네비게이션 보이기"/>
 
-        <!-- ✅ 로그아웃 버튼도 고정 적용 -->
+        <!-- 로그아웃 버튼 -->
         <Button
             android:id="@+id/btn_logout"
             android:layout_width="wrap_content"
@@ -200,7 +135,7 @@
             android:backgroundTint="@color/green"
             android:textColor="@color/white"/>
 
-        <!-- 🔹 하단 네비게이션 바 -->
+        <!-- 하단 네비게이션 -->
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottom_navigation"
             android:layout_width="match_parent"

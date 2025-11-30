@@ -18,10 +18,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.api.AcademyApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
+import com.mobile.greenacademypartner.model.Academy;
 import com.mobile.greenacademypartner.model.attendance.AttendanceResponse;
-import com.mobile.greenacademypartner.model.classes.Course;
+import com.mobile.greenacademypartner.model.timetable.SlotDto;
 import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
 import com.mobile.greenacademypartner.ui.main.MainActivity;
 import com.mobile.greenacademypartner.ui.mypage.MyPageActivity;
@@ -29,10 +31,15 @@ import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 import com.mobile.greenacademypartner.ui.timetable.QRScannerActivity;
 import com.mobile.greenacademypartner.ui.timetable.StudentTimetableActivity;
 
+import org.json.JSONArray;
+
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -44,9 +51,6 @@ public class StudentAttendanceActivity extends AppCompatActivity {
     private RecyclerView listView;
     private AttendanceAdapter adapter;
 
-    private final List<Course> todayClasses = new ArrayList<>();
-    private final List<AttendanceResponse> todayAttend = new ArrayList<>();
-
     private TextView tvPresent, tvLate, tvAbsent;
     private LocalDate selectedDate = LocalDate.now();
 
@@ -54,6 +58,10 @@ public class StudentAttendanceActivity extends AppCompatActivity {
     private ImageButton btnHideNav, btnShowNav;
 
     private String studentId;
+
+    // academyNumber → academyName
+    private final Map<Integer, String> academyNameMap = new HashMap<>();
+    private int currentAcademyNumber = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +87,9 @@ public class StudentAttendanceActivity extends AppCompatActivity {
 
         setupBottomNavigation();
         loadPrefs();
-        loadTodayClassesAndAttendance();
+
+        // ★ 학원 이름 먼저 로딩 → 그 다음 slot + 출석 병합
+        loadAcademyNamesThenSlots();
     }
 
     private void setupBottomNavigation() {
@@ -118,18 +128,45 @@ public class StudentAttendanceActivity extends AppCompatActivity {
     private void loadPrefs() {
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         studentId = prefs.getString("username", null);
+
+        selectedDate = LocalDate.now();
+
+        try {
+            JSONArray arr = new JSONArray(prefs.getString("academyNumbers", "[]"));
+            if (arr.length() > 0)
+                currentAcademyNumber = arr.getInt(0);
+        } catch (Exception ignored) {}
     }
 
-    // ────────────────────────────────────────────
-    // 캘린더 메뉴 추가
-    // ────────────────────────────────────────────
+    /** ★ 학원명 먼저 로드 */
+    private void loadAcademyNamesThenSlots() {
+        AcademyApi api = RetrofitClient.getClient().create(AcademyApi.class);
+
+        api.getAcademyList().enqueue(new Callback<List<Academy>>() {
+            @Override
+            public void onResponse(Call<List<Academy>> call, Response<List<Academy>> response) {
+                academyNameMap.clear();
+
+                if (response.isSuccessful() && response.body() != null) {
+                    for (Academy a : response.body()) {
+                        academyNameMap.put(a.getAcademyNumber(), a.getAcademyName());
+                    }
+                }
+                loadSlotsForSelectedDate();
+            }
+
+            @Override public void onFailure(Call<List<Academy>> call, Throwable t) {
+                loadSlotsForSelectedDate();
+            }
+        });
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_student_timetable, menu);
         return true;
     }
 
-    // 캘린더 클릭 시
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
 
@@ -141,7 +178,7 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     this,
                     (v, year, month, day) -> {
                         selectedDate = LocalDate.of(year, month + 1, day);
-                        loadTodayClassesAndAttendance();  // 🔥 날짜 바뀌면 즉시 갱신
+                        loadSlotsForSelectedDate();
                     },
                     now.getYear(),
                     now.getMonthValue() - 1,
@@ -155,44 +192,52 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    // ────────────────────────────────────────────
-    // 수업/출석 불러오기
-    // ────────────────────────────────────────────
-    private void loadTodayClassesAndAttendance() {
-        StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
+    /** ★ SlotDto → 날짜 필터링 (시간은 Slot에서 그대로 사용) */
+    private void loadSlotsForSelectedDate() {
 
-        api.getMyClasses(studentId).enqueue(new Callback<List<Course>>() {
+        if (studentId == null) return;
+
+        StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
+        String weekStart = getWeekStart(selectedDate);
+
+        api.getTimetable(studentId, weekStart, 7).enqueue(new Callback<List<SlotDto>>() {
             @Override
-            public void onResponse(Call<List<Course>> call, Response<List<Course>> response) {
+            public void onResponse(Call<List<SlotDto>> call, Response<List<SlotDto>> response) {
 
                 if (!response.isSuccessful() || response.body() == null) {
-                    Toast.makeText(StudentAttendanceActivity.this, "수업 조회 실패", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(StudentAttendanceActivity.this, "시간표 조회 실패", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                todayClasses.clear();
+                List<SlotDto> all = response.body();
+                List<SlotDto> todays = new ArrayList<>();
+                String targetYmd = selectedDate.toString();
 
-                int dow = selectedDate.getDayOfWeek().getValue(); // 월=1~일=7
+                for (SlotDto s : all) {
+                    if (!s.date.equals(targetYmd)) continue;
 
-                for (Course c : response.body()) {
-                    if (c.getDaysOfWeek() != null &&
-                            c.getDaysOfWeek().contains(dow)) {
-
-                        todayClasses.add(c);
+                    // 학원이름 세팅
+                    if (s.academyNumber != null) {
+                        s.academyName = academyNameMap.get(s.academyNumber);
                     }
+
+                    // ★ startTime, endTime은 SlotDto에 있는 그대로 사용
+                    todays.add(s);
                 }
 
-                loadTodayAttendance();
+                loadAttendanceAndMerge(todays);
             }
 
             @Override
-            public void onFailure(Call<List<Course>> call, Throwable t) {
-                Toast.makeText(StudentAttendanceActivity.this, "수업 조회 오류", Toast.LENGTH_SHORT).show();
+            public void onFailure(Call<List<SlotDto>> call, Throwable t) {
+                Toast.makeText(StudentAttendanceActivity.this, "시간표 조회 오류", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    private void loadTodayAttendance() {
+    /** ★ SlotDto + Attendance 병합 (시간은 Slot 기준) */
+    private void loadAttendanceAndMerge(List<SlotDto> slots) {
+
         StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
 
         api.getAttendanceForStudent(studentId).enqueue(new Callback<List<AttendanceResponse>>() {
@@ -204,19 +249,85 @@ public class StudentAttendanceActivity extends AppCompatActivity {
                     return;
                 }
 
-                todayAttend.clear();
-                todayAttend.addAll(response.body());
+                List<AttendanceResponse> attendList = response.body();
+                List<AttendanceResponse> finalList = new ArrayList<>();
 
-                // 🔥 학원 이름 prefs에 저장
-                for (AttendanceResponse ar : todayAttend) {
-                    if (ar.getAcademyName() != null && !ar.getAcademyName().isEmpty()) {
-                        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-                        prefs.edit().putString("academyName", ar.getAcademyName()).apply();
-                        break;
+                long present = 0, late = 0, absent = 0;
+
+                LocalDate today = LocalDate.now();
+                LocalTime now = LocalTime.now();
+
+                for (SlotDto s : slots) {
+
+                    AttendanceResponse matched = null;
+
+                    // className + 날짜로 출석 기록 찾기
+                    for (AttendanceResponse ar : attendList) {
+                        if (cleanClassName(ar.getClassName())
+                                .equals(cleanClassName(s.className))
+                                && ar.getDate() != null
+                                && ar.getDate().startsWith(s.date)) {
+                            matched = ar;
+                            break;
+                        }
                     }
+
+                    AttendanceResponse item;
+
+                    if (matched != null) {
+                        item = matched;
+                        // ★ Slot의 시간으로 통일
+                        item.setStartTime(s.startTime);
+                        item.setEndTime(s.endTime);
+
+                    } else {
+
+                        item = new AttendanceResponse();
+                        item.setClassName(s.className);
+                        item.setStartTime(s.startTime);
+                        item.setEndTime(s.endTime);
+                        item.setDate(s.date);
+                        item.setAcademyName(s.academyName);
+
+                        String start = s.startTime;
+                        String end = s.endTime;
+
+                        if (start == null || end == null) {
+                            if (selectedDate.isAfter(today)) item.setStatus("예정");
+                            else if (selectedDate.isBefore(today)) item.setStatus("결석");
+                            else item.setStatus("결석");  // 오늘인데 시간 없음 → 결석
+                        } else {
+
+                            LocalTime tStart = LocalTime.parse(start);
+                            LocalTime tEnd = LocalTime.parse(end);
+
+                            if (selectedDate.isAfter(today)) item.setStatus("예정");
+                            else if (selectedDate.isBefore(today)) item.setStatus("결석");
+                            else if (now.isBefore(tStart)) item.setStatus("예정");
+                            else if (now.isAfter(tEnd)) item.setStatus("결석");
+                            else item.setStatus("수업중");
+                        }
+                    }
+
+                    if ("출석".equals(item.getStatus())) present++;
+                    else if ("지각".equals(item.getStatus())) late++;
+                    else if ("결석".equals(item.getStatus())) absent++;
+
+                    finalList.add(item);
                 }
 
-                mergeClassAndAttendance();
+                // 시간순 정렬 (Slot에서 온 startTime 기준)
+                finalList.sort((a, b) -> {
+                    if (a.getStartTime() == null) return 1;
+                    if (b.getStartTime() == null) return -1;
+                    return a.getStartTime().compareTo(b.getStartTime());
+                });
+
+                adapter.setAll(finalList);
+
+                tvPresent.setText("출석 " + present);
+                tvLate.setText("지각 " + late);
+                tvAbsent.setText("결석 " + absent);
             }
 
             @Override
@@ -226,91 +337,18 @@ public class StudentAttendanceActivity extends AppCompatActivity {
         });
     }
 
+    /** ★ className에서 "(학원명)" 제거 */
+    private String cleanClassName(String name) {
+        if (name == null) return null;
+        int idx = name.indexOf("(");
+        if (idx > 0) return name.substring(0, idx).trim();
+        return name.trim();
+    }
 
-    // ────────────────────────────────────────────
-    // 병합 (서버 academyName 그대로 사용)
-    // ────────────────────────────────────────────
-    private void mergeClassAndAttendance() {
-
-        List<AttendanceResponse> finalList = new ArrayList<>();
-
-        long present = 0, late = 0, absent = 0;
-
-        LocalDate today = LocalDate.now();
-        LocalTime now = LocalTime.now();
-
-        // 🔥 서버에서 첫 번째에 academyName이 있으면 전체 공통으로 사용
-        String academyNameFromServer = null;
-        for (AttendanceResponse ar : todayAttend) {
-            if (ar.getAcademyName() != null && !ar.getAcademyName().isEmpty()) {
-                academyNameFromServer = ar.getAcademyName();
-                break;
-            }
-        }
-
-        for (Course c : todayClasses) {
-
-            AttendanceResponse matched = null;
-
-            for (AttendanceResponse ar : todayAttend) {
-                if (c.getClassName().equals(ar.getClassName())) {
-                    matched = ar;
-                    break;
-                }
-            }
-
-            AttendanceResponse item;
-
-            if (matched != null) {
-                item = matched;
-            } else {
-                item = new AttendanceResponse();
-
-                // 🔥 academyName 강제코딩 없음 → 서버 것 그대로 사용
-                item.setAcademyName(academyNameFromServer);
-
-                item.setClassName(c.getClassName());
-                item.setStartTime(c.getStartTime());
-                item.setEndTime(c.getEndTime());
-                item.setDate(selectedDate.toString());
-
-                if (selectedDate.isAfter(today)) {
-                    item.setStatus("예정");
-                } else if (selectedDate.isBefore(today)) {
-                    item.setStatus("결석");
-                    absent++;
-                } else {
-                    LocalTime start = LocalTime.parse(c.getStartTime());
-                    LocalTime end = LocalTime.parse(c.getEndTime());
-
-                    if (now.isBefore(start)) item.setStatus("예정");
-                    else if (now.isAfter(end)) {
-                        item.setStatus("결석");
-                        absent++;
-                    } else {
-                        item.setStatus("수업중");
-                    }
-                }
-            }
-
-            if ("출석".equals(item.getStatus())) present++;
-            else if ("지각".equals(item.getStatus())) late++;
-
-            finalList.add(item);
-        }
-
-        // 정렬
-        finalList.sort((a, b) -> {
-            if (a.getStartTime() == null && b.getStartTime() == null) return 0;
-            if (a.getStartTime() == null) return 1;
-            if (b.getStartTime() == null) return -1;
-            return a.getStartTime().compareTo(b.getStartTime());
-        });
-
-        adapter.setAll(finalList);
-
-        tvPresent.setText("출석 " + present);
-        tvLate.setText("지각 " + late);
-        tvAbsent.setText("결석 " + absent);
+    /** 날짜가 속한 월요일 */
+    private String getWeekStart(LocalDate date) {
+        DayOfWeek dow = date.getDayOfWeek();
+        LocalDate monday = date.minusDays(dow.getValue() - 1);
+        return monday.toString();
     }
 }

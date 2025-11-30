@@ -1,7 +1,5 @@
 package com.mobile.greenacademypartner.ui.adapter;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -27,18 +25,16 @@ public class TimetableAdapter extends RecyclerView.Adapter<TimetableAdapter.VH> 
     private String displayDateIso;
     private final TimeZone tz = TimeZone.getTimeZone("Asia/Seoul");
     private final Locale loc = Locale.KOREA;
-    private final String academyNameFromPrefs;   // 🔥 prefs에서 가져온 학원명
 
-    public TimetableAdapter(Context ctx, List<Course> initial) {
+    // ---------------------------------------------------------
+    // 생성자
+    // ---------------------------------------------------------
+    public TimetableAdapter(List<Course> initial) {
 
-        // 🔥 날짜 기본값
+        // 기본 날짜 → 오늘 날짜
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", loc);
         sdf.setTimeZone(tz);
         this.displayDateIso = sdf.format(new Date());
-
-        // 🔥 로그인 prefs에서 학원 이름만 가져옴
-        SharedPreferences prefs = ctx.getSharedPreferences("login_prefs", Context.MODE_PRIVATE);
-        academyNameFromPrefs = prefs.getString("academyName", "");
 
         if (initial != null) {
             items.addAll(initial);
@@ -46,6 +42,19 @@ public class TimetableAdapter extends RecyclerView.Adapter<TimetableAdapter.VH> 
         }
     }
 
+    // ---------------------------------------------------------
+    // 날짜 변경 (ParentChildrenListActivity 반영용)
+    // ---------------------------------------------------------
+    public void setDisplayDate(String dateIso) {
+        if (dateIso != null && !dateIso.isEmpty()) {
+            this.displayDateIso = dateIso;
+            notifyDataSetChanged();
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 리스트 교체
+    // ---------------------------------------------------------
     public void submit(List<Course> data) {
         items.clear();
         if (data != null) {
@@ -53,13 +62,6 @@ public class TimetableAdapter extends RecyclerView.Adapter<TimetableAdapter.VH> 
             sortByTime(items);
         }
         notifyDataSetChanged();
-    }
-
-    public void setDisplayDate(String dateIso) {
-        if (dateIso != null && !dateIso.isEmpty()) {
-            this.displayDateIso = dateIso;
-            notifyDataSetChanged();
-        }
     }
 
     private void sortByTime(List<Course> list) {
@@ -81,41 +83,39 @@ public class TimetableAdapter extends RecyclerView.Adapter<TimetableAdapter.VH> 
     public void onBindViewHolder(@NonNull VH h, int position) {
         Course c = items.get(position);
 
-        // ▷ 수업명
-        h.className.setText(c.getClassName() != null ? c.getClassName() : "");
+        // ★ 수업명
+        h.className.setText(c.getClassName());
 
-        // ▷ 🔥 학원명 = prefs에서 받아온 academyName
-        h.academyName.setText(academyNameFromPrefs);
+        // ★ 학원명 (Course 객체에서 직접 가져옴)
+        h.academyName.setText(c.getAcademyName());
 
-        // ▷ 날짜
+        // ★ 날짜 (선택된 날짜 or 기본 날짜)
         h.date.setText(displayDateIso);
 
-        // ▷ 상태
+        // ★ 상태
         String st = c.getTodayStatus();
-        if (st != null && !st.trim().isEmpty())
-            h.status.setText(st);
-        else
-            h.status.setText("예정");
+        h.status.setText(st != null ? st : "예정");
 
-        // ▷ 시간
-        String s = normalizeTime(c.getStartTime());
-        String e = normalizeTime(c.getEndTime());
+        // ★ 시간
+        String s = normalize(c.getStartTime());
+        String e = normalize(c.getEndTime());
+
         if (!s.isEmpty() && !e.isEmpty()) {
             h.timeRange.setText(s + "~" + e);
             h.timeRange.setVisibility(View.VISIBLE);
         } else {
-            h.timeRange.setText("");
             h.timeRange.setVisibility(View.GONE);
         }
     }
 
-    private String normalizeTime(String t) {
+    // 시간 포맷 정리
+    private String normalize(String t) {
         if (t == null || t.trim().isEmpty()) return "";
         try {
             String[] p = t.split(":");
-            int hh = Integer.parseInt(p[0].trim());
-            int mm = (p.length > 1) ? Integer.parseInt(p[1].trim()) : 0;
-            return String.format(Locale.KOREA, "%02d:%02d", hh, mm);
+            return String.format("%02d:%02d",
+                    Integer.parseInt(p[0]),
+                    Integer.parseInt(p[1]));
         } catch (Exception e) {
             return "";
         }
@@ -127,19 +127,15 @@ public class TimetableAdapter extends RecyclerView.Adapter<TimetableAdapter.VH> 
     }
 
     static class VH extends RecyclerView.ViewHolder {
-        final TextView className;
-        final TextView academyName;
-        final TextView date;
-        final TextView status;
-        final TextView timeRange;
+        final TextView className, academyName, date, status, timeRange;
 
-        VH(@NonNull View itemView) {
-            super(itemView);
-            className   = itemView.findViewById(R.id.text_class_name);
-            academyName = itemView.findViewById(R.id.text_academy_name);
-            date        = itemView.findViewById(R.id.text_date);
-            status      = itemView.findViewById(R.id.text_status);
-            timeRange   = itemView.findViewById(R.id.text_time_range);
+        VH(@NonNull View v) {
+            super(v);
+            className = v.findViewById(R.id.text_class_name);
+            academyName = v.findViewById(R.id.text_academy_name);
+            date = v.findViewById(R.id.text_date);
+            status = v.findViewById(R.id.text_status);
+            timeRange = v.findViewById(R.id.text_time_range);
         }
     }
 }

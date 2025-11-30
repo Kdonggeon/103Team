@@ -5,7 +5,6 @@ import java.util.List;
 
 public class Student {
 
-    // MongoDB/ObjectId 등
     @SerializedName(value = "_id", alternate = {"id"})
     private String _id;
 
@@ -18,10 +17,12 @@ public class Student {
     @SerializedName(value = "studentPw", alternate = {"Student_PW"})
     private String studentPw;
 
-    @SerializedName(value = "studentAddress", alternate = {"Student_Address", "address"})
+    // 🔥 웹 JSON에서 "address"
+    @SerializedName(value = "address", alternate = {"studentAddress", "Student_Address"})
     private String studentAddress;
 
-    @SerializedName(value = "studentPhoneNumber", alternate = {"Student_Phone_Number", "phone", "tel"})
+    @SerializedName(value = "studentPhoneNumber",
+            alternate = {"Student_Phone_Number", "phoneNumber", "phone", "tel"})
     private String studentPhoneNumber;
 
     @SerializedName(value = "school", alternate = {"School", "schoolName"})
@@ -31,7 +32,7 @@ public class Student {
     private int grade;
 
     @SerializedName(value = "parentsNumber", alternate = {"Parents_Number", "parentNumber"})
-    private int parentsNumber;
+    private String parentsNumber;   // 🔥 String으로 고정
 
     @SerializedName(value = "seatNumber", alternate = {"Seat_Number"})
     private int seatNumber;
@@ -42,14 +43,17 @@ public class Student {
     @SerializedName(value = "gender", alternate = {"Gender", "sex"})
     private String gender;
 
-    // 🔥 학원번호 필드 — 서버 JSON("academies")까지 매핑하도록 수정 완료
     @SerializedName(
             value = "academyNumbers",
-            alternate = {"Academy_Numbers", "Academy_Number", "academies"}  // ← 핵심
+            alternate = {"Academy_Numbers", "Academy_Number", "academies"}
     )
     private List<Integer> academyNumbers;
 
-    // ===== Getter & Setter =====
+    @SerializedName(value = "_class")
+    private String _class;
+
+
+    // ===== Getter / Setter =====
 
     public String get_id() { return _id; }
     public void set_id(String _id) { this._id = _id; }
@@ -75,8 +79,8 @@ public class Student {
     public int getGrade() { return grade; }
     public void setGrade(int grade) { this.grade = grade; }
 
-    public int getParentsNumber() { return parentsNumber; }
-    public void setParentsNumber(int parentsNumber) { this.parentsNumber = parentsNumber; }
+    public String getParentsNumber() { return parentsNumber; }
+    public void setParentsNumber(String parentsNumber) { this.parentsNumber = parentsNumber; }
 
     public int getSeatNumber() { return seatNumber; }
     public void setSeatNumber(int seatNumber) { this.seatNumber = seatNumber; }
@@ -87,7 +91,9 @@ public class Student {
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
 
-    // 🔥 공지 필터링에서 사용하는 getter — MainActivity & NoticeActivity 모두 여길 호출함
     public List<Integer> getAcademyNumbers() { return academyNumbers; }
     public void setAcademyNumbers(List<Integer> academyNumbers) { this.academyNumbers = academyNumbers; }
+
+    public String get_class() { return _class; }
+    public void set_class(String _class) { this._class = _class; }
 }

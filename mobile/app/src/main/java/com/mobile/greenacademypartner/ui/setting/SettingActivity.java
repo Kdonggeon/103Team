@@ -7,7 +7,6 @@ import androidx.core.widget.CompoundButtonCompat;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -21,8 +20,6 @@ import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -60,13 +57,12 @@ public class SettingActivity extends AppCompatActivity {
     private Button btnLogout;
     private LinearLayout boxNotifications;
     private SwitchCompat swInApp;
-    private LinearLayout boxFonts;
-    private RadioButton rbSystem, rbNoto;
-    private ColorStateList NEUTRAL_THUMB;
-    private ColorStateList NEUTRAL_TRACK;
-    private ColorStateList NEUTRAL_RADIO;
+
     private ImageButton btnHideNav, btnShowNav;
     private BottomNavigationView bottomNavigation;
+
+    private ColorStateList NEUTRAL_THUMB;
+    private ColorStateList NEUTRAL_TRACK;
 
     @SuppressLint("MissingInflatedId")
     @Override
@@ -83,6 +79,7 @@ public class SettingActivity extends AppCompatActivity {
         btnHideNav = findViewById(R.id.btn_hide_nav);
         btnShowNav = findViewById(R.id.btn_show_nav);
 
+        // 네비 숨김
         btnHideNav.setOnClickListener(v -> {
             bottomNavigation.setVisibility(View.GONE);
             btnHideNav.setVisibility(View.GONE);
@@ -97,8 +94,10 @@ public class SettingActivity extends AppCompatActivity {
 
         View content = findViewById(android.R.id.content);
         if (content != null) content.setBackgroundColor(Color.WHITE);
+
         buildNeutralPalettes();
 
+        // 스위치 초기화
         swInApp.setSplitTrack(false);
         swInApp.setShowText(false);
         swInApp.setThumbTintList(null);
@@ -122,17 +121,14 @@ public class SettingActivity extends AppCompatActivity {
         decorateColorGrid();
         decorateNotificationCard();
 
-        if (findViewById(R.id.card_font_settings) != null) {
-            bindFontControlsFromXml();
-        } else {
-            insertFontSectionBelowNotifications();
-        }
+        // ⛔ 폰트 설정 관련 코드 완전히 삭제됨
 
         setupAddChildCardFromXml();
         setupColorSelection();
 
         SharedPreferences settings = getSharedPreferences("settings", MODE_PRIVATE);
         SharedPreferences login = getSharedPreferences("login_prefs", MODE_PRIVATE);
+
         String currentUserId = login.getString("username", "");
         String notifKey = "notifications_enabled_" + currentUserId;
         boolean enabled = settings.getBoolean(notifKey, true);
@@ -216,16 +212,18 @@ public class SettingActivity extends AppCompatActivity {
 
     private void insertThemeTitleAboveGrid() {
         if (colorGrid == null) return;
+
         ViewParent parent = colorGrid.getParent();
         if (parent instanceof RelativeLayout) {
             RelativeLayout pr = (RelativeLayout) parent;
             TextView title = new TextView(this);
             title.setText("테마 색상 변경");
             title.setTextSize(18f);
-            title.setTypeface(title.getTypeface(), Typeface.BOLD);
+            title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
             title.setTextColor(Color.BLACK);
             int titleId = View.generateViewId();
             title.setId(titleId);
+
             RelativeLayout.LayoutParams tlp = new RelativeLayout.LayoutParams(
                     RelativeLayout.LayoutParams.WRAP_CONTENT,
                     RelativeLayout.LayoutParams.WRAP_CONTENT
@@ -233,6 +231,7 @@ public class SettingActivity extends AppCompatActivity {
             tlp.addRule(RelativeLayout.BELOW, R.id.toolbar_setting);
             tlp.setMargins(dp(16), dp(16), dp(16), 0);
             pr.addView(title, tlp);
+
             ViewGroup.LayoutParams lp0 = colorGrid.getLayoutParams();
             if (lp0 instanceof RelativeLayout.LayoutParams) {
                 RelativeLayout.LayoutParams glp = (RelativeLayout.LayoutParams) lp0;
@@ -243,77 +242,20 @@ public class SettingActivity extends AppCompatActivity {
         }
     }
 
-    private void bindFontControlsFromXml() {
-        RadioGroup group = findViewById(R.id.rg_font_choice);
-        rbSystem = findViewById(R.id.rb_font_system);
-        rbNoto   = findViewById(R.id.rb_font_noto);
-        View btnApply = findViewById(R.id.btn_font_apply);
-        if (group == null || rbSystem == null || rbNoto == null || btnApply == null) return;
-        SharedPreferences sp = getSharedPreferences("app_prefs", MODE_PRIVATE);
-        String cur = sp.getString("app_font", "System");
-        if ("NotoSansKR".equals(cur)) rbNoto.setChecked(true); else rbSystem.setChecked(true);
-        btnApply.setOnClickListener(v -> {
-            sp.edit().putString("app_font", "System").apply();  // <- 무조건 시스템 폰트 저장
-            recreate();
-        });
-    }
-    private void insertFontSectionBelowNotifications() {
-        if (boxNotifications == null) return;
-        if (findViewById(R.id.card_font_settings) != null) return;
-        boxFonts = new LinearLayout(this);
-        boxFonts.setOrientation(LinearLayout.VERTICAL);
-        decorateCardLike(boxFonts);
-        TextView title = new TextView(this);
-        title.setText("폰트 설정");
-        title.setTextSize(16f);
-        title.setTypeface(title.getTypeface(), Typeface.BOLD);
-        title.setTextColor(Color.BLACK);
-        title.setPadding(0, 0, 0, dp(8));
-        boxFonts.addView(title);
-        RadioGroup group = new RadioGroup(this);
-        group.setOrientation(RadioGroup.VERTICAL);
-        rbSystem = new RadioButton(this);
-        rbSystem.setText("기본 폰트(시스템)");
-        rbSystem.setBackgroundColor(Color.TRANSPARENT);
-        rbNoto = new RadioButton(this);
-        rbNoto.setText("Noto Sans KR");
-        rbNoto.setBackgroundColor(Color.TRANSPARENT);
-        group.addView(rbSystem);
-        group.addView(rbNoto);
-        boxFonts.addView(group);
-        Button apply = new Button(this);
-        apply.setText("적용");
-        apply.setAllCaps(false);
-        boxFonts.addView(apply);
-        SharedPreferences sp = getSharedPreferences("app_prefs", MODE_PRIVATE);
-        String cur = sp.getString("app_font", "System");
-        if ("NotoSansKR".equals(cur)) rbNoto.setChecked(true); else rbSystem.setChecked(true);
-        apply.setOnClickListener(v -> {
-            String sel = rbNoto.isChecked() ? "NotoSansKR" : "System";
-            sp.edit().putString("app_font", sel).apply();
-            recreate();
-        });
-        RelativeLayout pr = (RelativeLayout) boxNotifications.getParent();
-        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.MATCH_PARENT,
-                RelativeLayout.LayoutParams.WRAP_CONTENT
-        );
-        lp.addRule(RelativeLayout.BELOW, boxNotifications.getId());
-        lp.setMargins(dp(16), dp(12), dp(16), dp(16));
-        pr.addView(boxFonts, lp);
-    }
-
     private void setupAddChildCardFromXml() {
         View addCard = findViewById(R.id.card_add_child_settings);
         View addBtn  = findViewById(R.id.btn_add_child_settings);
         if (addCard == null || addBtn == null) return;
+
         decorateCardLike(addCard);
+
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String role = prefs.getString("role", "");
         if (!"parent".equalsIgnoreCase(role)) {
             addCard.setVisibility(View.GONE);
             return;
         }
+
         addCard.setVisibility(View.VISIBLE);
         addBtn.setOnClickListener(v -> launchAddChildActivityDirect());
     }
@@ -326,12 +268,14 @@ public class SettingActivity extends AppCompatActivity {
                 "com.mobile.greenacademypartner.ui.mypage.AddChildActivity",
                 "com.mobile.greenacademypartner.ui.setting.AddChildActivity"
         };
+
         SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
         String parentId = firstNonEmpty(
                 prefs.getString("parentId", null),
                 prefs.getString("userId", null),
                 prefs.getString("username", null)
         );
+
         for (String fqcn : candidates) {
             try {
                 Class<?> clz = Class.forName(fqcn);
@@ -341,10 +285,11 @@ public class SettingActivity extends AppCompatActivity {
                 return;
             } catch (ClassNotFoundException ignored) {
             } catch (Throwable t) {
-                Log.e("Settings", "자녀 추가 화면 실행 실패: " + fqcn, t);
+                Log.e("Settings", "자녀 추가 실행 실패: " + fqcn, t);
             }
         }
-        Toast.makeText(this, "자녀 추가 화면 클래스를 찾을 수 없습니다.", Toast.LENGTH_LONG).show();
+
+        Toast.makeText(this, "자녀 추가 화면을 찾을 수 없습니다.", Toast.LENGTH_LONG).show();
     }
 
     private void setupColorSelection() {
@@ -358,8 +303,10 @@ public class SettingActivity extends AppCompatActivity {
                 Color.rgb(248, 187, 208),
                 Color.rgb(174, 238, 238)
         };
+
         colorGrid.setColumnCount(4);
         colorGrid.setUseDefaultMargins(true);
+
         for (int color : colorValues) {
             LinearLayout container = new LinearLayout(this);
             container.setOrientation(LinearLayout.VERTICAL);
@@ -369,21 +316,25 @@ public class SettingActivity extends AppCompatActivity {
             glp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
             glp.setMargins(dp(8), dp(8), dp(8), dp(8));
             container.setLayoutParams(glp);
+
             View chip = new View(this);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(72), dp(44));
             chip.setLayoutParams(lp);
             chip.setClickable(true);
             chip.setBackground(makeChipBackground(color));
+
             chip.setOnClickListener(v -> {
                 toolbar.setBackgroundColor(color);
                 getSharedPreferences("settings", MODE_PRIVATE)
                         .edit()
                         .putInt("theme_color", color)
                         .apply();
+
                 ThemeColorUtil.applyThemeColor(SettingActivity.this, toolbar);
                 applyNeutralTints();
                 clearSwitchBackdrop();
             });
+
             container.addView(chip);
             colorGrid.addView(container);
         }
@@ -392,27 +343,30 @@ public class SettingActivity extends AppCompatActivity {
     private void decorateColorGrid() {
         if (colorGrid == null) return;
         colorGrid.setPadding(dp(16), dp(16), dp(16), dp(16));
+
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor("#F6F8FA"));
         bg.setCornerRadius(dp(18));
         bg.setStroke(dp(1), 0x1A000000);
+
         colorGrid.setBackground(bg);
     }
 
     private void decorateNotificationCard() {
-        if (boxNotifications == null) return;
         decorateCardLike(boxNotifications);
     }
 
     private void decorateCardLike(View target) {
         if (target == null) return;
-        if (target instanceof ViewGroup) {
+
+        if (target instanceof ViewGroup)
             ((ViewGroup) target).setPadding(dp(16), dp(16), dp(16), dp(16));
-        }
+
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor("#F6F8FA"));
         bg.setCornerRadius(dp(18));
         bg.setStroke(dp(1), 0x1A000000);
+
         if (Build.VERSION.SDK_INT >= 21) {
             ColorStateList ripple = ColorStateList.valueOf(0x11000000);
             target.setBackground(new RippleDrawable(ripple, bg, null));
@@ -426,10 +380,12 @@ public class SettingActivity extends AppCompatActivity {
         shape.setColor(fillColor);
         shape.setCornerRadius(dp(16));
         shape.setStroke(dp(1), 0x33000000);
+
         if (Build.VERSION.SDK_INT >= 21) {
             ColorStateList ripple = ColorStateList.valueOf(0x22000000);
             return new RippleDrawable(ripple, shape, null);
         }
+
         return shape;
     }
 
@@ -439,16 +395,18 @@ public class SettingActivity extends AppCompatActivity {
 
     private void buildNeutralPalettes() {
         NEUTRAL_THUMB = ColorStateList.valueOf(Color.parseColor("#FAFAFA"));
+
         int[][] states = new int[][]{
                 new int[]{android.R.attr.state_checked},
                 new int[]{-android.R.attr.state_checked},
         };
+
         int[] colors = new int[]{
                 Color.parseColor("#C9CDD2"),
                 Color.parseColor("#DDE1E6")
         };
+
         NEUTRAL_TRACK = new ColorStateList(states, colors);
-        NEUTRAL_RADIO = ColorStateList.valueOf(Color.parseColor("#C9CDD2"));
     }
 
     private void applyNeutralTints() {
@@ -461,25 +419,18 @@ public class SettingActivity extends AppCompatActivity {
                     DrawableCompat.setTintList(track, NEUTRAL_TRACK);
                     swInApp.setTrackDrawable(track);
                 }
+
                 Drawable thumb = swInApp.getThumbDrawable();
                 if (thumb != null) {
                     thumb = DrawableCompat.wrap(thumb.mutate());
                     DrawableCompat.setTintList(thumb, NEUTRAL_THUMB);
                     swInApp.setThumbDrawable(thumb);
                 }
+
                 swInApp.setTrackTintList(NEUTRAL_TRACK);
                 swInApp.setThumbTintList(NEUTRAL_THUMB);
+
             } catch (Throwable ignored) {}
-        }
-        if (rbSystem != null) {
-            CompoundButtonCompat.setButtonTintList(rbSystem, NEUTRAL_RADIO);
-            rbSystem.setTextColor(Color.BLACK);
-            rbSystem.setBackgroundColor(Color.TRANSPARENT);
-        }
-        if (rbNoto != null) {
-            CompoundButtonCompat.setButtonTintList(rbNoto, NEUTRAL_RADIO);
-            rbNoto.setTextColor(Color.BLACK);
-            rbNoto.setBackgroundColor(Color.TRANSPARENT);
         }
     }
 
@@ -495,6 +446,7 @@ public class SettingActivity extends AppCompatActivity {
 
     private void clearSwitchBackdrop() {
         if (swInApp == null) return;
+
         try {
             swInApp.setBackground(null);
             ViewCompat.setBackgroundTintList(swInApp, null);
@@ -504,11 +456,13 @@ public class SettingActivity extends AppCompatActivity {
 
     private void updateServerToken(String role, String token, SharedPreferences login) {
         if (role == null) return;
+
         String jwt = login.getString("token", null);
         if (jwt == null || jwt.trim().isEmpty()) {
             Log.w("Settings", "JWT 없음 → 서버 토큰 업데이트 스킵");
             return;
         }
+
         String authHeader = "Bearer " + jwt.trim();
         String idStudent = login.getString("studentId", null);
         String idParent = login.getString("parentId", null);
@@ -516,52 +470,50 @@ public class SettingActivity extends AppCompatActivity {
                 login.getString("userId", null),
                 login.getString("username", null)
         );
+
         if ("student".equalsIgnoreCase(role)) {
             String id = firstNonEmpty(idStudent, username);
             if (id == null || id.trim().isEmpty()) {
                 Log.w("Settings", "학생 role인데 studentId/username 없음 → 스킵");
                 return;
             }
+
             StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-            api.updateFcmToken(
-                    id,
-                    authHeader,
-                    token == null ? "" : token
-            ).enqueue(new Callback<Void>() {
-                public void onResponse(Call<Void> c, Response<Void> r) {
-                    if (r.isSuccessful()) {
-                        Log.d("Settings", "학생 토큰 업데이트 성공");
-                    } else {
-                        Log.e("Settings", "학생 토큰 업데이트 실패 code=" + r.code());
-                    }
-                }
-                public void onFailure(Call<Void> c, Throwable t) {
-                    Log.e("Settings", "학생 토큰 업데이트 네트워크 실패", t);
-                }
-            });
+            api.updateFcmToken(id, authHeader, token == null ? "" : token)
+                    .enqueue(new Callback<Void>() {
+                        public void onResponse(Call<Void> c, Response<Void> r) {
+                            if (r.isSuccessful()) {
+                                Log.d("Settings", "학생 토큰 업데이트 성공");
+                            } else {
+                                Log.e("Settings", "학생 토큰 실패 code=" + r.code());
+                            }
+                        }
+                        public void onFailure(Call<Void> c, Throwable t) {
+                            Log.e("Settings", "학생 토큰 네트워크 실패", t);
+                        }
+                    });
+
         } else if ("parent".equalsIgnoreCase(role)) {
             String id = firstNonEmpty(idParent, username);
             if (id == null || id.trim().isEmpty()) {
-                Log.w("Settings", "부모 role인데 parentId/username 없음 → 스킵");
+                Log.w("Settings", "부모 role인데 parentId 없음 → 스킵");
                 return;
             }
+
             ParentApi api = RetrofitClient.getClient().create(ParentApi.class);
-            api.updateFcmToken(
-                    id,
-                    authHeader,
-                    token == null ? "" : token
-            ).enqueue(new Callback<Void>() {
-                public void onResponse(Call<Void> c, Response<Void> r) {
-                    if (r.isSuccessful()) {
-                        Log.d("Settings", "부모 토큰 업데이트 성공");
-                    } else {
-                        Log.e("Settings", "부모 토큰 업데이트 실패 code=" + r.code());
-                    }
-                }
-                public void onFailure(Call<Void> c, Throwable t) {
-                    Log.e("Settings", "부모 토큰 업데이트 네트워크 실패", t);
-                }
-            });
+            api.updateFcmToken(id, authHeader, token == null ? "" : token)
+                    .enqueue(new Callback<Void>() {
+                        public void onResponse(Call<Void> c, Response<Void> r) {
+                            if (r.isSuccessful()) {
+                                Log.d("Settings", "부모 토큰 성공");
+                            } else {
+                                Log.e("Settings", "부모 토큰 실패 code=" + r.code());
+                            }
+                        }
+                        public void onFailure(Call<Void> c, Throwable t) {
+                            Log.e("Settings", "부모 토큰 네트워크 실패", t);
+                        }
+                    });
         }
     }
 

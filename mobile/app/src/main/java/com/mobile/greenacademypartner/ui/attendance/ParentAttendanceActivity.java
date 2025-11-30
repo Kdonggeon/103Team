@@ -22,12 +22,14 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.mobile.greenacademypartner.R;
+import com.mobile.greenacademypartner.api.AcademyApi;
 import com.mobile.greenacademypartner.api.ParentApi;
 import com.mobile.greenacademypartner.api.RetrofitClient;
 import com.mobile.greenacademypartner.api.StudentApi;
+import com.mobile.greenacademypartner.model.Academy;
 import com.mobile.greenacademypartner.model.attendance.AttendanceResponse;
-import com.mobile.greenacademypartner.model.classes.Course;
 import com.mobile.greenacademypartner.model.student.Student;
+import com.mobile.greenacademypartner.model.timetable.SlotDto;
 import com.mobile.greenacademypartner.ui.adapter.AttendanceAdapter;
 import com.mobile.greenacademypartner.ui.main.MainActivity;
 import com.mobile.greenacademypartner.ui.mypage.MyPageActivity;
@@ -35,11 +37,15 @@ import com.mobile.greenacademypartner.ui.setting.ThemeColorUtil;
 import com.mobile.greenacademypartner.ui.timetable.QRScannerActivity;
 import com.mobile.greenacademypartner.ui.timetable.StudentTimetableActivity;
 
+import org.json.JSONArray;
+
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -55,20 +61,20 @@ public class ParentAttendanceActivity extends AppCompatActivity {
 
     private AttendanceAdapter adapter;
 
-    private SharedPreferences prefs;
-    private StudentApi studentApi;
     private ParentApi parentApi;
-
-    private final List<Course> todayClasses = new ArrayList<>();
-    private final List<AttendanceResponse> todayAttend = new ArrayList<>();
-
-    private LocalDate selectedDate = LocalDate.now();
+    private StudentApi studentApi;
+    private AcademyApi academyApi;
 
     private List<Student> childList = new ArrayList<>();
     private Student selectedChild;
 
+    private LocalDate selectedDate = LocalDate.now();
+
     private BottomNavigationView bottomNav;
     private ImageButton btnHideNav, btnShowNav;
+
+    // academyNumber → academyName
+    private final Map<Integer, String> academyNameMap = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,11 +100,13 @@ public class ParentAttendanceActivity extends AppCompatActivity {
         tvLate = findViewById(R.id.tv_late_count);
         tvAbsent = findViewById(R.id.tv_absent_count);
 
-        prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
-        studentApi = RetrofitClient.getClient().create(StudentApi.class);
         parentApi = RetrofitClient.getClient().create(ParentApi.class);
+        studentApi = RetrofitClient.getClient().create(StudentApi.class);
+        academyApi = RetrofitClient.getClient().create(AcademyApi.class);
 
         setupBottomNav();
+
+        SharedPreferences prefs = getSharedPreferences("login_prefs", MODE_PRIVATE);
 
         String parentId = prefs.getString("username",
                 prefs.getString("parentId",
@@ -109,7 +117,74 @@ public class ParentAttendanceActivity extends AppCompatActivity {
             return;
         }
 
-        fetchChildren(parentId);
+        loadAcademyNames(parentId);
+    }
+
+    private void loadAcademyNames(String parentId) {
+
+        academyApi.getAcademyList().enqueue(new Callback<List<Academy>>() {
+            @Override
+            public void onResponse(Call<List<Academy>> call, Response<List<Academy>> response) {
+
+                academyNameMap.clear();
+
+                if (response.isSuccessful() && response.body() != null) {
+                    for (Academy a : response.body()) {
+                        academyNameMap.put(a.getAcademyNumber(), a.getAcademyName());
+                    }
+                }
+
+                fetchChildren(parentId);
+            }
+
+            @Override public void onFailure(Call<List<Academy>> call, Throwable t) {
+                fetchChildren(parentId);
+            }
+        });
+    }
+
+    private void fetchChildren(String parentId) {
+
+        parentApi.getChildrenByParentId(parentId).enqueue(new Callback<List<Student>>() {
+            @Override
+            public void onResponse(Call<List<Student>> call, Response<List<Student>> response) {
+
+                if (!response.isSuccessful() || response.body() == null) {
+                    spinnerChildren.setAdapter(new ArrayAdapter<>(
+                            ParentAttendanceActivity.this,
+                            android.R.layout.simple_spinner_item,
+                            new String[]{"자녀 없음"}
+                    ));
+                    return;
+                }
+
+                childList = response.body();
+
+                List<String> names = new ArrayList<>();
+                for (Student s : childList) names.add(s.getStudentName());
+
+                ArrayAdapter<String> spinAdapter = new ArrayAdapter<>(
+                        ParentAttendanceActivity.this,
+                        android.R.layout.simple_spinner_item,
+                        names
+                );
+                spinAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+                spinnerChildren.setAdapter(spinAdapter);
+
+                spinnerChildren.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, android.view.View view, int pos, long id) {
+                        selectedChild = childList.get(pos);
+                        loadSlots();  // ★ Slot 기반 로딩
+                    }
+
+                    @Override public void onNothingSelected(AdapterView<?> parent) {}
+                });
+            }
+
+            @Override public void onFailure(Call<List<Student>> call, Throwable t) {}
+        });
     }
 
     @Override
@@ -120,6 +195,7 @@ public class ParentAttendanceActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+
         if (item.getItemId() == R.id.action_pick_date) {
 
             LocalDate now = selectedDate;
@@ -128,17 +204,152 @@ public class ParentAttendanceActivity extends AppCompatActivity {
                     this,
                     (v, year, month, day) -> {
                         selectedDate = LocalDate.of(year, month + 1, day);
-                        if (selectedChild != null)
-                            loadClasses(selectedChild.getStudentId());
+                        if (selectedChild != null) loadSlots();
                     },
                     now.getYear(),
                     now.getMonthValue() - 1,
                     now.getDayOfMonth()
             );
+
             dlg.show();
             return true;
         }
+
         return super.onOptionsItemSelected(item);
+    }
+
+    /** ★ SlotDto 기반 수업 불러오기 */
+    private void loadSlots() {
+
+        if (selectedChild == null) return;
+
+        studentApi.getTimetable(
+                selectedChild.getStudentId(),
+                getWeekStart(selectedDate),
+                7
+        ).enqueue(new Callback<List<SlotDto>>() {
+            @Override
+            public void onResponse(Call<List<SlotDto>> call, Response<List<SlotDto>> response) {
+
+                if (!response.isSuccessful() || response.body() == null) return;
+
+                List<SlotDto> todaySlots = new ArrayList<>();
+                String target = selectedDate.toString();
+
+                for (SlotDto s : response.body()) {
+                    if (!s.date.equals(target)) continue;
+
+                    if (s.academyNumber != null)
+                        s.academyName = academyNameMap.get(s.academyNumber);
+
+                    todaySlots.add(s);
+                }
+
+                loadAttendance(todaySlots);
+            }
+
+            @Override public void onFailure(Call<List<SlotDto>> call, Throwable t) {}
+        });
+    }
+
+    /** ★ Slot + Attendance 병합 */
+    private void loadAttendance(List<SlotDto> slots) {
+
+        studentApi.getAttendanceForStudent(selectedChild.getStudentId())
+                .enqueue(new Callback<List<AttendanceResponse>>() {
+                    @Override
+                    public void onResponse(Call<List<AttendanceResponse>> call, Response<List<AttendanceResponse>> response) {
+
+                        if (!response.isSuccessful() || response.body() == null) return;
+
+                        List<AttendanceResponse> attend = response.body();
+                        List<AttendanceResponse> finalList = new ArrayList<>();
+
+                        long present = 0, late = 0, absent = 0;
+
+                        LocalDate today = LocalDate.now();
+                        LocalTime now = LocalTime.now();
+
+                        for (SlotDto s : slots) {
+
+                            AttendanceResponse matched = null;
+
+                            for (AttendanceResponse ar : attend) {
+
+                                if (clean(s.className).equals(clean(ar.getClassName()))
+                                        && ar.getDate() != null
+                                        && ar.getDate().startsWith(s.date)) {
+                                    matched = ar;
+                                    break;
+                                }
+                            }
+
+                            AttendanceResponse item;
+
+                            if (matched != null) {
+                                item = matched;
+                                item.setStartTime(s.startTime);
+                                item.setEndTime(s.endTime);
+                            } else {
+
+                                item = new AttendanceResponse();
+                                item.setClassName(s.className);
+                                item.setDate(s.date);
+                                item.setStartTime(s.startTime);
+                                item.setEndTime(s.endTime);
+                                item.setAcademyName(s.academyName);
+
+                                if (s.startTime == null || s.endTime == null) {
+                                    if (selectedDate.isAfter(today)) item.setStatus("예정");
+                                    else if (selectedDate.isBefore(today)) item.setStatus("결석");
+                                    else item.setStatus("결석");
+                                } else {
+
+                                    LocalTime st = LocalTime.parse(s.startTime);
+                                    LocalTime en = LocalTime.parse(s.endTime);
+
+                                    if (selectedDate.isAfter(today)) item.setStatus("예정");
+                                    else if (selectedDate.isBefore(today)) item.setStatus("결석");
+                                    else if (now.isBefore(st)) item.setStatus("예정");
+                                    else if (now.isAfter(en)) item.setStatus("결석");
+                                    else item.setStatus("수업중");
+                                }
+                            }
+
+                            if ("출석".equals(item.getStatus())) present++;
+                            else if ("지각".equals(item.getStatus())) late++;
+                            else if ("결석".equals(item.getStatus())) absent++;
+
+                            finalList.add(item);
+                        }
+
+                        finalList.sort((a, b) -> {
+                            if (a.getStartTime() == null) return 1;
+                            if (b.getStartTime() == null) return -1;
+                            return a.getStartTime().compareTo(b.getStartTime());
+                        });
+
+                        adapter.setAll(finalList);
+
+                        tvPresent.setText("출석 " + present);
+                        tvLate.setText("지각 " + late);
+                        tvAbsent.setText("결석 " + absent);
+                    }
+
+                    @Override public void onFailure(Call<List<AttendanceResponse>> call, Throwable t) {}
+                });
+    }
+
+    /** className 정리 */
+    private String clean(String n) {
+        if (n == null) return "";
+        int pos = n.indexOf("(");
+        return (pos > 0 ? n.substring(0, pos) : n).trim();
+    }
+
+    private String getWeekStart(LocalDate d) {
+        DayOfWeek dow = d.getDayOfWeek();
+        return d.minusDays(dow.getValue() - 1).toString();
     }
 
     private void setupBottomNav() {
@@ -172,183 +383,5 @@ public class ParentAttendanceActivity extends AppCompatActivity {
             btnShowNav.setVisibility(android.view.View.GONE);
             btnHideNav.setVisibility(android.view.View.VISIBLE);
         });
-    }
-
-    private void fetchChildren(String parentId) {
-        parentApi.getChildrenByParentId(parentId).enqueue(new Callback<List<Student>>() {
-            @Override
-            public void onResponse(Call<List<Student>> call, Response<List<Student>> response) {
-
-                if (!response.isSuccessful() || response.body() == null) {
-                    spinnerChildren.setAdapter(new ArrayAdapter<>(ParentAttendanceActivity.this,
-                            android.R.layout.simple_spinner_item,
-                            new String[]{"자녀 없음"}));
-                    return;
-                }
-
-                childList = response.body();
-
-                List<String> names = new ArrayList<>();
-                for (Student s : childList) names.add(s.getStudentName());
-
-                ArrayAdapter<String> spinAdapter = new ArrayAdapter<>(
-                        ParentAttendanceActivity.this,
-                        android.R.layout.simple_spinner_item,
-                        names
-                );
-                spinAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                spinnerChildren.setAdapter(spinAdapter);
-
-                spinnerChildren.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                    @Override
-                    public void onItemSelected(AdapterView<?> parent, android.view.View view, int pos, long id) {
-                        selectedChild = childList.get(pos);
-                        loadClasses(selectedChild.getStudentId());
-                    }
-
-                    @Override
-                    public void onNothingSelected(AdapterView<?> parent) {}
-                });
-            }
-
-            @Override public void onFailure(Call<List<Student>> call, Throwable t) {}
-        });
-    }
-
-    // ----------------------------------------------------
-    // 수업 조회
-    // ----------------------------------------------------
-    private void loadClasses(String studentId) {
-        todayClasses.clear();
-        todayAttend.clear();
-
-        studentApi.getMyClasses(studentId).enqueue(new Callback<List<Course>>() {
-            @Override
-            public void onResponse(Call<List<Course>> call, Response<List<Course>> response) {
-
-                if (!response.isSuccessful() || response.body() == null) {
-                    Toast.makeText(ParentAttendanceActivity.this, "수업 조회 실패", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                int dow = selectedDate.getDayOfWeek().getValue();
-                todayClasses.clear();
-
-                for (Course c : response.body()) {
-                    if (c.getDaysOfWeek() != null && c.getDaysOfWeek().contains(dow))
-                        todayClasses.add(c);
-                }
-
-                loadTodayAttendance(studentId);
-            }
-
-            @Override public void onFailure(Call<List<Course>> call, Throwable t) {}
-        });
-    }
-
-    // ----------------------------------------------------
-    // 출석 조회
-    // ----------------------------------------------------
-    private void loadTodayAttendance(String studentId) {
-
-        studentApi.getAttendanceForStudent(studentId).enqueue(new Callback<List<AttendanceResponse>>() {
-            @Override
-            public void onResponse(Call<List<AttendanceResponse>> call, Response<List<AttendanceResponse>> response) {
-
-                if (!response.isSuccessful() || response.body() == null) return;
-
-                todayAttend.clear();
-                todayAttend.addAll(response.body());
-
-                // 학원 이름 prefs에 저장
-                for (AttendanceResponse ar : todayAttend) {
-                    if (ar.getAcademyName() != null && !ar.getAcademyName().isEmpty()) {
-                        prefs.edit().putString("academyName", ar.getAcademyName()).apply();
-                        break;
-                    }
-                }
-
-                mergeAttendance();
-            }
-
-            @Override public void onFailure(Call<List<AttendanceResponse>> call, Throwable t) {}
-        });
-    }
-
-    // ----------------------------------------------------
-    // 병합
-    // ----------------------------------------------------
-    private void mergeAttendance() {
-
-        List<AttendanceResponse> finalList = new ArrayList<>();
-
-        long present = 0, late = 0, absent = 0;
-
-        String academyName = null;
-
-        for (AttendanceResponse ar : todayAttend) {
-            if (ar.getAcademyName() != null && !ar.getAcademyName().isEmpty()) {
-                academyName = ar.getAcademyName();
-                break;
-            }
-        }
-
-        if (academyName == null)
-            academyName = prefs.getString("academyName", "");
-
-        LocalDate today = LocalDate.now();
-        LocalTime now = LocalTime.now();
-
-        for (Course c : todayClasses) {
-
-            AttendanceResponse matched = null;
-
-            for (AttendanceResponse ar : todayAttend) {
-                if (c.getClassName().equals(ar.getClassName())) {
-                    matched = ar;
-                    break;
-                }
-            }
-
-            AttendanceResponse item;
-
-            if (matched != null) {
-                item = matched;
-            } else {
-                item = new AttendanceResponse();
-                item.setClassName(c.getClassName());
-                item.setStartTime(c.getStartTime());
-                item.setEndTime(c.getEndTime());
-                item.setDate(selectedDate.toString());
-
-                LocalTime start = LocalTime.parse(c.getStartTime());
-                LocalTime end = LocalTime.parse(c.getEndTime());
-
-                if (selectedDate.isAfter(today)) {
-                    item.setStatus("예정");
-                } else if (selectedDate.isBefore(today)) {
-                    item.setStatus("결석");
-                } else {
-                    if (now.isBefore(start)) item.setStatus("예정");
-                    else if (now.isAfter(end)) item.setStatus("결석");
-                    else item.setStatus("진행중");
-                }
-            }
-
-            item.setAcademyName(academyName);
-            finalList.add(item);
-
-            if ("출석".equals(item.getStatus())) present++;
-            else if ("지각".equals(item.getStatus())) late++;
-            else if ("결석".equals(item.getStatus())) absent++;
-        }
-
-        finalList.sort(Comparator.comparing(AttendanceResponse::getStartTime, Comparator.nullsLast(String::compareTo)));
-
-        adapter.setAll(finalList);
-
-        tvPresent.setText("출석 " + present);
-        tvLate.setText("지각 " + late);
-        tvAbsent.setText("결석 " + absent);
     }
 }
