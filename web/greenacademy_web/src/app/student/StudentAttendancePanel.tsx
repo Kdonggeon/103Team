@@ -184,6 +184,8 @@ export default function StudentAttendancePanel() {
         </div>
       </div>
 
+
+
       {/* 캘린더 */}
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
         <div className="flex items-center justify-between mb-3">
