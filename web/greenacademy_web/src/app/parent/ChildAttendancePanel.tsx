@@ -30,7 +30,6 @@ type AttendanceRow = {
 /** ===== 유틸 ===== */
 const API_BASE = "/backend";
 
-
 // 공통 GET
 async function apiGet<T>(path: string, token?: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -89,12 +88,33 @@ function formatDateInputValue(d: Date) {
   return toYmd(d);
 }
 
+/** 상태 정규화 + 색상 */
+type NormalizedStatus = "PRESENT" | "LATE" | "ABSENT" | "NOT_RECORDED" | "UNKNOWN";
+
+function normalizeStatus(s: string): NormalizedStatus {
+  const raw = (s || "").trim();
+  const u = raw.toUpperCase();
+
+  // 미기록
+  if (raw.includes("미기록")) return "NOT_RECORDED";
+  // 결석
+  if (u.includes("ABS") || raw.includes("결석")) return "ABSENT";
+  // 지각
+  if (u.includes("LATE") || raw.includes("지각")) return "LATE";
+  // 출석
+  if (u.includes("PRESENT") || raw.includes("출석") || u.includes("ATTEND")) return "PRESENT";
+
+  return "UNKNOWN";
+}
+
 // 상태 → 배지 스타일
 function statusBadgeClasses(s: string) {
-  const u = (s || "").toUpperCase();
-  if (u.includes("ABS")) return "bg-red-100 text-red-700 ring-red-200";
-  if (u.includes("LATE")) return "bg-amber-100 text-amber-700 ring-amber-200";
-  return "bg-emerald-100 text-emerald-700 ring-emerald-200"; // PRESENT etc.
+  const st = normalizeStatus(s);
+  if (st === "ABSENT") return "bg-red-100 text-red-700 ring-red-200";
+  if (st === "LATE") return "bg-amber-100 text-amber-700 ring-amber-200";
+  if (st === "PRESENT") return "bg-emerald-100 text-emerald-700 ring-emerald-200";
+  if (st === "NOT_RECORDED") return "bg-slate-100 text-slate-700 ring-slate-200";
+  return "bg-gray-100 text-gray-500 ring-gray-200";
 }
 
 /** 로딩 스피너(검정) */
@@ -119,7 +139,7 @@ function MiniDatePicker({
   onConfirm,
 }: {
   open: boolean;
-  anchorRef: React.RefObject<HTMLElement | null>; // ✅ 여기 수정 (null 허용 + HTMLElement 상위)
+  anchorRef: React.RefObject<HTMLElement | null>;
   value: Date;
   onCancel: () => void;
   onConfirm: (picked: Date) => void;
@@ -212,7 +232,7 @@ export default function ChildAttendancePanel() {
 
   // 팝오버 캘린더
   const [pickerOpen, setPickerOpen] = useState(false);
-  const pickerBtnRef = useRef<HTMLButtonElement | null>(null); // ✅ 그대로 사용해도 OK (MiniDatePicker가 넓은 타입 받음)
+  const pickerBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const openPicker = () => setPickerOpen(true);
   const closePicker = () => setPickerOpen(false);
@@ -305,12 +325,13 @@ export default function ChildAttendancePanel() {
 
   // 선택일 요약
   const summary = useMemo(() => {
-    const u = listForSelected.map((r) => (r.status || "").toUpperCase());
+    const norm = listForSelected.map((r) => normalizeStatus(r.status));
     return {
-      present: u.filter((s) => s.includes("PRESENT")).length,
-      late: u.filter((s) => s.includes("LATE")).length,
-      absent: u.filter((s) => s.includes("ABS")).length,
-      total: u.length,
+      present: norm.filter((s) => s === "PRESENT").length,
+      late: norm.filter((s) => s === "LATE").length,
+      absent: norm.filter((s) => s === "ABSENT").length,
+      notRecorded: norm.filter((s) => s === "NOT_RECORDED").length,
+      total: norm.length,
     };
   }, [listForSelected]);
 
@@ -375,7 +396,7 @@ export default function ChildAttendancePanel() {
               <button
                 ref={pickerBtnRef}
                 className="px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-black active:scale-[0.99]"
-                onClick={() => setPickerOpen(true)}
+                onClick={openPicker}
                 type="button"
               >
                 날짜 선택
@@ -414,22 +435,33 @@ export default function ChildAttendancePanel() {
               const inMonth = d.getMonth() === month.getMonth();
               const ymd = toYmd(d);
               const dayRows = byDate.get(ymd) ?? [];
-              const statuses = dayRows.map((r) => (r.status || "").toUpperCase());
-              const has = statuses.length > 0;
+              const normStatuses = dayRows.map((r) => normalizeStatus(r.status));
+
+              const presentCount = normStatuses.filter((s) => s === "PRESENT").length;
+              const lateCount = normStatuses.filter((s) => s === "LATE").length;
+              const absentCount = normStatuses.filter((s) => s === "ABSENT").length;
+              const notRecordedCount = normStatuses.filter((s) => s === "NOT_RECORDED").length;
+
+              const has = normStatuses.length > 0;
               const isSel = isSameDay(d, selectedDate);
 
-              const cellState = statuses.find((s) => s.includes("ABS"))
-                ? "ABSENT"
-                : statuses.find((s) => s.includes("LATE"))
-                ? "LATE"
-                : statuses.find((s) => s.includes("PRESENT"))
-                ? "PRESENT"
-                : null;
+              const cellState =
+                absentCount > 0
+                  ? "ABSENT"
+                  : lateCount > 0
+                  ? "LATE"
+                  : presentCount > 0
+                  ? "PRESENT"
+                  : null;
 
               const ring =
-                cellState === "ABSENT" ? "ring-red-300" :
-                cellState === "LATE" ? "ring-amber-300" :
-                cellState === "PRESENT" ? "ring-emerald-300" : "ring-gray-200";
+                cellState === "ABSENT"
+                  ? "ring-red-300"
+                  : cellState === "LATE"
+                  ? "ring-amber-300"
+                  : cellState === "PRESENT"
+                  ? "ring-emerald-300"
+                  : "ring-gray-200";
 
               return (
                 <button
@@ -438,31 +470,53 @@ export default function ChildAttendancePanel() {
                   onClick={() => setSelectedDate(d)}
                   className={[
                     "h-24 rounded-xl p-2 text-left transition ring-1",
-                    isSel ? "bg-gray-900 text-white ring-gray-900" : inMonth ? "bg-white text-gray-900 ring-gray-200 hover:bg-gray-50" : "bg-gray-50 text-gray-400 ring-gray-200",
+                    isSel
+                      ? "bg-gray-900 text-white ring-gray-900"
+                      : inMonth
+                      ? "bg-white text-gray-900 ring-gray-200 hover:bg-gray-50"
+                      : "bg-gray-50 text-gray-400 ring-gray-200",
                     !isSel && has ? `ring-2 ${ring}` : "",
                   ].join(" ")}
                   title={ymd}
                 >
                   <div className="text-xs font-semibold">{d.getDate()}</div>
 
-                  <div className="mt-1 flex gap-1">
+                  <div className="mt-1 flex gap-1 flex-wrap">
                     <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] ring-1
-                        ${statuses.some((s) => s.includes("PRESENT")) ? "bg-emerald-100 text-emerald-700 ring-emerald-200" : "bg-gray-100 text-gray-400 ring-gray-200"}`}
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] ring-1 whitespace-nowrap ${
+                        presentCount > 0
+                          ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
+                          : "bg-gray-100 text-gray-400 ring-gray-200"
+                      }`}
                     >
-                      출석
+                      출석 {presentCount}
                     </span>
                     <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] ring-1
-                        ${statuses.some((s) => s.includes("LATE")) ? "bg-amber-100 text-amber-700 ring-amber-200" : "bg-gray-100 text-gray-400 ring-gray-200"}`}
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] ring-1 whitespace-nowrap ${
+                        lateCount > 0
+                          ? "bg-amber-100 text-amber-700 ring-amber-200"
+                          : "bg-gray-100 text-gray-400 ring-gray-200"
+                      }`}
                     >
-                      지각
+                      지각 {lateCount}
                     </span>
                     <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] ring-1
-                        ${statuses.some((s) => s.includes("ABS")) ? "bg-red-100 text-red-700 ring-red-200" : "bg-gray-100 text-gray-400 ring-gray-200"}`}
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] ring-1 whitespace-nowrap ${
+                        absentCount > 0
+                          ? "bg-red-100 text-red-700 ring-red-200"
+                          : "bg-gray-100 text-gray-400 ring-gray-200"
+                      }`}
                     >
-                      결석
+                      결석 {absentCount}
+                    </span>
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] ring-1 whitespace-nowrap ${
+                        notRecordedCount > 0
+                          ? "bg-slate-100 text-slate-700 ring-slate-200"
+                          : "bg-gray-100 text-gray-400 ring-gray-200"
+                      }`}
+                    >
+                      미기록 {notRecordedCount}
                     </span>
                   </div>
 
@@ -497,9 +551,18 @@ export default function ChildAttendancePanel() {
               선택한 날짜: {selectedYmd}
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <span className="px-2.5 py-1 rounded-full ring-1 bg-emerald-100 text-emerald-700 ring-emerald-200">출석 {summary.present}</span>
-              <span className="px-2.5 py-1 rounded-full ring-1 bg-amber-100 text-amber-700 ring-amber-200">지각 {summary.late}</span>
-              <span className="px-2.5 py-1 rounded-full ring-1 bg-red-100 text-red-700 ring-red-200">결석 {summary.absent}</span>
+              <span className="px-2.5 py-1 rounded-full ring-1 bg-emerald-100 text-emerald-700 ring-emerald-200">
+                출석 {summary.present}
+              </span>
+              <span className="px-2.5 py-1 rounded-full ring-1 bg-amber-100 text-amber-700 ring-amber-200">
+                지각 {summary.late}
+              </span>
+              <span className="px-2.5 py-1 rounded-full ring-1 bg-red-100 text-red-700 ring-red-200">
+                결석 {summary.absent}
+              </span>
+              <span className="px-2.5 py-1 rounded-full ring-1 bg-slate-100 text-slate-700 ring-slate-200">
+                미기록 {summary.notRecorded}
+              </span>
             </div>
           </div>
 
@@ -512,12 +575,18 @@ export default function ChildAttendancePanel() {
           {!loading && !err && listForSelected.length > 0 && (
             <div className="grid grid-cols-1 gap-2">
               {listForSelected.map((r, i) => (
-                <div key={`${r.classId}-${i}`} className="rounded-xl ring-1 ring-gray-200 p-3 flex items-center justify-between">
+                <div
+                  key={`${r.classId}-${i}`}
+                  className="rounded-xl ring-1 ring-gray-200 p-3 flex items-center justify-between"
+                >
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-gray-900 truncate">{r.className}</div>
-                    <div className="text-xs text-gray-600">수업ID: {r.classId}</div>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ring-1 ${statusBadgeClasses(r.status)}`}>
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ring-1 ${statusBadgeClasses(
+                      r.status,
+                    )}`}
+                  >
                     {(r.status || "").toUpperCase()}
                   </span>
                 </div>
@@ -530,12 +599,12 @@ export default function ChildAttendancePanel() {
       {/* 날짜 선택 팝오버 */}
       <MiniDatePicker
         open={pickerOpen}
-        anchorRef={pickerBtnRef}          
+        anchorRef={pickerBtnRef}
         value={selectedDate}
-        onCancel={() => setPickerOpen(false)}
+        onCancel={closePicker}
         onConfirm={(d) => {
-          setSelectedDate(d);              // 선택 날짜 갱신
-          setMonth(startOfMonth(d));       // 월/연도 헤더 동기화
+          setSelectedDate(d);
+          setMonth(startOfMonth(d));
           setPickerOpen(false);
         }}
       />
