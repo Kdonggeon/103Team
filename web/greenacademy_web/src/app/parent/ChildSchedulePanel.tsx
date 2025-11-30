@@ -16,14 +16,17 @@ type ChildSummary = {
   studentName?: string | null;
   academies?: number[];
 };
-type ClassInfo = {
+
+// 학생 시간표와 동일한 슬롯 타입
+type StudentScheduleSlot = {
   classId: string;
   className: string;
-  teacherId?: string;
-  roomNumber?: string | number;
-  startTime?: string; // "09:00"
-  endTime?: string;   // "10:00"
-  daysOfWeek: number[]; // 0(Sun) ~ 6(Sat)
+  date: string;            // "YYYY-MM-DD"
+  dayOfWeek: 1 | 2 | 3 | 4 | 5 | 6 | 7; // ISO 요일(1=월..7=일) - 여기서는 date 기준으로만 사용
+  roomNumber?: number | null;
+  startTime: string;       // "HH:mm"
+  endTime: string;         // "HH:mm"
+  academyNumber?: number | null;
 };
 
 /** ===== 유틸 ===== */
@@ -43,83 +46,54 @@ async function apiGet<T>(path: string, token?: string): Promise<T> {
   }
   return r.json();
 }
-async function apiGetWithFallback<T>(primary: string, token?: string, fallback?: string) {
-  try { return await apiGet<T>(primary, token); }
-  catch (e) { if (!fallback) throw e; return await apiGet<T>(fallback, token); }
-}
+
 function readLogin(): LoginSession | null {
-  try { const raw = localStorage.getItem("login"); return raw ? JSON.parse(raw) : null; }
-  catch { return null; }
+  try {
+    const raw = localStorage.getItem("login");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 
 // 날짜/시간 헬퍼
 function ymd(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
+    2,
+    "0",
+  )}`;
 }
 function dotYmd(d: Date) {
-  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(
+    2,
+    "0",
+  )}`;
 }
-function addDays(d: Date, n: number) { const o = new Date(d); o.setDate(o.getDate()+n); return o; }
+function addDays(d: Date, n: number) {
+  const o = new Date(d);
+  o.setDate(o.getDate() + n);
+  return o;
+}
 function startOfWeekMonday(d: Date) {
   const day = d.getDay(); // 0=Sun..6=Sat
-  const diff = (day === 0 ? -6 : 1 - day); // 월요일 시작
-  const out = new Date(d); out.setDate(d.getDate()+diff); out.setHours(0,0,0,0); return out;
+  const diff = day === 0 ? -6 : 1 - day; // 월요일 시작
+  const out = new Date(d);
+  out.setDate(d.getDate() + diff);
+  out.setHours(0, 0, 0, 0);
+  return out;
 }
 function minutesFromHHMM(s?: string) {
   if (!s) return 0;
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(s).trim());
   if (!m) return 0;
-  const h = Number(m[1]), mm = Number(m[2]);
-  return h*60 + mm;
+  const h = Number(m[1]),
+    mm = Number(m[2]);
+  return h * 60 + mm;
 }
 function hhmmFromMinutes(m: number) {
-  const h = Math.floor(m/60), mm = m % 60;
-  return `${String(h).padStart(2,"0")}:${String(mm).padStart(2,"0")}`;
-}
-
-// 요일 정규화 (1~7도 허용, 7=일=0)
-function dayToNum(v: any): number | null {
-  const s = String(v ?? "").trim().toUpperCase();
-  const n = Number(s);
-  if (Number.isFinite(n)) {
-    if (n >= 0 && n <= 6) return n;           // 0~6 직접
-    if (n >= 1 && n <= 7) return n === 7 ? 0 : n; // 1~7 → 7은 0(일요일)
-  }
-  if (["SUN","일"].some(k=>s.includes(k))) return 0;
-  if (["MON","월"].some(k=>s.includes(k))) return 1;
-  if (["TUE","화"].some(k=>s.includes(k))) return 2;
-  if (["WED","수"].some(k=>s.includes(k))) return 3;
-  if (["THU","목"].some(k=>s.includes(k))) return 4;
-  if (["FRI","금"].some(k=>s.includes(k))) return 5;
-  if (["SAT","토"].some(k=>s.includes(k))) return 6;
-  return null;
-}
-function normalizeDays(any: any): number[] {
-  // 7칸 불리언/0/1 배열도 인식
-  if (
-    Array.isArray(any) &&
-    any.length === 7 &&
-    any.every(v => v === true || v === false || v === 0 || v === 1 || v === "0" || v === "1")
-  ) {
-    return any.map((v,i)=>(v===true||v===1||v==="1")?i:null).filter((n): n is number => n!==null);
-  }
-  const arr = Array.isArray(any) ? any : [any];
-  return arr.map(dayToNum).filter((n): n is number => typeof n === "number");
-}
-function normalizeClass(raw: any): ClassInfo | null {
-  const classId   = raw?.Class_ID ?? raw?.classId ?? raw?.ClassId ?? raw?.id ?? raw?.Class_No ?? raw?.class_no;
-  const className = raw?.Class_Name ?? raw?.className ?? raw?.name ?? raw?.Title ?? raw?.title;
-  if (!classId || !className) return null;
-  const days = normalizeDays(raw?.Days_Of_Week ?? raw?.daysOfWeek ?? raw?.days ?? raw?.Days ?? []);
-  return {
-    classId: String(classId),
-    className: String(className),
-    teacherId: raw?.Teacher_ID ?? raw?.teacherId ?? raw?.teacher ?? undefined,
-    roomNumber: raw?.roomNumber ?? raw?.Room ?? undefined,
-    startTime: raw?.Start_Time ?? raw?.startTime ?? undefined,
-    endTime: raw?.End_Time ?? raw?.endTime ?? undefined,
-    daysOfWeek: days,
-  };
+  const h = Math.floor(m / 60),
+    mm = m % 60;
+  return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
 // 색상(해시 고정)
@@ -134,7 +108,8 @@ const COLORS = [
   "bg-fuchsia-200/70 text-fuchsia-950 ring-fuchsia-300",
 ];
 function colorFor(id: string) {
-  let hash = 0; for (let i=0;i<id.length;i++) hash = (hash*31 + id.charCodeAt(i)) >>> 0;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   return COLORS[hash % COLORS.length];
 }
 
@@ -168,7 +143,9 @@ function MiniDatePicker({
   const [pos, setPos] = React.useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [val, setVal] = React.useState<string>(() => ymd(value));
 
-  React.useEffect(() => { setVal(ymd(value)); }, [value]);
+  React.useEffect(() => {
+    setVal(ymd(value));
+  }, [value]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -224,7 +201,7 @@ function MiniDatePicker({
   );
 }
 
-/** ===== 메인: 자녀 시간표(주간, 월~일, 07~22 고정) ===== */
+/** ===== 메인: 자녀 시간표(슬롯 기반 /timetable, 월~일, 07~22) ===== */
 export default function StudentTimetablePanel() {
   const login = readLogin();
   const token = login?.token ?? "";
@@ -238,8 +215,8 @@ export default function StudentTimetablePanel() {
   // 선택 자녀
   const [selectedChild, setSelectedChild] = useState<string | null>(login?.childStudentId ?? null);
 
-  // 수업(시간표)
-  const [classes, setClasses] = useState<ClassInfo[]>([]);
+  // 시간표 슬롯 (/timetable 결과)
+  const [slots, setSlots] = useState<StudentScheduleSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -250,12 +227,13 @@ export default function StudentTimetablePanel() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  // 자녀 목록
+  // ----- 자녀 목록 로딩 -----
   useEffect(() => {
     if (!parentId) return;
     let aborted = false;
     (async () => {
-      setKidsLoading(true); setKidsErr(null);
+      setKidsLoading(true);
+      setKidsErr(null);
       try {
         const list = await apiGet<ChildSummary[]>(`/api/parents/${encodeURIComponent(parentId)}/children`, token);
         if (aborted) return;
@@ -267,48 +245,62 @@ export default function StudentTimetablePanel() {
         if (!aborted) setKidsLoading(false);
       }
     })();
-    return () => { aborted = true; };
+    return () => {
+      aborted = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parentId]);
 
-  // 선택 자녀 시간표
+  // ----- 주간 기준(월요일) 및 문자열 -----
+  const weekStartDate = useMemo(() => startOfWeekMonday(viewDate), [viewDate]);
+  const weekStartStr = useMemo(() => ymd(weekStartDate), [weekStartDate]);
+  const weekDates = useMemo(() => {
+    const out: Date[] = [];
+    for (let i = 0; i < 7; i++) out.push(addDays(weekStartDate, i));
+    return out;
+  }, [weekStartDate]);
+  const weekRangeText = `${dotYmd(weekDates[0])} ~ ${dotYmd(weekDates[6])}`;
+
+  // ----- 선택 자녀 + 주간 기준에 맞춰 /timetable 호출 -----
   useEffect(() => {
-    if (!selectedChild) { setClasses([]); setErr(null); return; }
+    if (!selectedChild) {
+      setSlots([]);
+      setErr(null);
+      return;
+    }
     let aborted = false;
     (async () => {
-      setLoading(true); setErr(null);
+      setLoading(true);
+      setErr(null);
       try {
-        const raw = await apiGetWithFallback<any[]>(
-          `/api/students/${encodeURIComponent(selectedChild)}/classes`,
+        // 학생 시간표와 동일한 엔드포인트 사용
+        const raw = await apiGet<StudentScheduleSlot[]>(
+          `/api/students/${encodeURIComponent(
+            selectedChild,
+          )}/timetable?weekStart=${weekStartStr}&days=7`,
           token,
-          `/api/classes?studentId=${encodeURIComponent(selectedChild)}`
         );
         if (aborted) return;
-        const list = (Array.isArray(raw) ? raw : [])
-          .map(normalizeClass)
-          .filter((x): x is ClassInfo => !!x);
-        setClasses(list);
+        setSlots(Array.isArray(raw) ? raw : []);
       } catch (e: any) {
-        if (!aborted) { setErr(e?.message ?? "시간표를 불러오지 못했습니다."); setClasses([]); }
+        if (!aborted) {
+          setErr(e?.message ?? "시간표를 불러오지 못했습니다.");
+          setSlots([]);
+        }
       } finally {
         if (!aborted) setLoading(false);
       }
     })();
-    return () => { aborted = true; };
-  }, [selectedChild, token]);
+    return () => {
+      aborted = true;
+    };
+  }, [selectedChild, token, weekStartStr]);
 
   /** ===== 화면 구성 데이터 ===== */
-  // 고정: 월~일 (Monday-first)
-  const dayOrder = [1,2,3,4,5,6,0] as const; // Mon..Sun
-
-  // 주간 날짜들 (월~일)
-  const weekStart = useMemo(() => startOfWeekMonday(viewDate), [viewDate]);
-  const weekDates = useMemo(() => dayOrder.map((_,i)=> addDays(weekStart, i)), [weekStart]);
-  const weekRangeText = `${dotYmd(weekDates[0])} ~ ${dotYmd(weekDates[6])}`;
 
   // 시간 축: 07:00 ~ 22:00 고정
   const MIN_START = 7 * 60;
-  const MAX_END   = 22 * 60;
+  const MAX_END = 22 * 60;
   const hours = useMemo(() => {
     const out: number[] = [];
     for (let t = MIN_START; t <= MAX_END; t += 60) out.push(t);
@@ -317,27 +309,38 @@ export default function StudentTimetablePanel() {
   const PX_PER_MIN = 1;
   const GRID_HEIGHT = (MAX_END - MIN_START) * PX_PER_MIN;
 
-  // 요일별 수업 매핑 + 높이/위치 계산
-  const byDay = useMemo(() => {
-    const map = new Map<number, Array<ClassInfo & { top: number; height: number }>>();
-    dayOrder.forEach(d => map.set(d, []));
-    for (const c of classes) {
-      const st = minutesFromHHMM(c.startTime);
-      const et = minutesFromHHMM(c.endTime);
+  type SlotWithLayout = StudentScheduleSlot & { top: number; height: number };
+
+  // 날짜별 슬롯 매핑 (해당 주 범위에 포함되는 것만)
+  const byDate = useMemo(() => {
+    const m = new Map<string, SlotWithLayout[]>();
+    const weekEndDate = addDays(weekStartDate, 6);
+
+    for (const s of slots) {
+      if (!s.date) continue;
+      const d = new Date(`${s.date}T00:00:00`);
+      if (d < weekStartDate || d > weekEndDate) continue;
+
+      const st = minutesFromHHMM(s.startTime);
+      const et = minutesFromHHMM(s.endTime);
       const clampedStart = Math.max(st, MIN_START);
       const clampedEnd = Math.min(et || MIN_START + 60, MAX_END);
       const top = (clampedStart - MIN_START) * PX_PER_MIN;
       const height = Math.max(24, (clampedEnd - clampedStart) * PX_PER_MIN);
-      c.daysOfWeek.forEach(d => {
-        if (!map.has(d)) map.set(d, []);
-        map.get(d)!.push({ ...c, top, height });
-      });
+
+      const key = s.date;
+      if (!m.has(key)) m.set(key, []);
+      m.get(key)!.push({ ...s, top, height });
     }
-    for (const d of map.keys()) {
-      map.set(d, map.get(d)!.sort((a,b)=> minutesFromHHMM(a.startTime) - minutesFromHHMM(b.startTime)));
+
+    // 각 날짜별 슬롯을 시작시간 기준 정렬
+    for (const [key, list] of m) {
+      list.sort((a, b) => minutesFromHHMM(a.startTime) - minutesFromHHMM(b.startTime));
+      m.set(key, list);
     }
-    return map;
-  }, [classes]);
+
+    return m;
+  }, [slots, weekStartDate]);
 
   /** ===== 렌더 ===== */
   return (
@@ -393,19 +396,21 @@ export default function StudentTimetablePanel() {
             onCancel={() => setPickerOpen(false)}
             onConfirm={(picked) => {
               setPickerOpen(false);
-              setViewDate(picked); // 해당 날짜 주간으로 자동 반영
+              setViewDate(picked); // 해당 날짜가 포함된 주로 자동 반영
             }}
           />
         </div>
       </div>
 
-      {/* 자녀 선택 */}
+      {/* 자녀 선택 (기존 스피너/드롭다운 유지) */}
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs text-gray-700">대상 자녀</label>
             {kidsLoading ? (
-              <div className="mt-1"><Spinner label="자녀 목록 불러오는 중" /></div>
+              <div className="mt-1">
+                <Spinner label="자녀 목록 불러오는 중" />
+              </div>
             ) : (
               <select
                 className="mt-1 w-56 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black"
@@ -425,7 +430,7 @@ export default function StudentTimetablePanel() {
         </div>
       </div>
 
-      {/* 시간표 그리드 (월~일 / 07~22) */}
+      {/* 시간표 그리드 (월~일 / 07~22) - 슬롯 기반 */}
       <div className="rounded-2xl bg-white ring-1 ring-black/5 shadow-sm">
         {/* 헤더 행: 시간축 빈칸 + 요일/날짜 (월~일) */}
         <div
@@ -435,7 +440,9 @@ export default function StudentTimetablePanel() {
           <div className="h-12" />
           {weekDates.map((date, i) => (
             <div key={`head-${i}`} className="h-12 flex flex-col items-center justify-center">
-              <div className="text-sm font-semibold text-gray-900">{["월","화","수","목","금","토","일"][i]}</div>
+              <div className="text-sm font-semibold text-gray-900">
+                {["월", "화", "수", "목", "금", "토", "일"][i]}
+              </div>
               <div className="text-[11px] text-gray-600 -mt-0.5">{ymd(date)}</div>
             </div>
           ))}
@@ -449,7 +456,7 @@ export default function StudentTimetablePanel() {
           {/* 왼쪽 시간 축 */}
           <div className="relative" style={{ height: GRID_HEIGHT }}>
             {hours.map((t, i) => {
-              const top = (t - MIN_START) * 1;
+              const top = (t - MIN_START) * PX_PER_MIN;
               return (
                 <div key={`time-${i}`} className="absolute left-0 right-0" style={{ top }}>
                   <div className="text-[11px] text-gray-700 -translate-y-2">{hhmmFromMinutes(t)}</div>
@@ -458,42 +465,55 @@ export default function StudentTimetablePanel() {
             })}
           </div>
 
-          {/* 각 요일 칼럼 */}
-          {[1,2,3,4,5,6,0].map((d) => (
-            <div key={`col-${d}`} className="relative border-l border-gray-200" style={{ height: GRID_HEIGHT }}>
-              {/* 시간 가이드 라인 */}
-              {hours.map((t, i) => {
-                const top = (t - MIN_START) * 1;
-                return (
-                  <div key={`line-${d}-${i}`} className="absolute left-0 right-0 border-t border-gray-100" style={{ top }} />
-                );
-              })}
+          {/* 각 요일 칼럼: weekDates 기준으로 날짜별로 매핑 */}
+          {weekDates.map((date, idx) => {
+            const dateKey = ymd(date);
+            const list = byDate.get(dateKey) ?? [];
+            return (
+              <div
+                key={`col-${dateKey}`}
+                className="relative border-l border-gray-200"
+                style={{ height: GRID_HEIGHT }}
+              >
+                {/* 시간 가이드 라인 */}
+                {hours.map((t, i) => {
+                  const top = (t - MIN_START) * PX_PER_MIN;
+                  return (
+                    <div
+                      key={`line-${dateKey}-${i}`}
+                      className="absolute left-0 right-0 border-t border-gray-100"
+                      style={{ top }}
+                    />
+                  );
+                })}
 
-              {/* 수업 블록 */}
-              {byDay.get(d)?.map((c) => (
-                <div
-                  key={`${c.classId}-${c.startTime}-${c.endTime}`}
-                  className={`absolute left-1 right-1 rounded-lg ring-1 p-2 text-xs font-medium shadow-sm ${colorFor(c.classId)}`}
-                  style={{ top: c.top, height: c.height, minHeight: 24 }}
-                  title={`${c.className} | ${c.startTime ?? "??:??"} ~ ${c.endTime ?? "??:??"}`}
-                >
-                  <div className="truncate">{c.className}</div>
-                  <div className="text-[11px] opacity-80">
-                    {c.startTime ?? "??:??"}~{c.endTime ?? "??:??"}
-                    {typeof c.roomNumber !== "undefined" ? ` · ${c.roomNumber}실` : ""}
-                    {c.teacherId ? ` · ${c.teacherId}` : ""}
+                {/* 수업 블록 (슬롯) */}
+                {list.map((c) => (
+                  <div
+                    key={`${c.classId}-${c.date}-${c.startTime}-${c.endTime}`}
+                    className={`absolute left-1 right-1 rounded-lg ring-1 p-2 text-xs font-medium shadow-sm ${colorFor(
+                      c.classId,
+                    )}`}
+                    style={{ top: c.top, height: c.height, minHeight: 24 }}
+                    title={`${c.className} | ${c.startTime ?? "??:??"} ~ ${c.endTime ?? "??:??"}`}
+                  >
+                    <div className="truncate">{c.className}</div>
+                    <div className="text-[11px] opacity-80">
+                      {c.startTime ?? "??:??"}~{c.endTime ?? "??:??"}
+                      {typeof c.roomNumber === "number" ? ` · ${c.roomNumber}실` : ""}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ))}
+                ))}
+              </div>
+            );
+          })}
         </div>
 
         {/* 로딩/오류/빈 상태 */}
         <div className="p-3">
           {loading && <Spinner label="시간표 불러오는 중" />}
           {err && <div className="text-sm text-red-600">오류: {err}</div>}
-          {!loading && !err && classes.length === 0 && (
+          {!loading && !err && slots.length === 0 && (
             <div className="text-sm text-gray-700">표시할 수업이 없습니다.</div>
           )}
         </div>
