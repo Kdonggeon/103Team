@@ -3,8 +3,19 @@
 
 import React from "react";
 import { getSession } from "@/app/lib/session";
+import { useRouter } from "next/navigation";
 
-/** 타입 */
+/** ==== 타입 (프로필 페이지 Session과 동일하게 맞춤) ==== */
+type Role = "student" | "parent" | "teacher" | "director";
+type Session = {
+  role: Role;
+  username: string;
+  name?: string;
+  phone?: string;
+  token?: string;
+  academyNumbers?: number[];
+};
+
 type DirectorMe = {
   username: string;
   name: string;
@@ -92,6 +103,55 @@ async function postCreateAcademyForDirector(
   return JSON.parse(text) as Academy;
 }
 
+/** ✅ 프로필 페이지와 동일한 하드 새로고침 방식 */
+function hardReload() {
+  if (typeof window === "undefined") return;
+  if (window.parent && window.parent !== window) {
+    // iframe 안에서 열린 경우 → 부모 페이지 리로드
+    window.parent.location.reload();
+  } else {
+    // 일반 케이스
+    window.location.reload();
+  }
+}
+
+/**
+ * ✅ /api/directors/me 기준으로 최신 원장 정보를 읽어서
+ *    localStorage("login")을 프로필 페이지 onSave 패턴과 동일하게 갱신
+ */
+async function syncLoginFromDirectorMe() {
+  if (typeof window === "undefined") return;
+
+  // 1) 서버 기준 내 정보 재조회
+  const mine = await apiGet<DirectorMe>("/api/directors/me");
+
+  // 2) 기존 login 세션 읽기
+  const raw = localStorage.getItem("login");
+  if (!raw) return;
+
+  let cur: Session;
+  try {
+    cur = JSON.parse(raw) as Session;
+  } catch {
+    return;
+  }
+
+  // 3) 프로필 onSave와 동일한 패턴으로 next 세션 구성
+  const next: Session = {
+    ...cur,
+    name: mine.name,
+    phone: mine.phone,
+    ...(cur.role === "director"
+      ? {
+          academyNumbers: Array.isArray(mine.academyNumbers) ? mine.academyNumbers : [],
+        }
+      : {}),
+  };
+
+  // 4) localStorage("login") 갱신
+  localStorage.setItem("login", JSON.stringify(next));
+}
+
 /** ---- 공용: 프로필 수정 iframe 모달 ---- */
 function ProfileEditModal({
   open,
@@ -145,6 +205,8 @@ function ProfileEditModal({
 }
 
 export default function DirectorMyInfoCard() {
+  const router = useRouter();
+
   const [me, setMe] = React.useState<DirectorMe | null>(null);
   const [academies, setAcademies] = React.useState<Academy[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -222,10 +284,15 @@ export default function DirectorMyInfoCard() {
       if (form.name != null) payload.name = form.name.trim();
       if (form.address != null) payload.address = form.address.trim();
       if (form.phone != null) payload.phone = form.phone.trim();
+
+      // 1) 백엔드에 학원 정보 수정
       await patchAcademy(academyNumber, payload);
-      await reload();
-      setEditing(null);
-      setForm({});
+
+      // 2) 서버 기준 내 정보로 login 세션 동기화 (프로필 onSave 패턴과 동일)
+      await syncLoginFromDirectorMe();
+
+      // 3) 프로필 페이지와 동일하게 전체 페이지 리로드
+      hardReload();
     } catch (e: any) {
       setErr(e?.message || "저장에 실패했습니다.");
     } finally {
@@ -240,32 +307,19 @@ export default function DirectorMyInfoCard() {
       if (!addName.trim()) return setAddErr("학원 이름을 입력하세요.");
 
       setAdding(true);
-      const created = await postCreateAcademyForDirector(me.username, {
+
+      // 1) 새 학원 생성 (서비스에서 Director.academyNumbers 도 함께 갱신)
+      await postCreateAcademyForDirector(me.username, {
         name: addName.trim(),
         phone: addPhone.trim() || undefined,
         address: addAddress.trim() || undefined,
       });
 
-      setAcademies((prev) => [
-        {
-          academyNumber: created.academyNumber,
-          name: created.name,
-          address: created.address,
-          phone: created.phone,
-        },
-        ...prev,
-      ]);
+      // 2) 서버 기준 내 정보로 login 세션 동기화
+      await syncLoginFromDirectorMe();
 
-      setMe((prev) =>
-        prev
-          ? { ...prev, academyNumbers: [...new Set([created.academyNumber, ...(prev.academyNumbers || [])])] }
-          : prev
-      );
-
-      setAddName("");
-      setAddPhone("");
-      setAddAddress("");
-      setAddOpen(false);
+      // 3) 전체 페이지 리로드
+      hardReload();
     } catch (e: any) {
       setAddErr(e?.message ?? "생성 실패");
     } finally {
@@ -279,15 +333,15 @@ export default function DirectorMyInfoCard() {
     try {
       setErr(null);
       setDeleting(academyNumber);
+
+      // 1) 백엔드에서 학원 삭제
       await deleteAcademy(academyNumber);
 
-      setAcademies((prev) => prev.filter((a) => a.academyNumber !== academyNumber));
+      // 2) 서버 기준 내 정보로 login 세션 동기화
+      await syncLoginFromDirectorMe();
 
-      setMe((prev) =>
-        prev
-          ? { ...prev, academyNumbers: (prev.academyNumbers || []).filter((n) => n !== academyNumber) }
-          : prev
-      );
+      // 3) 전체 페이지 리로드
+      hardReload();
     } catch (e: any) {
       setErr(e?.message || "삭제에 실패했습니다.");
     } finally {
@@ -426,11 +480,15 @@ export default function DirectorMyInfoCard() {
                   <div className="flex items-center justify-between">
                     <div className="text-base font-semibold text-black">
                       {isEdit ? (
-                        <input
-                          className="w-[14rem] rounded-lg border px-3 py-1 outline-none"
-                          value={form.name ?? ""}
-                          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                        />
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-gray-500">학원 이름</span>
+                          <input
+                            className="w-[14rem] rounded-lg border px-3 py-1 outline-none"
+                            value={form.name ?? ""}
+                            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                            placeholder="학원 이름"
+                          />
+                        </div>
                       ) : (
                         a.name || "—"
                       )}
@@ -519,6 +577,7 @@ export default function DirectorMyInfoCard() {
         onSaved={() => {
           setOpenEdit(false);
           setRefreshTick((t) => t + 1);
+          hardReload();
         }}
         src="/settings/profile"
       />
