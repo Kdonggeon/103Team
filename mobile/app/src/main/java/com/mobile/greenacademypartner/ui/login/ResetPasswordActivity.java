@@ -92,7 +92,6 @@ public class ResetPasswordActivity extends AppCompatActivity {
         int id = radioRole.getCheckedRadioButtonId();
         if (id == R.id.radio_student) return "student";
         if (id == R.id.radio_parent) return "parent";
-        if (id == R.id.radio_teacher) return "teacher";
         return null;
     }
 }

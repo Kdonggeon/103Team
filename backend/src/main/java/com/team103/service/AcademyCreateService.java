@@ -21,17 +21,18 @@ public class AcademyCreateService {
         this.directorRepo = directorRepo;
     }
 
-    /** 4자리 랜덤 번호 생성(1000~9999), 유니크 보장: 유니크 인덱스 + 중복 재시도 */
+    /** ✅ 6자리 랜덤 번호 생성(100000~999999), 유니크 보장: 유니크 인덱스 + 중복 재시도 */
     private int generateUniqueAcademyNumber() {
         final int maxTries = 50;
         for (int i = 0; i < maxTries; i++) {
-            int n = ThreadLocalRandom.current().nextInt(1000, 10000);
+            // 100000 이상 1000000 미만 → 6자리
+            int n = ThreadLocalRandom.current().nextInt(100000, 1000000);
             if (academyRepo.findByAcademyNumber(n) == null) {
                 return n;
             }
         }
         // 매우 드문 경우: 저장 시점 레이스를 대비해, 최종적으로 인덱스 예외 캐치로도 2차 방어
-        return ThreadLocalRandom.current().nextInt(1000, 10000);
+        return ThreadLocalRandom.current().nextInt(100000, 1000000);
     }
 
     public Academy createForDirectorUsername(String directorUsername, String name, String phone, String address) {
@@ -56,11 +57,10 @@ public class AcademyCreateService {
             try {
                 Academy a = new Academy();
                 a.setAcademyNumber(number);        // @Field("academyNumber")
-                a.setName(name);                    // @Field("Academy_Name")
-                a.setPhone(phone);                  // @Field("Academy_Phone_Number")
-                a.setAddress(address);              // @Field("Academy_Address")
-                // 원장 번호가 모델에 있으면 세팅(있지 않으면 생략해도 무방)
-                // a.setDirectorNumber( ... 필요 시 director의 번호 )
+                a.setName(name);                   // @Field("Academy_Name")
+                a.setPhone(phone);                 // @Field("Academy_Phone_Number")
+                a.setAddress(address);             // @Field("Academy_Address")
+                // a.setDirectorNumber( ... 필요 시 director의 번호 );
 
                 saved = academyRepo.save(a);
                 break;

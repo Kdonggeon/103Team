@@ -294,26 +294,37 @@ public class MyPageActivity extends AppCompatActivity {
     }
 
     private void loadStudentDetailAsync(String studentId) {
-        try {
-            StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
-            Call<Student> call = api.getStudentById(studentId);
-            call.enqueue(new Callback<Student>() {
-                @Override
-                public void onResponse(Call<Student> call, Response<Student> resp) {
-                    if (!resp.isSuccessful() || resp.body() == null) return;
-                    Student s = resp.body();
-                    if (s.getStudentId() != null) studentCache.put(s.getStudentId(), s);
-                    if (currentSelectionType == ProfileItem.Type.STUDENT &&
-                            currentStudentId != null &&
-                            currentStudentId.equals(s.getStudentId())) {
-                        updateCardTitle(safe(s.getStudentName()));
-                        bindStudentToForm(s);
-                    }
+
+        StudentApi api = RetrofitClient.getClient().create(StudentApi.class);
+
+        // 🔥 학생 계정과 완전히 동일하게 studentId 로 조회
+        Call<Student> call = api.getStudentById(studentId);
+
+        call.enqueue(new Callback<Student>() {
+            @Override
+            public void onResponse(Call<Student> call, Response<Student> resp) {
+                if (!resp.isSuccessful() || resp.body() == null) return;
+
+                Student s = resp.body();
+                studentCache.put(studentId, s);
+
+                if (currentSelectionType == ProfileItem.Type.STUDENT &&
+                        currentStudentId != null &&
+                        currentStudentId.equals(studentId)) {
+
+                    updateCardTitle(s.getStudentName());
+                    bindStudentToForm(s);
                 }
-                @Override public void onFailure(Call<Student> call, Throwable t) {}
-            });
-        } catch (Exception e) { e.printStackTrace(); }
+            }
+
+            @Override
+            public void onFailure(Call<Student> call, Throwable t) {
+            }
+        });
     }
+
+
+
 
     private String safe(String v) { return v == null ? "" : v; }
 
@@ -489,17 +500,21 @@ public class MyPageActivity extends AppCompatActivity {
 
     private void bindStudentToForm(Student s) {
         if (s == null) return;
+
         editName.setText(safe(s.getStudentName()));
         editId.setText(safe(s.getStudentId()));
         editPhone.setText(safe(s.getStudentPhoneNumber()));
+
+        // 🔥 웹 회원가입 학생의 address, school, grade, gender 정상 반영
         editAddress.setText(safe(s.getStudentAddress()));
         editSchool.setText(safe(s.getSchool()));
-        try {
-            int g = s.getGrade();
-            editGrade.setText(g == 0 ? "" : String.valueOf(g));
-        } catch (Exception e) { editGrade.setText(""); }
+
+        int g = s.getGrade();
+        editGrade.setText(g == 0 ? "" : String.valueOf(g));
+
         editGender.setText(safe(s.getGender()));
     }
+
 
     private void setFormEnabled(boolean enabled) {
         EditText[] arr = { editName, editId, editPhone, editAddress, editSchool, editGrade, editGender };

@@ -8,6 +8,7 @@ import com.mobile.greenacademypartner.model.login.LoginResponse;
 import com.mobile.greenacademypartner.model.student.StudentSignupRequest;
 import com.mobile.greenacademypartner.model.student.Student;
 import com.mobile.greenacademypartner.model.student.StudentUpdateRequest;
+import com.mobile.greenacademypartner.model.timetable.SlotDto;
 
 import java.util.List;
 
@@ -95,4 +96,12 @@ public interface StudentApi {
     Call<List<AttendanceResponse>> getMonthlyAttendance(
             @Path("studentId") String studentId
     );
+    // ✅ 웹과 동일한 "슬롯 기반 시간표" API
+    @GET("/api/students/{studentId}/timetable")
+    Call<List<SlotDto>> getTimetable(
+            @Path("studentId") String studentId,
+            @Query("weekStart") String weekStart,   // YYYY-MM-DD
+            @Query("days") int days                 // 조회 일수 (7일 = 1주)
+    );
+
 }

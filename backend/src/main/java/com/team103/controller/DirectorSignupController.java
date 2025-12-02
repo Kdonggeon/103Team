@@ -1,7 +1,9 @@
 package com.team103.controller;
 
 import com.team103.dto.DirectorSignupRequest;
+import com.team103.model.Academy;
 import com.team103.model.Director;
+import com.team103.repository.AcademyRepository;
 import com.team103.repository.DirectorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import java.util.Map;
 public class DirectorSignupController {
 
     @Autowired private DirectorRepository directorRepo;
+    @Autowired private AcademyRepository academyRepo;
     @Autowired private PasswordEncoder passwordEncoder;
 
     @PostMapping(consumes = "application/json", produces = "application/json")
@@ -44,7 +47,16 @@ public class DirectorSignupController {
         int academyNumber = generateAcademyNumber();
         List<Integer> academies = List.of(academyNumber);
 
-        // 5) 엔티티 생성 및 저장
+        // 5) 학원(Academy) 엔티티 생성 및 저장
+        //    요구사항: 학원번호만 세팅, 나머지 필드는 비워둔다.
+        Academy academy = new Academy();
+        academy.setAcademyNumber(academyNumber);
+        // academy.setName(null);
+        // academy.setPhone(null);
+        // academy.setAddress(null);
+        academyRepo.save(academy);
+
+        // 6) 원장 엔티티 생성 및 저장
         Director director = new Director();
         director.setUsername(req.getUsername());
         director.setPassword(encPw);
@@ -54,10 +66,10 @@ public class DirectorSignupController {
 
         directorRepo.save(director);
 
-        // 6) 성공 응답 (발급된 학원번호 같이 리턴)
+        // 7) 성공 응답 (발급된 학원번호 같이 리턴)
         return ResponseEntity.ok(Map.of(
             "status", "success",
-            "message", "원장 회원가입 성공",
+            "message", "원장 회원가입 및 학원 자동 생성 성공",
             "username", director.getUsername(),
             "academyNumber", academyNumber,
             "academyNumbers", academies
@@ -68,12 +80,14 @@ public class DirectorSignupController {
         return s == null || s.isBlank();
     }
 
-    /** 다른 원장이 쓰고 있지 않은 6자리 학원 번호 생성 */
+    /** 다른 원장/학원에서 쓰고 있지 않은 6자리 학원 번호 생성 */
     private int generateAcademyNumber() {
         int n;
         do {
             n = 100000 + (int) (Math.random() * 900000); // 100000 ~ 999999
-        } while (directorRepo.existsByAcademyNumbersContains(n));
+            // director.academyNumbers / academy.academyNumber 둘 다 안 겹치도록 체크
+        } while (directorRepo.existsByAcademyNumbersContains(n)
+                || academyRepo.findByAcademyNumber(n) != null);
         return n;
     }
 }

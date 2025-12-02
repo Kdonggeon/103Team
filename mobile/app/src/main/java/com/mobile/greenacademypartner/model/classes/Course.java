@@ -2,17 +2,16 @@ package com.mobile.greenacademypartner.model.classes;
 
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
+import java.util.Map;
 
 public class Course {
 
     @SerializedName(value = "classId", alternate = {"Class_ID", "id"})
     private String classId;
 
-    // 🔥 서버가 내려주는 실제 필드명: name
     @SerializedName(value = "name", alternate = {"Name"})
     private String name;
 
-    // 이전 구조(className)도 남겨둠
     @SerializedName(value = "className", alternate = {"Class_Name"})
     private String className;
 
@@ -22,6 +21,7 @@ public class Course {
     @SerializedName(value = "students", alternate = {"Students"})
     private List<String> students;
 
+    // 요일 반복 수업 → 이제 안 쓸 예정이지만 남겨둠
     @SerializedName(value = "daysOfWeek", alternate = {"Days_Of_Week"})
     private List<Integer> daysOfWeek;
 
@@ -37,37 +37,42 @@ public class Course {
     @SerializedName("todayStatus")
     private String todayStatus;
 
-    // 🔥 수업 진행 상태 (예정 / 진행중 / 종료)
-    private String status;
+    // 학원 정보
+    @SerializedName(value = "academyNumber", alternate = {"Academy_Number"})
+    private Integer academyNumber;
 
-    // 🔥 학원 이름 추가 (백엔드에서 내려오는 academyName 사용)
     @SerializedName(value = "academyName", alternate = {"Academy_Name"})
     private String academyName;
 
-    //────────────────────────────────────
-    // GETTER / SETTER
-    //────────────────────────────────────
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    //──────────────────────────────────────────────
+    // 🔥🔥 추가된 부분: 단발성 날짜 + 날짜별 시간 변경 🔥🔥
+    //──────────────────────────────────────────────
 
-    public String getTodayStatus() { return todayStatus; }
-    public void setTodayStatus(String todayStatus) { this.todayStatus = todayStatus; }
+    @SerializedName(value = "extraDates", alternate = {"Extra_Dates"})
+    private List<String> extraDates;
+
+    @SerializedName(value = "dateTimeOverrides", alternate = {"Date_Time_Overrides"})
+    private Map<String, DailyTime> dateTimeOverrides;
+
+
+    //──────────────────────────────────────────────
+    // Getter / Setter
+    //──────────────────────────────────────────────
 
     public String getClassId() { return classId; }
     public void setClassId(String classId) { this.classId = classId; }
 
-    // 🔥 최우선 사용: name
     public String getName() {
-        if (name != null && !name.trim().isEmpty()) return name;
-        return className; // fallback
+        if (name != null && !name.isEmpty()) return name;
+        return className;
     }
 
     public void setName(String name) { this.name = name; }
 
     public String getClassName() {
-        if (className != null && !className.trim().isEmpty()) return className;
-        return name; // fallback
+        if (className != null && !className.isEmpty()) return className;
+        return name;
     }
 
     public void setClassName(String className) { this.className = className; }
@@ -90,12 +95,62 @@ public class Course {
     public String getSchedule() { return schedule; }
     public void setSchedule(String schedule) { this.schedule = schedule; }
 
-    // 🔥 학원 이름 getter/setter
-    public String getAcademyName() {
-        return academyName != null ? academyName : "";
+    public String getTodayStatus() { return todayStatus; }
+    public void setTodayStatus(String todayStatus) { this.todayStatus = todayStatus; }
+
+    public Integer getAcademyNumber() { return academyNumber; }
+    public void setAcademyNumber(Integer academyNumber) { this.academyNumber = academyNumber; }
+
+    public String getAcademyName() { return academyName; }
+    public void setAcademyName(String academyName) { this.academyName = academyName; }
+
+
+    //──────────────────────────────────────────────
+    // 🔥 단발성 날짜 getter/setter
+    //──────────────────────────────────────────────
+
+    public List<String> getExtraDates() { return extraDates; }
+    public void setExtraDates(List<String> extraDates) { this.extraDates = extraDates; }
+
+
+    //──────────────────────────────────────────────
+    // 🔥 날짜별 시간 오버라이드
+    //──────────────────────────────────────────────
+
+    public Map<String, DailyTime> getDateTimeOverrides() { return dateTimeOverrides; }
+    public void setDateTimeOverrides(Map<String, DailyTime> dateTimeOverrides) { this.dateTimeOverrides = dateTimeOverrides; }
+
+    public DailyTime getTimeFor(String dateYmd) {
+        if (dateTimeOverrides != null && dateTimeOverrides.containsKey(dateYmd)) {
+            return dateTimeOverrides.get(dateYmd);
+        }
+        return new DailyTime(startTime, endTime);
     }
 
-    public void setAcademyName(String academyName) {
-        this.academyName = academyName;
+
+    //──────────────────────────────────────────────
+    // 내장 클래스 (DailyTime)
+    //──────────────────────────────────────────────
+
+    public static class DailyTime {
+
+        @SerializedName("start")
+        private String start;
+
+        @SerializedName("end")
+        private String end;
+
+        public DailyTime() {}
+
+        public DailyTime(String start, String end) {
+            this.start = start;
+            this.end = end;
+        }
+
+        public String getStart() { return start; }
+        public void setStart(String start) { this.start = start; }
+
+        public String getEnd() { return end; }
+        public void setEnd(String end) { this.end = end; }
     }
 }
