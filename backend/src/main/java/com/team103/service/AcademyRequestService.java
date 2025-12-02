@@ -71,9 +71,10 @@ public class AcademyRequestService {
 
         String role = req.getRequesterRole() == null ? "" : req.getRequesterRole().toLowerCase();
         String rid = req.getRequesterId();
+        String targetStudentId = req.getTargetStudentId();
 
         if ("student".equals(role)) {
-            Student s = studentRepo.findByStudentId(rid);
+            Student s = studentRepo.findByStudentId(targetStudentId != null && !targetStudentId.isBlank() ? targetStudentId : rid);
             if (s == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "student not found");
             s.setAcademyNumbers(appendUnique(s.getAcademyNumbers(), academyNumber));
             studentRepo.save(s);
@@ -82,6 +83,34 @@ public class AcademyRequestService {
             if (p == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "parent not found");
             p.setAcademyNumbers(appendUnique(p.getAcademyNumbers(), academyNumber));
             parentRepo.save(p);
+            // ▽ parent 요청: 대상 자녀 ID가 있으면 해당 학생, 없으면 memo나 자녀 목록에서 추론
+            List<String> targetIds = new ArrayList<>();
+            if (targetStudentId != null && !targetStudentId.isBlank()) {
+                targetIds.add(targetStudentId);
+            } else {
+                // memo에서 학생 ID 추론 (공백 단위 단어 중 영숫자/밑줄/하이픈 포함)
+                if (req.getMemo() != null) {
+                    String[] parts = req.getMemo().split("\\s+");
+                    for (String part : parts) {
+                        if (part.matches("[A-Za-z0-9_-]+")) {
+                            targetIds.add(part);
+                            break;
+                        }
+                    }
+                }
+                // 그래도 없으면 부모의 자녀 리스트 전체를 대상으로 처리
+                if (targetIds.isEmpty() && p.getStudentIds() != null) {
+                    targetIds.addAll(p.getStudentIds());
+                }
+            }
+            for (String sid : targetIds) {
+                if (sid == null || sid.isBlank()) continue;
+                Student child = studentRepo.findByStudentId(sid);
+                if (child != null) {
+                    child.setAcademyNumbers(appendUnique(child.getAcademyNumbers(), academyNumber));
+                    studentRepo.save(child);
+                }
+            }
         } else if ("teacher".equals(role)) {
             Teacher t = teacherRepo.findByTeacherId(rid);
             if (t == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "teacher not found");

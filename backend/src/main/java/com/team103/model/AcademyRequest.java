@@ -17,6 +17,7 @@ public class AcademyRequest {
     private Integer academyNumber;
     private String requesterId;     // studentId / parentId / teacherId
     private String requesterRole;   // student | parent | teacher
+    private String targetStudentId; // parent가 자녀 학원 연결 시 대상 학생 ID
 
     private String memo;            // 요청 사유(선택)
 
@@ -46,6 +47,9 @@ public class AcademyRequest {
 
     public String getRequesterRole() { return requesterRole; }
     public void setRequesterRole(String requesterRole) { this.requesterRole = requesterRole; }
+
+    public String getTargetStudentId() { return targetStudentId; }
+    public void setTargetStudentId(String targetStudentId) { this.targetStudentId = targetStudentId; }
 
     public String getMemo() { return memo; }
     public void setMemo(String memo) { this.memo = memo; }

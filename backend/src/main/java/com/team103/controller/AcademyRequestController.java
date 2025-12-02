@@ -35,6 +35,7 @@ public class AcademyRequestController {
         public Integer academyNumber;
         public String requesterId;
         public String requesterRole;
+        public String studentId; // parent가 자녀를 지정할 때 사용
         @Size(max = 200, message = "memo는 200자 이하로 입력하세요.")
         public String memo;
     }
@@ -72,6 +73,7 @@ public class AcademyRequestController {
         req.setAcademyNumber(body.academyNumber);
         req.setRequesterId(auth.getName());
         req.setRequesterRole(requesterRole);
+        req.setTargetStudentId(body.studentId);
         req.setMemo(body.memo);
         return ResponseEntity.ok(service.create(req));
     }

@@ -246,6 +246,7 @@ export default function ParentChildrenDetailCard() {
           academyNumber: num,
           requesterId: parentId,
           requesterRole: "parent",
+          studentId: selectedChild,
           memo: `자녀 ${selectedChild} 학원 연결 요청`,
         }),
         token
