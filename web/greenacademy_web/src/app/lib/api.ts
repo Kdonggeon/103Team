@@ -158,7 +158,9 @@ export { ApiError };
  * 내부 유틸
  * ========================================================================== */
 
-const BASE_URL = "/backend";
+const PRIMARY_BASE =
+  (process.env.NEXT_PUBLIC_API_BASE || "").trim() || "/backend";
+const LOCAL_BASE = "http://localhost:9090";
 
 function friendlyHttpMessage(status: number, body?: any): string {
   const serverMsg: string | undefined =
@@ -231,10 +233,9 @@ function getTokenFromLocalStorage(): string | null {
   }
 }
 
-function resolveUrl(path: string): string {
-  const isAbsolute = /^https?:\/\//i.test(path);
-  if (isAbsolute) return path;
-  return `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+function buildUrl(base: string, path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 
@@ -279,18 +280,34 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   const token = getAuthToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const url = resolveUrl(path);
-  console.log("[API] fetch", url, init?.method ?? "GET");
-  const res = await fetch(url, { credentials: "include", ...init, headers });
-  const text = await res.text();
-  console.log("[API] response", res.status, res.statusText, url);
+  const bases = Array.from(
+    new Set(
+      [PRIMARY_BASE, LOCAL_BASE].filter((b) => b && typeof b === "string")
+    )
+  );
 
-  if (!res.ok) {
-    let body: any = undefined;
-    try { body = text ? JSON.parse(text) : undefined; } catch {}
-    throw new ApiError(res.status, friendlyHttpMessage(res.status, body), body);
+  let lastErr: unknown;
+  for (const base of bases) {
+    const url = buildUrl(base, path);
+    try {
+      console.log("[API] fetch", url, init?.method ?? "GET");
+      const res = await fetch(url, { credentials: "include", ...init, headers });
+      const text = await res.text();
+      console.log("[API] response", res.status, res.statusText, url);
+
+      if (!res.ok) {
+        let body: any = undefined;
+        try { body = text ? JSON.parse(text) : undefined; } catch {}
+        throw new ApiError(res.status, friendlyHttpMessage(res.status, body), body);
+      }
+      return text ? (JSON.parse(text) as T) : ({} as T);
+    } catch (e) {
+      lastErr = e;
+      // 다음 base로 넘어가고, 마지막까지 실패하면 throw
+    }
   }
-  return text ? (JSON.parse(text) as T) : ({} as T);
+  if (lastErr instanceof Error) throw lastErr;
+  throw new Error("요청에 실패했습니다.");
 }
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);

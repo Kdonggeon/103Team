@@ -26,7 +26,8 @@ export interface LoginResponse {
 }
 
 const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE;
-const API_BASE = RAW_BASE ?? "/backend";
+const PRIMARY_BASE = (RAW_BASE || "").trim() || "/backend";
+const LOCAL_BASE = "http://localhost:9090";
 
 // ---------- ??/?? ?? ----------
 type SavedSession = {
@@ -95,7 +96,7 @@ function isFormData(body: unknown): body is FormData {
 }
 
 // ✅ NoticePanel / next.config.mjs와 맞춘 URL 조립 함수
-function resolveUrl(path: string): string {
+function resolveUrl(path: string, base: string): string {
   // 절대 URL이면 그대로 사용
   if (/^https?:\/\//i.test(path)) return path;
 
@@ -104,15 +105,9 @@ function resolveUrl(path: string): string {
     return path;
   }
 
-  // API_BASE가 지정된 경우 (env 또는 기본값)
-  if (API_BASE) {
-    const base = API_BASE.replace(/\/+$/, ""); // 끝 슬래시 제거
-    const p = path.startsWith("/") ? path : `/${path}`;
-    return `${base}${p}`;
-  }
-
-  // 이 지점까지 올 일은 거의 없음 (fallback)
-  return path;
+  const b = base.replace(/\/+$/, "");
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${b}${p}`;
 }
 
 /**
@@ -142,61 +137,57 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     headers.set("Content-Type", "application/json");
   }
 
-  // 2) URL 조립
-  const url = resolveUrl(path);
+  const bases = Array.from(new Set([PRIMARY_BASE, LOCAL_BASE]));
 
-  // 3) 최종 init
-  const finalInit: RequestInit = {
-    ...init,
-    headers,
-    credentials: init.credentials ?? "include",
-    cache: init.cache ?? "no-store",
-  };
+  let lastErr: unknown;
+  for (const base of bases) {
+    const url = resolveUrl(path, base);
 
-  // 4) 요청
-  let res: Response;
-  try {
-    res = await fetch(url, finalInit);
-  } catch (e: any) {
-    // 네트워크 오류
-    const msg = typeof e?.message === "string" ? e.message : "네트워크 오류가 발생했습니다.";
-    throw new Error(`NETWORK_ERROR: ${msg}`);
-  }
+    // 3) 최종 init
+    const finalInit: RequestInit = {
+      ...init,
+      headers,
+      credentials: init.credentials ?? "include",
+      cache: init.cache ?? "no-store",
+    };
 
-  // 5) 응답 처리
-  const status = res.status;
-
-  // 204/205 or 빈 본문
-  if (status === 204 || status === 205) {
-    return {} as T;
-  }
-
-  const rawText = await res.text();
-
-  if (!res.ok) {
-    if (status === 401 || status === 403) {
-      // 라우팅단에서 이 메시지를 감지해 로그인 페이지로 보낼 수 있도록 AUTH_* 형태로 throw
-      throw new Error(`AUTH_${status}: ${rawText || "인증이 필요합니다. 다시 로그인 해주세요."}`);
-    }
-    // 서버 메시지 보존
-    throw new Error(`${status} ${res.statusText}${rawText ? " | " + rawText : ""}`);
-  }
-
-  if (!rawText) return {} as T;
-
-  // Content-Type 확인 후 JSON 파싱 시도 (방어적)
-  const ct = res.headers.get("Content-Type") || "";
-  if (ct.toLowerCase().includes("application/json")) {
     try {
-      return JSON.parse(rawText) as T;
-    } catch {
-      // JSON 표시인데 파싱 실패 시에도 안전하게 텍스트 반환
-      return (rawText as unknown) as T;
+      const res = await fetch(url, finalInit);
+      const status = res.status;
+
+      // 204/205 or 빈 본문
+      if (status === 204 || status === 205) {
+        return {} as T;
+      }
+
+      const rawText = await res.text();
+
+      if (!res.ok) {
+        if (status === 401 || status === 403) {
+          throw new Error(`AUTH_${status}: ${rawText || "인증이 필요합니다. 다시 로그인 해주세요."}`);
+        }
+        throw new Error(`${status} ${res.statusText}${rawText ? " | " + rawText : ""}`);
+      }
+
+      if (!rawText) return {} as T;
+
+      const ct = res.headers.get("Content-Type") || "";
+      if (ct.toLowerCase().includes("application/json")) {
+        try {
+          return JSON.parse(rawText) as T;
+        } catch {
+          return (rawText as unknown) as T;
+        }
+      }
+      return rawText as unknown as T;
+    } catch (e) {
+      lastErr = e;
+      // 다음 base로 fallback
     }
   }
 
-  // JSON 이외 컨텐츠는 원문 텍스트 반환(필요 시 호출부에서 처리)
-  return rawText as unknown as T;
+  if (lastErr instanceof Error) throw lastErr;
+  throw new Error("요청에 실패했습니다.");
 }
 
 function normalizePhone(phone: string) {
