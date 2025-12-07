@@ -293,12 +293,24 @@ export default function DirectorPeoplePanel() {
   /* ---- 검색 필터링 & 페이징 계산 ---- */
   const matchesAcademy = (item: any) => {
     if (academy == null) return true;
+
     const nums =
       item?.academyNumbers ??
       item?.academyNumber ??
       (Array.isArray(item?.academy) ? item.academy : item?.academy ?? null);
-    if (Array.isArray(nums)) return nums.some((n) => Number(n) === Number(academy));
-    if (nums == null) return true;
+
+    // 학원번호 정보가 없는 경우
+    //  - 선생 탭: 어느 학원에도 속하지 않은 선생 → 표시하지 않음
+    //  - 학생 탭: 기존 동작 유지 (API에서 이미 academyNumber로 필터된 상태일 가능성이 높음)
+    if (nums == null) {
+      if (tab === "teachers") return false;
+      return true;
+    }
+
+    if (Array.isArray(nums)) {
+      return nums.some((n) => Number(n) === Number(academy));
+    }
+
     return Number(nums) === Number(academy);
   };
 
@@ -343,7 +355,7 @@ export default function DirectorPeoplePanel() {
 
     return { pageItems, totalPages, totalCount };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, students, teachers, query, page, selectedStudent, selectedTeacher]);
+  }, [tab, students, teachers, query, page, selectedStudent, selectedTeacher, academy]);
 
   useEffect(() => {
     const totalPagesAfter = totalPages;
@@ -383,9 +395,6 @@ export default function DirectorPeoplePanel() {
             ))}
           </div>
         )}
-
-
-        
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-6">
@@ -434,7 +443,7 @@ export default function DirectorPeoplePanel() {
                   {pageItems.map((p: any) => (
                     <div
                       key={p.studentId ?? p.teacherId}
-                      className="px-3 py-2 border-b last:border-none border-black/10 bg-white text-sm flex items-center justify-between gap-2"
+                      className="px-3 py-2 border-b last:border-none border-black/10 bg-white text-sm flex items-center justify_between gap-2"
                     >
                       <div className="min-w-0">
                         <div className="font-medium text-black truncate">
