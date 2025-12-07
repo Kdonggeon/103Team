@@ -263,14 +263,25 @@ public class StudentAttendanceActivity extends AppCompatActivity {
 
                     // className + 날짜로 출석 기록 찾기
                     for (AttendanceResponse ar : attendList) {
-                        if (cleanClassName(ar.getClassName())
-                                .equals(cleanClassName(s.className))
-                                && ar.getDate() != null
-                                && ar.getDate().startsWith(s.date)) {
-                            matched = ar;
-                            break;
+
+                        String arDate = ar.getDate();
+                        if (arDate != null && arDate.length() >= 10) {
+                            arDate = arDate.substring(0, 10);
+                        }
+
+                        boolean sameDate = arDate != null && arDate.equals(s.date);
+                        boolean sameClass = cleanClassName(ar.getClassName())
+                                .equals(cleanClassName(s.className));
+
+                        if (sameDate && sameClass) {
+
+                            // ✅ 미기록보다 출석/지각이 우선
+                            if (matched == null || "미기록".equals(matched.getStatus())) {
+                                matched = ar;
+                            }
                         }
                     }
+
 
                     AttendanceResponse item;
 

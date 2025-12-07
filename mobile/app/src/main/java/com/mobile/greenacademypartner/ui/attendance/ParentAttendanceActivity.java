@@ -276,11 +276,19 @@ public class ParentAttendanceActivity extends AppCompatActivity {
 
                             for (AttendanceResponse ar : attend) {
 
-                                if (clean(s.className).equals(clean(ar.getClassName()))
-                                        && ar.getDate() != null
-                                        && ar.getDate().startsWith(s.date)) {
-                                    matched = ar;
-                                    break;
+                                String arDate = ar.getDate();
+                                if (arDate != null && arDate.length() >= 10) {
+                                    arDate = arDate.substring(0, 10);
+                                }
+
+                                boolean sameDate = arDate != null && arDate.equals(s.date);
+                                boolean sameClass = clean(s.className).equals(clean(ar.getClassName()));
+
+                                if (sameDate && sameClass) {
+                                    // ✅ 미기록보다 출석/지각이 우선
+                                    if (matched == null || "미기록".equals(matched.getStatus())) {
+                                        matched = ar;
+                                    }
                                 }
                             }
 
