@@ -16,6 +16,14 @@ const isVectorRoom = (r: DirectorRoomStatus | null) =>
   !!r &&
   (r.layoutType === "vector" || (r.seats ?? []).some((s) => s?.x != null || s?.w != null || s?.h != null));
 
+// 🔹 좌석 레이아웃(벡터 or grid)이 있는 방만 true
+const hasSeatLayout = (r: DirectorRoomStatus | null) => {
+  if (!r) return false;
+  if (isVectorRoom(r)) return true;
+  const seats = (r as any).seats;
+  return Array.isArray(seats) && seats.length > 0;
+};
+
 type Selection =
   | { type: "waiting" }
   | { type: "room"; roomNumber: number };
@@ -78,6 +86,12 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
   const [loadingBoard, setLoadingBoard] = React.useState(false);
   const [modalOpen, setModalOpen] = React.useState(false);
 
+  // 🔹 좌석 레이아웃 있는 방만 별도로 메모
+  const roomsWithSeatLayout = React.useMemo(
+    () => (data?.rooms ?? []).filter((r) => hasSeatLayout(r)),
+    [data]
+  );
+
   // 개요 로드
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -85,11 +99,27 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
     try {
       const res = await fetchDirectorOverview(academy, ymd);
       const filtered = filterOverviewByAcademy(res, academy);
+
       setData(filtered);
+
+      // 🔹 좌석 있는 방만 기준으로 기본 선택 방 결정
+      const filteredRoomsWithSeat = (filtered.rooms ?? []).filter((r) => hasSeatLayout(r));
+
       setSel((prev) => {
-        if (prev) return prev;
+        // 이전 선택 유지 가능하면 유지
+        if (prev?.type === "waiting") return prev;
+        if (prev?.type === "room") {
+          const stillExists = filteredRoomsWithSeat.some(
+            (r) => r.roomNumber === prev.roomNumber
+          );
+          if (stillExists) return prev;
+        }
+
+        // 대기실 있으면 우선 대기실
         if ((filtered.waiting?.length ?? 0) > 0) return { type: "waiting" };
-        const first = filtered.rooms[0]?.roomNumber;
+
+        // 아니면 좌석 있는 첫 번째 방
+        const first = filteredRoomsWithSeat[0]?.roomNumber;
         return first ? { type: "room", roomNumber: first } : null;
       });
     } catch (e: any) {
@@ -153,7 +183,7 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
     };
   }, [data, sel, ymd]);
 
-  // 합계
+  // 합계 (이건 여전히 전체 rooms 기준)
   const totals = React.useMemo(
     () =>
       (data?.rooms ?? []).reduce(
@@ -172,7 +202,7 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
 
   const selectedRoom =
     sel?.type === "room"
-      ? data?.rooms.find((r) => r.roomNumber === sel.roomNumber) ?? null
+      ? roomsWithSeatLayout.find((r) => r.roomNumber === sel.roomNumber) ?? null
       : null;
 
   // board 없을 때 room seats로 fallback
@@ -274,11 +304,11 @@ export default function DirectorOverviewPanel({ user }: { user: NonNullable<Logi
             </button>
           </li>
 
-          {/* 강의실 목록 */}
-          {!data || data.rooms.length === 0 ? (
+          {/* 강의실 목록 (좌석 있는 방만) */}
+          {!data || roomsWithSeatLayout.length === 0 ? (
             <div className="text-sm text-gray-600">표시할 강의실이 없습니다.</div>
           ) : (
-            data.rooms.map((r) => {
+            roomsWithSeatLayout.map((r) => {
               const isSel = sel?.type === "room" && sel.roomNumber === r.roomNumber;
               return (
                 <li key={r.roomNumber}>
