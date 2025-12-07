@@ -500,7 +500,7 @@ export default function DirectorMyInfoCard() {
                     <div>
                       <dt className="text-xs text-gray-500">주소</dt>
                       <dd className="text-sm text-black">
-                        {isEdit ? (
+                        {isEdit ? (s 
                           <input
                             className="w-full rounded-lg border px-3 py-1 outline-none"
                             value={form.address ?? ""}
